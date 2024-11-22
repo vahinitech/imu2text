@@ -12,10 +12,6 @@ This project implements a handwriting character recognition pipeline using Convo
 
 We use the [OnHW Dataset](https://www.iis.fraunhofer.de/de/ff/lv/dataanalytics/anwproj/schreibtrainer/onhw-dataset.html), collected from IMU-enhanced pens, for training and evaluation. The dataset provides accelerometer, gyroscope, and magnetometer readings along with ground truth labels.
 
-### Citation
-
-> Felix Ott*, Mohamad Wehbi*, Tim Hamann, Jens Barth, Björn Eskofier, and Christopher Mutschler. The OnHW Dataset: Online Handwriting Recognition from IMU-Enhanced Ballpoint Pens with Machine Learning. In Proc. of the ACM Interact. Mob. Wearable Ubiquitous Technol. (IMWUT), vol. 4, no. 3, article 92, pages 1-20, Cancun, Mexico, September 2020, doi: 10.1145/3411842.
-
 ## **How to Use**
 
 1. **Install Dependencies:**
@@ -29,7 +25,6 @@ We use the [OnHW Dataset](https://www.iis.fraunhofer.de/de/ff/lv/dataanalytics/a
    ```bash
    python cnn_gnn.py
    ```
-
 
 ## **License**
 
