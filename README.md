@@ -14,7 +14,6 @@ We use the [OnHW Dataset](https://www.iis.fraunhofer.de/de/ff/lv/dataanalytics/a
 
 ### Citation
 
-If you use the OnHW dataset, please cite:
 > Felix Ott*, Mohamad Wehbi*, Tim Hamann, Jens Barth, Björn Eskofier, and Christopher Mutschler. The OnHW Dataset: Online Handwriting Recognition from IMU-Enhanced Ballpoint Pens with Machine Learning. In Proc. of the ACM Interact. Mob. Wearable Ubiquitous Technol. (IMWUT), vol. 4, no. 3, article 92, pages 1-20, Cancun, Mexico, September 2020, doi: 10.1145/3411842.
 
 ## **How to Use**
@@ -25,17 +24,12 @@ If you use the OnHW dataset, please cite:
    pip install -r requirements.txt
    ```
 
-2. **Run Training:**
+2. **Run Training and evaulation:**
 
    ```bash
-   python src/mtl_training.py
+   python cnn_gnn.py
    ```
 
-3. **Evaluate Model:**
-
-   ```bash
-   python src/evaluation.py
-   ```
 
 ## **License**
 
