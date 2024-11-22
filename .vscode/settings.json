@@ -1,0 +1,11 @@
+{
+    "python.pythonPath": "${workspaceFolder}/venv/bin/python",  // Path to the Python interpreter in your virtual environment
+    "python.analysis.extraPaths": ["${workspaceFolder}"],       // Add the project directory to PYTHONPATH
+    "python.linting.enabled": true,                             // Enable linting
+    "python.linting.pylintEnabled": true,                       // Enable pylint
+    "python.formatting.provider": "black",                      // Use Black for formatting (optional)
+    "python.testing.pytestEnabled": true,                       // Enable pytest for testing
+    "python.testing.unittestEnabled": false,                    // Disable unittest if not used
+    "python.testing.pytestArgs": ["tests"]                      // Specify test directory for pytest
+  }
+  
