@@ -122,14 +122,14 @@ To reduce errors, the following strategies are recommended:
 ```mermaid
 %%{init: {'theme': 'forest'}}%%
 flowchart TD
-    A[IMU Data (Inertial MTS)] -->|Extract Temporal/Spatial Features| B[<b>CNN Trunk</b>]
-    C[Relational Data (GNN Features)] -->|Model Relationships| D[<b>GNN Trunk</b>]
+    A[IMU Data - Inertial MTS] -->|Extract Temporal/Spatial Features| B[<b>CNN Trunk</b>]
+    C[Relational Data - GNN Features] -->|Model Relationships| D[<b>GNN Trunk</b>]
     B --> E[<b>Feature Concatenation</b>]
     D --> E
     E -->|Class Features| F[<b>Classification Head</b>]
     E -->|Regression Features| G[<b>Regression Head</b>]
-    F -->|Predicted Character| H[Final Output: Predicted Character]
-    G -->|Predicted Trajectory| I[Final Output: Reconstructed Trajectory]
+    F -->|Predicted Character| H[Final Output - Predicted Character]
+    G -->|Predicted Trajectory| I[Final Output - Reconstructed Trajectory]
 ```
 
 ---
