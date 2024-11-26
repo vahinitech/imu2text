@@ -198,8 +198,11 @@ This project builds upon the methodology presented in:
 
 ## License
 
-This project is licensed under the InkShare IMU2Text License, which allows academic, personal, and non-commercial use. Commercial use requires prior authorization from InkShare.
+## **License**
 
-For details, see the [LICENSE](LICENSE) file.
+This project is licensed under the **InkShare IMU2Text License**, granted by **Vahi Software Solutions**. The license allows academic, personal, and non-commercial use. Commercial use requires prior authorization.
 
-For inquiries about commercial use or licensing, please contact: vkosuri@inkshare.com.
+For details, see the [`LICENSE`](./LICENSE) file.
+
+For inquiries about commercial use or licensing, please contact: [vkosuri@inkshare.in](mailto:vkosuri@inkshare.in).
+

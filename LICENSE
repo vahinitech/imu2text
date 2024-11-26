@@ -1,6 +1,6 @@
 INKSHARE IMU2TEXT LICENSE
 
-Copyright (c) 2024 InkShare Technologies. All rights reserved.
+Copyright (c) [2024] Vahi Software Solutions. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to use,
@@ -11,7 +11,7 @@ non-commercial purposes, subject to the following conditions:
    copies or substantial portions of the Software.
 
 2. Use of the Software for commercial purposes is prohibited without prior written
-   authorization from InkShare Technologies. This includes, but is not limited to,
+   authorization from Vahi Software Solutions Private Limited. This includes, but is not limited to,
    incorporation of the Software in commercial products or services, or usage in
    a production environment generating revenue.
 
@@ -22,7 +22,7 @@ non-commercial purposes, subject to the following conditions:
 
 4. Academic publications and research work using this Software must include
    appropriate citation of the InkShare IMU2Text project and its GitHub repository:
-   https://github.com/inkshare/imu2text
+   <https://github.com/inkshare/imu2text>
 
 5. The Software is provided "as is", without warranty of any kind, express or
    implied, including but not limited to the warranties of merchantability,
@@ -33,4 +33,4 @@ non-commercial purposes, subject to the following conditions:
    Software.
 
 For inquiries about commercial use or licensing, please contact:
-vkosuri@inkshare.com
+<vkosuri@inkshare.in>
