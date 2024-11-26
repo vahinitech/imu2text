@@ -98,10 +98,10 @@ To reduce errors, the following strategies are recommended:
 <table>
   <tr>
     <td>
-      <img src="images/loss_accuracy.png" alt="Loss vs Epoch" width="400"/>
+      <img src="images/loss_epoch.png" alt="Loss vs Epoch" width="400"/>
     </td>
     <td>
-      <img src="images/training_accuracy.png" alt="Accuracy vs Epoch" width="400"/>
+      <img src="images/accuracy_epoch.png" alt="Accuracy vs Epoch" width="400"/>
     </td>
   </tr>
 </table>
