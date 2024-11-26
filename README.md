@@ -93,10 +93,18 @@ To reduce errors, the following strategies are recommended:
 - Data augmentation to increase diversity.
 - Weighted losses focusing on difficult samples.
 
-### **Loss and Accuracy Plots**
+## **Loss and Accuracy Plots**
 
-![Loss vs Epoch](images/loss_epoch.png)
-![Accuracy vs Epoch](images/accuracy_epoch.png)
+<table>
+  <tr>
+    <td>
+      <img src="images/loss_accuracy.png" alt="Loss vs Epoch" width="400"/>
+    </td>
+    <td>
+      <img src="images/training_accuracy.png" alt="Accuracy vs Epoch" width="400"/>
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -119,17 +127,47 @@ To reduce errors, the following strategies are recommended:
 
 ## **Visualization of Architecture**
 
+### **Training Process**
+
 ```mermaid
 %%{init: {'theme': 'forest'}}%%
 flowchart TD
-    A[IMU Data - Inertial MTS] -->|Extract Temporal/Spatial Features| B[<b>CNN Trunk</b>]
+    A[IMU Data - Inertial MTS] -->|Extract Features| B[<b>CNN Trunk</b>]
     C[Relational Data - GNN Features] -->|Model Relationships| D[<b>GNN Trunk</b>]
     B --> E[<b>Feature Concatenation</b>]
     D --> E
-    E -->|Class Features| F[<b>Classification Head</b>]
-    E -->|Regression Features| G[<b>Regression Head</b>]
-    F -->|Predicted Character| H[Final Output - Predicted Character]
-    G -->|Predicted Trajectory| I[Final Output - Reconstructed Trajectory]
+    E -->|Forward Pass| F[Loss Calculation]
+    F --> G[Gradient Update]
+    G --> H[Updated Model Weights]
+```
+
+---
+
+### **Evaluation Process**
+
+```mermaid
+%%{init: {'theme': 'forest'}}%%
+flowchart TD
+    A[Test IMU Data] -->|Inference| B[<b>CNN Trunk</b>]
+    C[Test Relational Data] -->|Inference| D[<b>GNN Trunk</b>]
+    B --> E[<b>Feature Concatenation</b>]
+    D --> E
+    E -->|Predictions| F[Classification Results]
+    E -->|Predictions| G[Regression Results]
+```
+
+---
+
+### **Results Overview**
+
+```mermaid
+%%{init: {'theme': 'forest'}}%%
+flowchart TD
+    A[Classification Results] -->|Accuracy| B[Final Character Prediction]
+    C[Regression Results] -->|RMSE| D[Reconstructed Trajectory]
+    B --> E[Performance Metrics]
+    D --> E
+    E --> F[Final Evaluation Report]
 ```
 
 ---
