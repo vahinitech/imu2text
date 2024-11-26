@@ -196,6 +196,10 @@ This project builds upon the methodology presented in:
 
 ---
 
-## **License**
+## License
 
-This project is licensed under the Apache 2.0 License. See `LICENSE` for details.
+This project is licensed under the InkShare IMU2Text License, which allows academic, personal, and non-commercial use. Commercial use requires prior authorization from InkShare.
+
+For details, see the [LICENSE](LICENSE) file.
+
+For inquiries about commercial use or licensing, please contact: vkosuri@inkshare.com.
