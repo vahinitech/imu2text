@@ -1,48 +1,37 @@
-# IMU Character Recognition Pipeline
-#
-# This script is designed to recognize handwritten characters using IMU 
-# sensor data collected from a pen. The model utilizes a combination of 
-# Convolutional Neural Networks (CNN) and Graph Neural Networks (GNN) to 
-# effectively capture spatial and temporal features from the data. The CNN 
-# is used to extract local features from the sensor data, while the GNN is 
-# used to model temporal relationships across different time steps.
-#
-# We employ a Multi-Task Learning (MTL) approach to simultaneously classify 
-# characters and regress their trajectories. The expected accuracy for 
-# character recognition is targeted above 95%, with an additional focus on 
-# minimizing trajectory prediction errors.
-#
-# The pipeline consists of the following steps:
-#
-# Step 1: Data Preprocessing - Load, normalize, and pad the IMU data.
-# Step 2: Feature Extraction using CNN - Extract features using convolutional layers.
-# Step 3: Relationship Modeling with GNN - Use a Graph Neural Network to model temporal relationships.
-# Step 4: Multi-Task Learning Model (MTL) - Create a model with classification and regression heads.
-# Step 5: Evaluation and Display Results - Evaluate the model and display results.
-#
-# Global Variables:
-# - DISPLAY_ALL_RESULTS: Controls whether both matched and unmatched 
-#   results are displayed.
-# - NUM_EPOCHS: Defines the number of epochs for training the model.
-# - SHOW_NORMALIZED_SAMPLE: Controls whether to display the normalized 
-#   sample for debugging.
-# - LOG_FILE: Defines the log file path for logging, if specified.
-# - DISPLAY_TRAINING_PROGRESS: Controls whether to display training progress logs.
+"""IMU Character Recognition Pipeline
 
-# Import necessary libraries
+This module contains a compact, readable example pipeline to train a
+multi-task model on IMU pen data. The script shows an end-to-end flow:
+
+- Load pickled IMU and ground-truth data
+- Normalize and pad variable-length sequences
+- Extract features with a small CNN trunk
+- Model temporal/relational structure with a simple GCN
+- Combine into a multi-task model (classification + trajectory regression)
+
+This file is intentionally straightforward to make it easy to read and
+adapt. It is not organized as a library; it is a runnable example script.
+
+Notes
+- Expected data files: data/all_x_dat_imu.pkl, data/all_gt.pkl
+- Keep changes minimal when extending; this file focuses on clarity.
+"""
+
 import os
 import pickle
 import logging
 import time
+from typing import List, Tuple
+
 import numpy as np
-import pandas as pd
 import torch
 from sklearn.preprocessing import MinMaxScaler
 from torch_geometric.nn import GCNConv
 from torch_geometric.data import Data
 from keras.models import Model, load_model
-from keras.layers import (Conv1D, MaxPooling1D, Flatten, Dense, Input,
-                          Reshape, Dropout)
+from keras.layers import (
+    Conv1D, MaxPooling1D, Flatten, Dense, Input, Reshape, Dropout
+)
 from keras.preprocessing.sequence import pad_sequences
 from keras.utils import to_categorical
 from tabulate import tabulate
@@ -66,7 +55,12 @@ else:
     )
 
 # Helper function to log messages
-def log_message(message):
+def log_message(message: str) -> None:
+    """Log a message to stdout and the configured logger.
+
+    This keeps the previous behavior (print + logging.info) but makes the
+    contract explicit via typing and a short docstring.
+    """
     print(message)
     logging.info(message)
 
