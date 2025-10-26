@@ -1,34 +1,19 @@
 cff-version: 1.2.0
-message: |
-  This repository provides resources for handwriting recognition.
-  Please cite the relevant sections depending on your use case:
-  - For character recognition: Cite Reference A.
-  - For symbol and equation recognition: Cite Reference B.
-
 title: "imu2text: Handwriting Recognition Framework"
+message: |
+  If you use this repository in your research, please cite the original
+  OnHW dataset papers (see BIBLIOGRAPHY.bib) and this implementation.
+
+date-released: 2025-10-25
+version: 0.1.0
+url: "https://github.com/vahinitech/imu2text"
+repository-code:
+  type: git
+  url: "https://github.com/vahinitech/imu2text"
 authors:
-  - family-names: "Ott"
-    given-names: "Felix"
-  - family-names: "Rügamer"
-    given-names: "David"
-references:
-  - type: article
-    authors:
-      - family-names: "Ott"
-        given-names: "Felix"
-      - family-names: "Rügamer"
-        given-names: "David"
-    title: "Joint Classification and Trajectory Regression of Online Handwriting"
-    journal: "IEEE Winter Conf. on Applications of Computer Vision"
-    year: 2022
-    doi: "10.1109/WACV51458.2022.00131"
-  - type: article
-    authors:
-      - family-names: "Ott"
-        given-names: "Felix"
-      - family-names: "Rügamer"
-        given-names: "David"
-    title: "Benchmarking Online Sequence-to-Sequence and Character-based Handwriting Recognition"
-    journal: "International Journal on Document Analysis and Recognition"
-    year: 2022
-    doi: "10.1007/s10032-022-00415-6"
+  - name: "Vahini Technologies"
+preferred-citation: |
+  Ott, Felix et al. (2020). The OnHW Dataset: Online Handwriting Recognition from IMU-Enhanced Ballpoint Pens with Machine Learning. IMWUT.
+  Please also cite the implementation in this repository: Vahini Technologies, imu2text (GitHub).
+
+# Additional recommended references are in BIBLIOGRAPHY.bib

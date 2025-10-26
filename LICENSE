@@ -1,6 +1,6 @@
-INKSHARE IMU2TEXT LICENSE
+VAHINI TECHNOLOGIES IMU2TEXT LICENSE
 
-Copyright (c) [2024] Vahi Software Solutions. All rights reserved.
+Copyright (c) 2025 Vahini Technologies. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to use,
@@ -10,27 +10,24 @@ non-commercial purposes, subject to the following conditions:
 1. The above copyright notice and this license notice shall be included in all
    copies or substantial portions of the Software.
 
-2. Use of the Software for commercial purposes is prohibited without prior written
-   authorization from Vahi Software Solutions Private Limited. This includes, but is not limited to,
-   incorporation of the Software in commercial products or services, or usage in
-   a production environment generating revenue.
+2. Use of the Software for commercial purposes is prohibited without prior
+   written authorization from Vahini Technologies. This includes, but is not
+   limited to, incorporation of the Software in commercial products or services,
+   or usage in a production environment generating revenue.
 
-3. Redistribution of the Software, modified or unmodified, is permitted, provided
-   that:
+3. Redistribution of the Software, modified or unmodified, is permitted,
+   provided that:
    a. It is for non-commercial purposes only.
    b. This license notice is prominently included in all distributions.
 
-4. Academic publications and research work using this Software must include
-   appropriate citation of the InkShare IMU2Text project and its GitHub repository:
-   <https://github.com/inkshare/imu2text>
+4. Academic publications and research work using this Software should cite this
+   project appropriately.
 
 5. The Software is provided "as is", without warranty of any kind, express or
-   implied, including but not limited to the warranties of merchantability,
-   fitness for a particular purpose, and non-infringement. In no event shall
-   the authors or copyright holders be liable for any claim, damages, or other
-   liability, whether in an action of contract, tort, or otherwise, arising from,
-   out of, or in connection with the Software or the use or other dealings in the
-   Software.
+   implied. In no event shall the authors or copyright holders be liable for any
+   claim, damages, or other liability arising from, out of, or in connection
+   with the Software or the use or other dealings in the Software.
 
-For inquiries about commercial use or licensing, please contact:
-<vkosuri@inkshare.in>
+Contact & website:
+- Email: info@vahintech.com
+- Web: https://vahinitech.com
