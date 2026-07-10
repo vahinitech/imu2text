@@ -113,15 +113,14 @@ def make_split(n: int, y: np.ndarray, seed: int, mode: str = "random",
         return train, val, test
 
     if mode == "writer":
+        if writers is None:
+            raise ValueError("writers must be provided for mode='writer'")
         uniq = np.unique(writers)
-        rng = np.random.default_rng(seed)
-        rng.shuffle(uniq)
-        n_test = max(1, round(0.20 * len(uniq)))
-        n_val = max(1, round(0.20 * len(uniq)))
-        test_w = set(uniq[:n_test])
-        val_w = set(uniq[n_test:n_test + n_val])
-        train_w = set(uniq[n_test + n_val:])
-        sel = lambda group: np.array([i for i in range(n) if writers[i] in group])
+        if len(uniq) < 3:
+            raise ValueError("mode='writer' requires at least 3 writers for a train/val/test split")
+        train_w, tmp_w = train_test_split(uniq, test_size=0.40, random_state=seed, shuffle=True)
+        val_w, test_w = train_test_split(tmp_w, test_size=0.50, random_state=seed, shuffle=True)
+        sel = lambda group: np.flatnonzero(np.isin(writers, group))
         return sel(train_w), sel(val_w), sel(test_w)
 
     raise ValueError(f"unknown split mode: {mode}")
