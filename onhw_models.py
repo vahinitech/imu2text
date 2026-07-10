@@ -47,7 +47,10 @@ from typing import Callable, Dict, List, Tuple
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from tabulate import tabulate
+try:
+    from tabulate import tabulate
+except ImportError:  # optional dependency
+    tabulate = None
 
 import tensorflow as tf
 from tensorflow.keras import layers, Model
