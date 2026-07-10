@@ -24,10 +24,27 @@ python cnn_gnn.py
 Files of interest
 
 - `cnn_gnn.py` — original single-script example (preprocessing, model, train/eval).
-- `onhw_models.py` — honest OnHW benchmark suite: baselines (CNN, LSTM, BiLSTM) and the SOTA CNN+BiLSTM, with both writer-independent and random splits.
+- `onhw_models.py` — honest OnHW benchmark suite: baselines (CNN, LSTM, BiLSTM) and the SOTA CNN+BiLSTM, with both writer-independent and random splits. The class set is inferred from the labels, so the same script handles OnHW-chars **and OnHW-symbols** pickles.
+- `onhw_seq2seq.py` — sequence-to-sequence (words / equations) recognition: CNN+BiLSTM encoder trained with CTC, greedy decoding, CER/WER metrics. Run `python onhw_seq2seq.py --demo` to verify the pipeline on synthetic data without downloading a dataset.
 - `make_learning_curve.py` — trains the SOTA model on an increasing number of writers (writer-independent) to produce the accuracy learning curve.
+- `plot_results.py` — publication-quality matplotlib figures (learning curve + logistic projection, model benchmark bars), rebuilt in the style of ImpAcX_OnHW's `plot_kNN_results.py`.
 - `onhw_projection.m` — MATLAB/Octave script that fits a logistic model to the learning curve and projects pen accuracy to full-dataset scale.
+- `docs/impacx_onhw_analysis.md` — analysis of the ImpAcX_OnHW DTW-kNN pipeline and how its matplotlib figures are rebuilt here.
+- `docs/onhw_enhancement_guide.md` — roadmap for character / symbol / seq2seq recognition across the OnHW dataset family (with pointers to REWI and related work).
+- `tests/` — smoke tests for splitting, writer inference, augmentation, normalization, and the CTC pipeline (run by CI).
 - `LICENSE` — project license and contact information.
+
+Security & dependencies
+
+`requirements.txt` pins patched releases for all GitHub security advisories
+reported against this repo: `torch==2.7.1` (fixes the critical
+`torch.load`-with-`weights_only=True` RCE, CVE-2025-32434, plus the 2025
+memory-corruption/DoS advisories) and `scikit-learn==1.5.2` (CVE-2024-5206).
+It also removes the duplicate/conflicting `torch` pins and the
+`tensorflow-macos` line that previously broke `pip install -r
+requirements.txt` on Linux, and adds the missing `torch-geometric` and
+`tabulate` dependencies used by `cnn_gnn.py`. For CPU-only machines/CI:
+`pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu`.
 
 Benchmarks (honest, held-out evaluation)
 
@@ -143,7 +160,8 @@ This repository aims to host implementations and example code for several online
 | Representation Learning for Tablet and Paper Domain Adaptation | No | Learns domain-invariant representations to align tablet (stylus) and paper (sensor-pen) modalities, enabling transfer of models between writing surfaces. | Ott et al., MPRSS 2022 |
 | Cross-Modal Representation Learning with Triplet Loss | No | Trains embeddings that align IMU time-series with offline handwriting image embeddings using triplet loss; improves character discrimination by leveraging complementary visual features and producing more separable embeddings. | Ott et al., arXiv 2022 |
 
-| Sequence-based OnHW Datasets | No | Sequence datasets (words, equations, multi-character streams) for sequence-to-sequence and CTC-style models. These require sequence models (seq2seq, CTC, or Transformer) and may include writer-dependent / writer-independent splits. | Ott et al., IJDAR 2022 |
+| OnHW-symbols | Yes — `onhw_models.py` works unchanged (class set inferred from labels) | Classification of digits/operators from IMU pen data | Ott et al. 2022; see `docs/onhw_enhancement_guide.md` |
+| Sequence-based OnHW Datasets (words, equations) | Scaffold — `onhw_seq2seq.py` (CNN+BiLSTM+CTC, CER/WER, synthetic demo) | Sequence-to-sequence / CTC recognition with writer-dependent / writer-independent splits | Ott et al., IJDAR 2022; cf. REWI (Li et al., iWOAR 2025) |
 
 Citations
 

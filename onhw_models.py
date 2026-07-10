@@ -54,8 +54,7 @@ except ImportError:  # optional dependency
 import tensorflow as tf
 from tensorflow.keras import layers, Model
 from tensorflow.keras.callbacks import EarlyStopping
-from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.utils import to_categorical, pad_sequences
 
 IMU_FILE = "data/all_x_dat_imu.pkl"
 GT_FILE = "data/all_gt.pkl"
