@@ -367,10 +367,13 @@ def main() -> None:
     table = [[r["model"], f"{r['params']:,}", f"{r['train_acc']:.2f}",
               f"{r['val_acc']:.2f}", f"{r['test_acc']:.2f}", f"{r['secs']:.0f}s"]
              for r in rows]
-    print(tabulate(
-        table,
-        headers=["Model", "Params", "Train %", "Val %", "Test % (held-out)", "Time"],
-        tablefmt="github"))
+    headers = ["Model", "Params", "Train %", "Val %", "Test % (held-out)", "Time"]
+    if tabulate is not None:
+        print(tabulate(table, headers=headers, tablefmt="github"))
+    else:
+        print("\t".join(headers))
+        for row in table:
+            print("\t".join(map(str, row)))
     best = rows[0]
     label = "writer-independent" if args.split == "writer" else "random split"
     print(f"\nBest held-out: {best['model']} @ {best['test_acc']:.2f}% "
