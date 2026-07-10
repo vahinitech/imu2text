@@ -25,11 +25,10 @@ This script fixes the methodology:
 
 Limitation
 ----------
-The bundled ``data/all_gt.pkl`` has no writer IDs, so a true *writer-independent*
-(WI) split is not possible on this subset; we use a stratified random split.
-Published WI numbers are therefore an upper reference, not a like-for-like target.
-To run the official WI protocol, swap ``make_split`` for a GroupShuffleSplit on
-writer IDs once the full OnHW-chars dataset (with writer metadata) is available.
+The bundled ``data/all_gt.pkl`` has no explicit writer IDs. This script infers them
+heuristically from label order (see ``infer_writer_ids``) to approximate a
+writer-independent split; if your data is not recorded in strict alphabet cycles,
+prefer using true writer metadata and a group split on writer ID instead.
 
 Usage
 -----
