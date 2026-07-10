@@ -44,6 +44,7 @@ def main() -> None:
     rng.shuffle(train_writers)
 
     Y = to_categorical(y, num_classes=n_classes)
+    maxlen = min(int(max(len(x[i]) for i in tr_full)), MAXLEN)
     rows = []
     for frac in FRACTIONS:
         k = max(1, round(frac * len(train_writers)))
@@ -51,7 +52,6 @@ def main() -> None:
         tr = np.array([i for i in tr_full if writers[i] in chosen])
 
         # normalization fit ONLY on this training subset -> no leakage
-        maxlen = min(int(max(len(x[i]) for i in tr)), MAXLEN)
         X = M.normalize_and_pad(x, tr, maxlen)
 
         model = M.build_cnn_bilstm(maxlen, n_classes)
