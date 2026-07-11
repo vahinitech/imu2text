@@ -247,6 +247,7 @@ def run(x, labels, epochs: int, batch: int, maxlen: int, rnn_units: int,
 
 
 def main() -> None:
+    global N_CHANNELS
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--imu-file", help="pickle: list of (T,13) float arrays")
@@ -259,8 +260,11 @@ def main() -> None:
                     help="cap padded IMU length (words are much longer than chars)")
     ap.add_argument("--rnn-units", type=int, default=64)
     ap.add_argument("--rnn-layers", type=int, default=2)
+    ap.add_argument("--channels", type=int, default=N_CHANNELS,
+                    help="sensor channels per timestep (13 = OnHW pen, 16 = Vahini pen)")
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
+    N_CHANNELS = args.channels
 
     np.random.seed(args.seed)
     tf.random.set_seed(args.seed)
@@ -269,6 +273,8 @@ def main() -> None:
         x, labels = make_demo_data(seed=args.seed)
     elif args.imu_file and args.labels_file:
         x, labels = load_sequences(args.imu_file, args.labels_file)
+        if x and x[0].shape[1] != N_CHANNELS:
+            ap.error(f"data has {x[0].shape[1]} channels but --channels={N_CHANNELS}")
     else:
         ap.error("provide --imu-file and --labels-file, or use --demo")
 

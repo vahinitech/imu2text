@@ -66,9 +66,12 @@ screen shows, so labels are automatic):
 
 ## 4. Hardware and signal discipline
 
-- Match the OnHW channel set so all existing code transfers: 2× 3-axis
-  accelerometer, 3-axis gyroscope, 3-axis magnetometer, force sensor =
-  **13 channels**, ≥100 Hz, hardware-timestamped.
+- The Vahini pen records **16 channels at 208 Hz**: force sensor at the tip
+  (1) + front accelerometer (3) + front gyroscope (3) + magnetometer (3) +
+  rear accelerometer (3) + rear gyroscope (3). This is a superset of OnHW's
+  13 channels (OnHW has no rear gyroscope) — for transfer learning from
+  OnHW-trained models, drop the rear-gyro triplet to get an OnHW-compatible
+  13-channel view. All training scripts take `--channels 16`.
 - **Record raw.** No filtering, no normalization, no resampling at capture
   time — preprocessing belongs in the training pipeline where it can be
   changed (and where train-only fitting prevents leakage).

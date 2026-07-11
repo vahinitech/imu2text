@@ -64,11 +64,12 @@ N_CHANNELS = 13
 # --------------------------------------------------------------------------- #
 # Data
 # --------------------------------------------------------------------------- #
-def load_raw() -> Tuple[List[np.ndarray], np.ndarray, List[str]]:
+def load_raw(imu_file: str = IMU_FILE,
+             gt_file: str = GT_FILE) -> Tuple[List[np.ndarray], np.ndarray, List[str]]:
     """Load the IMU sequences and integer-encode the character labels (0..C-1)."""
-    with open(IMU_FILE, "rb") as f:
+    with open(imu_file, "rb") as f:
         x = [np.asarray(s, dtype=np.float32) for s in pickle.load(f)]
-    with open(GT_FILE, "rb") as f:
+    with open(gt_file, "rb") as f:
         chars = list(pickle.load(f))
     classes = sorted(set(chars))                       # e.g. ['A'..'Z','a'..'z']
     char_to_idx = {c: i for i, c in enumerate(classes)}
@@ -317,7 +318,7 @@ def train_eval(name: str, X, Y, split, epochs: int, batch: int) -> Dict[str, flo
 
 
 def main() -> None:
-    global RNN_UNITS, RNN_LAYERS
+    global RNN_UNITS, RNN_LAYERS, N_CHANNELS
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--models", nargs="+", default=list(BUILDERS),
                     choices=list(BUILDERS), help="which architectures to run")
@@ -335,17 +336,36 @@ def main() -> None:
                     help="number of stacked (Bi)LSTM layers (paper ~2)")
     ap.add_argument("--augment", type=int, default=0,
                     help="augmented copies per TRAIN sample (0 = off); jitter/scale/warp")
+    ap.add_argument("--imu-file", default=IMU_FILE,
+                    help="pickle: list of (T, channels) float arrays")
+    ap.add_argument("--gt-file", default=GT_FILE,
+                    help="pickle: list of character labels")
+    ap.add_argument("--writers-file", default=None,
+                    help="pickle: list of writer codes (one per sample); "
+                         "if omitted, writer IDs are inferred from label cycles")
+    ap.add_argument("--channels", type=int, default=N_CHANNELS,
+                    help="sensor channels per timestep (13 = OnHW pen, 16 = Vahini pen)")
     args = ap.parse_args()
 
     RNN_UNITS, RNN_LAYERS = args.rnn_units, args.rnn_layers
+    N_CHANNELS = args.channels
 
     np.random.seed(args.seed)
     tf.random.set_seed(args.seed)
 
-    x, y, classes = load_raw()
+    x, y, classes = load_raw(args.imu_file, args.gt_file)
     n, n_classes = len(x), len(classes)
-    with open(GT_FILE, "rb") as f:
-        writers = infer_writer_ids(list(pickle.load(f)))
+    if x and x[0].shape[1] != N_CHANNELS:
+        raise SystemExit(f"data has {x[0].shape[1]} channels but --channels={N_CHANNELS}")
+    if args.writers_file:
+        with open(args.writers_file, "rb") as f:
+            codes = np.array([str(c) for c in pickle.load(f)])
+        if len(codes) != n:
+            raise SystemExit(f"{len(codes)} writer codes for {n} samples")
+        _, writers = np.unique(codes, return_inverse=True)  # codes -> int IDs
+    else:
+        with open(args.gt_file, "rb") as f:
+            writers = infer_writer_ids(list(pickle.load(f)))
     tr, va, te = make_split(n, y, args.seed, mode=args.split, writers=writers)
     if args.augment:
         x, y, writers, tr = augment_training(x, y, writers, tr, args.augment, args.seed)
@@ -376,7 +396,7 @@ def main() -> None:
     best = rows[0]
     label = "writer-independent" if args.split == "writer" else "random split"
     print(f"\nBest held-out: {best['model']} @ {best['test_acc']:.2f}% "
-          f"(52-class, {label})")
+          f"({n_classes}-class, {label})")
 
 
 if __name__ == "__main__":
