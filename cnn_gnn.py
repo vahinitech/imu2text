@@ -32,8 +32,7 @@ from keras.models import Model, load_model
 from keras.layers import (
     Conv1D, MaxPooling1D, Flatten, Dense, Input, Reshape, Dropout
 )
-from keras.preprocessing.sequence import pad_sequences
-from keras.utils import to_categorical
+from keras.utils import pad_sequences, to_categorical
 from tabulate import tabulate
 
 # Global variables to control behavior
@@ -93,8 +92,13 @@ log_message(f"Step 1: Data Loading completed in {time.time() - start_time:.2f} s
 # Convert ground truth labels to categorical format
 start_time = time.time()
 log_message("Converting ground truth labels to categorical format...")
-# Convert labels (A-Z) to numerical format for training
-gt_data_categorical = to_categorical([ord(label) - ord('A') for label in gt_data])
+# Map characters to contiguous class indices (handles A-Z and a-z without
+# the ASCII gap that ord(label)-ord('A') would leave as phantom classes)
+classes = sorted(set(gt_data))
+char_to_idx = {c: i for i, c in enumerate(classes)}
+gt_data_categorical = to_categorical(
+    [char_to_idx[label] for label in gt_data], num_classes=len(classes)
+)
 log_message(f"Ground truth labels converted successfully. Shape: {gt_data_categorical.shape}")
 log_message(f"Step 1: Data Conversion completed in {time.time() - start_time:.2f} seconds")
 
@@ -253,16 +257,15 @@ start_time = time.time()
 log_message("Evaluating model and displaying results...")
 # Predict character labels from IMU data
 predicted_labels, _ = mtl_model.predict(imu_data_padded)
-# Convert predicted labels to character format
-predicted_chars = [chr(np.argmax(pred) + ord('A')) for pred in predicted_labels]
+# Convert predicted labels to character format via the class list
+predicted_chars = [classes[int(np.argmax(pred))] for pred in predicted_labels]
 # Ground truth characters
-ground_truth_chars = [chr(ord(label)) for label in gt_data]
+ground_truth_chars = list(gt_data)
 
-# Evaluate the model on the IMU data and get accuracy
-evaluation = mtl_model.evaluate(
-    imu_data_padded, [gt_data_categorical, imu_data_padded], verbose=0
-)
-classification_accuracy = evaluation[3]  # Accuracy of classification task
+# Classification accuracy computed directly from the predictions
+classification_accuracy = float(np.mean(
+    [p == g for p, g in zip(predicted_chars, ground_truth_chars)]
+))
 
 # Create a table with IMU character, ground truth character, and accuracy
 table_data = []

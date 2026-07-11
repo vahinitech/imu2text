@@ -1,11 +1,11 @@
 % onhw_projection.m
 % -------------------------------------------------------------------------
-% IMU smart-pen (ballpoint, regular paper) — writer-independent accuracy
+% IMU smart-pen (ballpoint, regular paper) - writer-independent accuracy
 % projection. Reads the measured WI learning curve produced by
 % make_learning_curve.py and extrapolates expected accuracy as the number of
 % enrolled writers grows toward full-dataset scale.
 %
-% Model (logistic, our own — matches the empirical S-shape of WI scaling: a
+% Model (logistic, our own - matches the empirical S-shape of WI scaling: a
 % shallow start with few writers, a steep middle, then saturation):
 %     acc(W) = L / (1 + exp(-a * (W - w0)))
 %   L  = asymptotic accuracy ceiling for this architecture/feature set
@@ -21,7 +21,7 @@ clear; clc;
 
 csv_path = fullfile('results', 'learning_curve.csv');
 if ~exist(csv_path, 'file')
-    error('Missing %s — run: python make_learning_curve.py', csv_path);
+    error('Missing %s - run: python make_learning_curve.py', csv_path);
 end
 
 T = csvread(csv_path, 1, 0);          % skip header row
@@ -66,7 +66,7 @@ yline_compat(acc_ceiling, ':', ...
 
 xlabel('Number of enrolled (training) writers');
 ylabel('Writer-independent character accuracy (%)');
-title({'IMU Smart-Pen — Writer-Independent Accuracy Projection', ...
+title({'IMU Smart-Pen - Writer-Independent Accuracy Projection', ...
        'CNN+BiLSTM on regular-paper ballpoint IMU data'});
 legend({'fitted saturating model', 'measured (this repo subset)', ...
         sprintf('projected @ %d writers = %.1f%%', W_full_train, acc_full)}, ...

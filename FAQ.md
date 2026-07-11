@@ -1,4 +1,4 @@
-# FAQ — imu2text (beginner-friendly)
+# FAQ - imu2text (beginner-friendly)
 
 This document collects common questions and short, practical answers for new users of the imu2text repository. It focuses on how the example model (`cnn_gnn.py`) works, how it relates to sequence vs. character datasets, which models are suitable for sensor pens, how to load data, and recommended hardware.
 
@@ -46,7 +46,7 @@ A: Two different meanings of "offline" arise; both are possible but distinct:
 
 - Offline images (scanned handwriting): This is an image-based OCR problem. `cnn_gnn.py` is not built for images; use image-based CNN/CRNN/OCR models for scanned handwriting. Cross-modal methods (triplet/contrastive losses) can later help align image and IMU embeddings if you have paired data.
 
-- Offline sensor-fed recognition (record then process): Yes — you can record IMU data from the pen, save it, and run recognition later (batch/offline inference). In this case you still use time-series models (CNN/RNN/Transformer/GCN) but run them as post-processing instead of streaming in real time. Offline processing has advantages: you can run heavier models, perform more robust segmentation, and apply offline post-processing (language models, beam search) to improve accuracy.
+- Offline sensor-fed recognition (record then process): Yes - you can record IMU data from the pen, save it, and run recognition later (batch/offline inference). In this case you still use time-series models (CNN/RNN/Transformer/GCN) but run them as post-processing instead of streaming in real time. Offline processing has advantages: you can run heavier models, perform more robust segmentation, and apply offline post-processing (language models, beam search) to improve accuracy.
 
 
 Practical notes for sensor-fed offline workflows:
@@ -57,14 +57,14 @@ Practical notes for sensor-fed offline workflows:
 
 ---
 
-Q: Basic sensor overview — what are accelerometers, gyroscopes, magnetometers and force sensors?
+Q: Basic sensor overview - what are accelerometers, gyroscopes, magnetometers and force sensors?
 
 A: Short beginner-friendly definitions:
 
 - Accelerometer: measures linear acceleration along 3 axes (gives speed and direction changes). Useful to infer movement and sudden changes.
 - Gyroscope: measures angular velocity (rotation) around three axes. Useful to detect pen rotations, spin and orientation changes.
 - Magnetometer: measures the magnetic field (used to estimate heading / orientation relative to Earth’s magnetic field).
-- Force / pressure sensor: measures pressure applied by the pen tip — useful to detect pen contact, pen lifts, and stroke emphasis.
+- Force / pressure sensor: measures pressure applied by the pen tip - useful to detect pen contact, pen lifts, and stroke emphasis.
 
 Together these sensors provide a multi-channel time-series describing how the pen moved and contacted the surface.
 
@@ -80,7 +80,7 @@ A: Offline character recognition with sensor pen means you record sensor data an
 
 Disadvantages:
 
-- Requires collecting and storing sensor data — more complex data management.
+- Requires collecting and storing sensor data - more complex data management.
 - No immediate feedback to the user (not real-time).
 - Errors from segmentation or drift may only be noticed after recording; real-time corrections are not possible.
 
@@ -100,7 +100,7 @@ A: Key topics and algorithms to learn (ordered roughly from foundational to adva
   - Transformer encoders/decoders for sequence-to-sequence tasks.
   - Connectionist Temporal Classification (CTC) and seq2seq + attention for unsegmented sequence transcription.
 - Graph Neural Networks (GNNs): when you want to model relationships between time steps or sensor channels as a graph.
-- Representation learning / metric learning: triplet loss, contrastive learning — useful for cross-modal alignment (IMU ↔ images) or few-shot learning.
+- Representation learning / metric learning: triplet loss, contrastive learning - useful for cross-modal alignment (IMU ↔ images) or few-shot learning.
 - Domain adaptation & robustness: optimal transport, adversarial adaptation, SWAG/deep ensembles for uncertainty estimation.
 - Practical skills: data pipelines, batching/padding, evaluation metrics (accuracy, CER/WER for sequences), and building basic GUIs or recording tools to collect labeled data.
 
@@ -112,13 +112,13 @@ Q: How does sensor data help character recognition? What information does it pro
 
 A: IMU and pen sensors provide dynamic, complementary information that images alone do not:
 
-- Temporal dynamics: the order, timing, and speed of strokes — useful to disambiguate visually similar characters.
+- Temporal dynamics: the order, timing, and speed of strokes - useful to disambiguate visually similar characters.
 - 3D motion cues: accelerometer and gyroscope give movement and orientation, which help recover pen strokes even if the pen slips or pressure varies.
 - Pressure/force: pen pressure indicates pen contact and can help segment strokes and detect pen lifts.
 - Tilt and orientation: help infer stroke direction and pen pose, improving stroke modeling.
 - Robustness to occlusion: sensor data is unaffected by paper stains, low contrast, or poor lighting that can hurt image OCR.
 
-Together, these channels let models learn the generative process of handwriting (how strokes are produced), not just the final ink pattern — which often improves recognition, especially for ambiguous glyphs or stylized writing.
+Together, these channels let models learn the generative process of handwriting (how strokes are produced), not just the final ink pattern - which often improves recognition, especially for ambiguous glyphs or stylized writing.
 
 ---
 
@@ -138,10 +138,10 @@ Disadvantages
 
 ---
 
-Q: Advantages and disadvantages — online (sensor/real-time) vs offline (image) handwriting recognition
+Q: Advantages and disadvantages - online (sensor/real-time) vs offline (image) handwriting recognition
 
 A: Online (sensor-based) advantages:
-- Captures stroke dynamics, pressure, and timing — improves disambiguation.
+- Captures stroke dynamics, pressure, and timing - improves disambiguation.
 - Enables immediate feedback and interactive apps (handwriting-to-text in real-time).
 - Less sensitive to paper/scan quality.
 
@@ -151,12 +151,12 @@ Online disadvantages:
 - Sensor calibration and preprocessing add complexity.
 
 Offline (image-based) advantages:
-- No special hardware needed — just scans or photos.
+- No special hardware needed - just scans or photos.
 - Large mature datasets and well-developed OCR models exist.
 - Easier annotation workflows (visual inspection, crowd labeling).
 
 Offline disadvantages:
-- Loses temporal dynamics — harder to disambiguate some strokes.
+- Loses temporal dynamics - harder to disambiguate some strokes.
 - Sensitive to image quality, lighting, and occlusion.
 
 When to use which:
@@ -198,8 +198,8 @@ Q: How about datasets and how to load them? What format does this repo expect?
 A: Dataset notes for this repo:
 
 - `cnn_gnn.py` expects two pickle files in `data/`:
-  - `data/all_x_dat_imu.pkl` — list (or array) of N samples where each sample is a 2D numpy array shaped (T_i, C) with T_i time steps and C channels (typically 13 channels for OnHW). Each sample is one character recording.
-  - `data/all_gt.pkl` — list of N ground-truth labels (character strings or sequences) aligned with the IMU samples.
+  - `data/all_x_dat_imu.pkl` - list (or array) of N samples where each sample is a 2D numpy array shaped (T_i, C) with T_i time steps and C channels (typically 13 channels for OnHW). Each sample is one character recording.
+  - `data/all_gt.pkl` - list of N ground-truth labels (character strings or sequences) aligned with the IMU samples.
 
 Loading example (same approach used in `cnn_gnn.py`):
 
@@ -228,11 +228,11 @@ Q: What is the recommended RAM / PC for training?
 
 A: Resource needs depend on model size, batch size, and dataset size. Guidelines:
 
-- Small experiments (character classifier; CPU-only): 8–16 GB RAM, modern 4-core CPU — okay for prototyping with small batches.
+- Small experiments (character classifier; CPU-only): 8–16 GB RAM, modern 4-core CPU - okay for prototyping with small batches.
 - Moderate training (CNN+RNN on character datasets): 16–32 GB RAM and a GPU with 6–12 GB VRAM (e.g., NVIDIA RTX 2060/3060) will significantly speed training.
 - Larger sequence models or Transformer training: GPU with 12–24 GB VRAM (RTX 3080/3080 Ti, 2080 Ti, or better). 32+ GB system RAM recommended.
 
-Storage: the OnHW dataset downloads are hundreds of MB to a few GB depending on splits — make sure you have 10–50 GB free to be safe.
+Storage: the OnHW dataset downloads are hundreds of MB to a few GB depending on splits - make sure you have 10–50 GB free to be safe.
 
 Summary (recommended machine for comfortable training):
 - GPU: NVIDIA RTX 3060 / 3070 or better (12+ GB VRAM preferred)
@@ -254,8 +254,8 @@ Q: Anything missing in the README about sequence vs character datasets?
 
 A: The README has been updated to include a row for the sequence-based OnHW datasets. In short:
 
-- Character datasets: one example per isolated character — use character classifiers.
-- Sequence datasets: continuous streams (words/equations) — use seq2seq/CTC/Transformer models.
+- Character datasets: one example per isolated character - use character classifiers.
+- Sequence datasets: continuous streams (words/equations) - use seq2seq/CTC/Transformer models.
 
 ---
 
