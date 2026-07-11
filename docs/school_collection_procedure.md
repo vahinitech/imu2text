@@ -6,7 +6,25 @@ pre-printed A4 sheet must look, how ground truth works when the laptop screen
 is the only instructor, exactly how long everything takes, how to store the
 recordings, and how to train afterwards. Read
 `docs/vahini_dataset_collection.md` for the full protocol; this document is
-the classroom fieldwork manual.
+the classroom fieldwork manual. Before the first school visit, complete
+`docs/dry_run_checklist.md` end to end.
+
+## The whole method in 8 lines
+
+1. `python tools/make_sheets.py --students S0001 ...` prints 7 A4 sheets per
+   student, each box numbered, AND writes the matching prompt CSV.
+2. The capture program plays that same CSV: screen says "Box 12 — write g".
+3. The child writes **g** in box 12 on the paper. The pen streams 16 channels
+   over USB-C; the program records raw.
+4. On pen-lift the screen shows the reconstructed stroke for 1.5 s (fun +
+   sanity check). Enter/auto = next box, R = redo.
+5. The saved recording is labeled `g` automatically — the prompt IS the
+   ground truth. Nobody labels anything by hand.
+6. ~310 boxes ≈ 45 min per student (two blocks for young children).
+7. Everything lands in `data/raw/<school>/<student>/<session>/`;
+   `tools/build_dataset.py` turns it into training files.
+8. The ink on paper stays as the audit trail: scan 5% later and check the
+   boxes match the labels.
 
 ## 1. The recording rig
 
@@ -89,6 +107,17 @@ Rules that make it work:
 **Prompt order**: shuffle the 310 prompts once per student (fixed seed per
 student code) instead of A,A,A,A,A,B,B,… — repetition boredom produces
 sloppy repeats, and shuffling spreads fatigue evenly across classes.
+
+**Don't design the sheets by hand** — generate them:
+
+```bash
+python tools/make_sheets.py --students S0001 S0002 S0003 --out sheets/
+# sheets/sheets_S0001.pdf          -> print this (laser, 100% scale, no fit-to-page)
+# sheets/sheets_S0001_prompts.csv  -> the capture program plays exactly this list
+```
+
+The PDF and the CSV come from the same seeded shuffle, so screen and paper
+cannot disagree. Print at 100% scale and staple in order.
 
 ## 4. Ground truth with no companion — the screen is the instructor
 
@@ -236,3 +265,36 @@ option on top of exactly this character dataset. Phase 2 of collection
 (same rig, same sheets, word prompts from the school's word lists) is what
 unlocks it — the character phase you are planning here is the foundation
 that trains the encoder and calibrates everything.
+
+## 11. The 5-prototype pen fleet: rotation plan
+
+You have 5 prototype pens. Prototypes differ slightly (sensor mounting,
+bias, force response), and a model can learn to recognize *the pen* instead
+of *the writing*. The defense is rotation + bookkeeping:
+
+1. **Fingerprint every pen first** (`docs/dry_run_checklist.md` Phase A) and
+   re-check each collection morning. A deviant pen is repaired or benched.
+2. **Log the pen serial on every recording and every sheet header** (already
+   in the metadata spec). This costs nothing and makes every analysis below
+   possible.
+3. **Break the pen↔class correlation.** Never let one pen collect one whole
+   class or one whole school by itself. With 3 stations per visit, take 3 of
+   the 5 pens and *change which three* on every visit (e.g. day 1: pens
+   1/2/3, day 2: pens 4/5/1, day 3: pens 2/3/4 …). Within a class, students
+   are assigned to stations arbitrarily — that is enough randomization.
+4. **Rotate within the day too**: swap the pens between stations at the
+   midday break, so morning/afternoon effects don't attach to one pen.
+5. **Hold one pen out per fold.** When freezing the 5-fold splits, build one
+   extra evaluation: train on pens {1,2,3,4}, test on pen 5 (rotate). This
+   is the device analog of writer-independence and is the honest measure of
+   "will a *new* production pen work?" — with 5 prototypes you are one of
+   the few groups that can even measure this.
+6. **Per-pen normalization at training time**: standardizing per channel
+   *per pen serial* (statistics from that pen's calibration recordings)
+   removes most inter-prototype bias before the model ever sees it.
+
+Rule of thumb for the assignment sheet the operator carries: **every pen
+should end the study having recorded students from every school, every age
+band, and both hands.** If a pen's metadata histogram looks different from
+the fleet's, the rotation failed and that pen's data needs a closer look
+before release.
