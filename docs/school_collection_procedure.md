@@ -119,6 +119,37 @@ python tools/make_sheets.py --students S0001 S0002 S0003 --out sheets/
 The PDF and the CSV come from the same seeded shuffle, so screen and paper
 cannot disagree. Print at 100% scale and staple in order.
 
+## 3a. The capture application (`tools/capture_app.py`)
+
+The screen program is implemented in this repo — Tkinter with an embedded
+matplotlib canvas for the reconstruction:
+
+```bash
+# real pen (USB-C serial; firmware sends one CSV line per sample: counter,ch1..ch16)
+python tools/capture_app.py --student S0001 --school school01 \
+    --prompts sheets/sheets_S0001_prompts.csv --pen-serial VP-003 \
+    --port /dev/ttyACM0 --fullscreen
+
+# no hardware yet — the simulator "writes" the prompted character itself,
+# so the whole flow can be developed and rehearsed today:
+python tools/capture_app.py --student S0001 --school school01 \
+    --prompts sheets/sheets_S0001_prompts.csv --pen-serial SIM --simulate
+```
+
+What it does, in order: **calibration** (5 s pen-at-rest → per-channel bias
+and noise floor saved to `calibration.json`; the pen-down force threshold
+and the QC noise gate are derived from this measurement, not guessed) →
+practice row → prompt loop. Each accepted sample passes QC (duration
+0.3–8 s, real force activity, accel energy above the calibrated noise
+floor, no sample-counter gaps); failures show a child-friendly retry
+message. After each pen-lift the stroke is **reconstructed** (bias-removed
+front-accel double integration with zero-velocity endpoint correction,
+PCA onto the writing plane, then rotated upright against the prompted
+glyph — see `docs/examples/reconstruction_demo.png`) and shown for 1.5 s;
+Enter/auto = next, R = redo, B = extra break, Esc = stop (resumes later).
+Keys are operator-facing; children only write. Recordings, `labels.csv`,
+`meta.json`, and calibration land exactly in the §6 layout.
+
 ## 4. Ground truth with no companion — the screen is the instructor
 
 You do not need a human checker per child. The trust chain is:
@@ -160,10 +191,35 @@ pen-up, the 1.5 s reconstruction display, and occasional redos → budget
 | Sheet swaps, wiggle breaks, buffer | 4 min |
 | **Total per student** | **~45 min** |
 
-For children under ~10, split into **two 20–25 min blocks** (sheets 1–4,
-then 5–7 later the same day or next day) — quality collapses when young
-children write for 45 minutes straight. The program resumes at the next
-empty box automatically.
+**45 minutes is too long for a child in one stretch — the session is broken
+into blocks, and the app enforces this itself** (`tools/capture_app.py
+--break-every 70 --break-secs 120`):
+
+| Block | Boxes | Writing time | Then |
+|---|---|---|---|
+| warm-up | practice + 1–70 | ~9 min | 2-min break |
+| 2 | 71–140 | ~8 min | **5-min big break** |
+| 3 | 141–210 | ~8 min | 2-min break |
+| 4 | 211–280 | ~8 min | 2-min break |
+| 5 | 281–310 | ~4 min | done ⭐ |
+
+**What the child does in a break** (the app's break screen says exactly
+this, with a countdown): put the pen in the tray (never let it dangle by
+the cable), stand up, shake hands and fingers out, stretch tall, look at
+something far away. The operator uses the same 2 minutes to glance at the
+cable routing and the sheet position. Nobody unplugs anything.
+
+**Break inside a break** (tired hand, toilet, lost focus): any time, the
+child just stops — the app sits waiting for the next pen-down forever, no
+timeout. The operator can also press **B** for an immediate break screen,
+or **Esc** to end the sitting entirely: the session resumes at the next
+empty box when the child comes back, even on another day (sheets 1–4 today,
+5–7 tomorrow is completely fine).
+
+**If 45 min is still too much** (younger classes): generate sheets with
+`--reps 3` instead of 5 → 186 boxes ≈ **25–30 min including breaks**. The
+accuracy cost is small — writer *count* matters far more than repetitions
+per writer — so prefer more students at 3 reps over fewer students at 5.
 
 **Per class of 30–40 students** (a “station” = one pen + one laptop + one
 desk):
@@ -219,6 +275,46 @@ python tools/build_dataset.py --raw data/raw --out data/vahini_v1
 
 Back up `data/raw/` to two places the same evening (external drive + cloud).
 The raw tree is the dataset; pickles can always be regenerated.
+
+### 6a. Five pens at once — clubbing the stations' data after each session
+
+When all 5 pens run simultaneously, each station laptop holds its own
+`data/raw/` tree. They stay separate all day; **merging happens once, at the
+end of the session**, on the master laptop/drive:
+
+1. **During the day, never share folders between stations.** Each laptop
+   only ever writes its own tree. The thing that makes merging trivial later
+   is discipline *now*: every student code is unique (assigned from the
+   class roster before the session — codes are pre-printed on the sheets),
+   and one student writes at exactly one station.
+2. **End of session**: copy each laptop's `data/raw/` onto the master drive
+   (USB stick or shared folder), named per station:
+   `station1_raw/ ... station5_raw/`.
+3. **Merge with the tool** (never by hand-dragging folders):
+
+   ```bash
+   python tools/merge_raw.py \
+       --stations /media/usb/station1_raw /media/usb/station2_raw \
+                  /media/usb/station3_raw /media/usb/station4_raw \
+                  /media/usb/station5_raw \
+       --master data/raw
+   ```
+
+   Because every session is keyed by `school/student/session`, merging is a
+   verified copy. The tool: skips sessions already merged (safe to re-run),
+   **verifies every copied file**, refuses and reports if two stations claim
+   the same student+session with different content (= a student code got
+   reused — resolve by hand, don't guess), appends every merge to
+   `data/raw/merge_log.csv`, and prints **samples-per-pen counts** so you
+   can watch the §11 pen-rotation balance after every single session.
+4. Then the usual evening routine on the merged master: backup to two
+   places, `tools/build_dataset.py`, and log the counts in the tracking
+   issue.
+
+The five student sessions "club" into one dataset automatically at training
+time — `build_dataset.py` walks the merged tree; each student's samples
+carry their own writer code and (via `meta.json`) their pen serial, so
+writer-independent splits and per-pen analyses need no extra work.
 
 ## 7. How to train (novice commands)
 
