@@ -43,8 +43,10 @@ jobs:
       - name: Run pytest (if present)
         run: |
           if [ -d tests ] || ls *test*.py >/dev/null 2>&1; then
-            pip install pytest >/dev/null || true
-            pytest -q
+            python -m pip install pytest >/dev/null || true
+            # python -m guarantees pytest runs on the same interpreter pip
+            # installed into (bare `pytest` may resolve to another Python)
+            python -m pytest -q
           else
             echo "No tests found, skipping pytest"
           fi
