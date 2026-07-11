@@ -13,7 +13,7 @@ counterpoint to neural pipelines like ours: no training beyond distance
 computation, strong interpretability, but heavy inference cost (DTW-kNN
 compares every test sample against every training sample).
 
-## `DTW_KNN.py` — DTW-based kNN classification
+## `DTW_KNN.py` - DTW-based kNN classification
 
 Pipeline:
 
@@ -21,11 +21,11 @@ Pipeline:
    train/test folds for both writer-dependent and writer-independent splits).
 2. **Preprocess** with min–max scaling per sample.
 3. **Distance**: three DTW variants over the 13-channel multivariate series:
-   - `DTW` — `dtaidistance.dtw_ndim.distance_fast(a, b)` (multivariate exact
+   - `DTW` - `dtaidistance.dtw_ndim.distance_fast(a, b)` (multivariate exact
      DTW, C implementation);
-   - `DTW2` — `tslearn` soft-DTW (`soft_dtw(a, b, gamma=1)`) mapped through an
+   - `DTW2` - `tslearn` soft-DTW (`soft_dtw(a, b, gamma=1)`) mapped through an
      exponential to behave like a similarity kernel;
-   - `DTW3` — exact DTW rescaled with `np.exp(-x)`.
+   - `DTW3` - exact DTW rescaled with `np.exp(-x)`.
 4. **kNN**: `get_neighbors()` ranks training samples by distance to each test
    sample; `predict_classification()` takes the top-k labels and `get_max()`
    breaks ties by recursively re-voting with k−1 neighbours.
@@ -39,7 +39,7 @@ official folds, and reporting WD and WI separately. Weaknesses: `O(N_train ·
 N_test)` DTW cost, and simple min–max per-sample scaling (our pipeline's
 train-fit standardization is leak-free and works better for neural nets).
 
-## `plot_kNN_results.py` — how the figures are built
+## `plot_kNN_results.py` - how the figures are built
 
 The script aggregates pickled per-fold score lists and draws
 "accuracy vs. k" curves, one line per hyperparameter level:

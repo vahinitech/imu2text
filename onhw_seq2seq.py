@@ -6,8 +6,8 @@ OnHW-wordsTraj) label a recording with a STRING (a word or an equation). That
 is a sequence-to-sequence problem: the model must emit a variable-length symbol
 sequence from a variable-length IMU stream without any per-symbol alignment.
 
-The standard approach — used by the OnHW benchmark papers (Ott et al., IJDAR
-2022) and by REWI (Li et al., iWOAR 2025) — is a convolutional-recurrent
+The standard approach - used by the OnHW benchmark papers (Ott et al., IJDAR
+2022) and by REWI (Li et al., iWOAR 2025) - is a convolutional-recurrent
 encoder trained with **CTC** (Connectionist Temporal Classification):
 
     IMU (T, 13) -> CNN trunk (local stroke features, downsamples time)

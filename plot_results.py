@@ -13,10 +13,10 @@ colorblind-safe palette instead of ad-hoc named CSS colors, and results are
 read from CSV rather than per-fold pickle files.
 
 Figures produced (into results/):
-  1. learning_curve.pdf/.png — writer-independent accuracy vs. number of
+  1. learning_curve.pdf/.png - writer-independent accuracy vs. number of
      training writers, with the logistic projection fit (same model as
      onhw_projection.m) extrapolated to full-dataset scale.
-  2. model_benchmarks.pdf/.png — held-out WI accuracy per architecture.
+  2. model_benchmarks.pdf/.png - held-out WI accuracy per architecture.
 
 Usage:  python plot_results.py [--width 500]
 """
@@ -33,7 +33,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
-# Colorblind-safe slots (validated palette; identity is never color-alone —
+# Colorblind-safe slots (validated palette; identity is never color-alone -
 # every series is also direct-labeled).
 BLUE = "#2a78d6"      # measured data
 GRAY = "#52514e"      # fitted / reference lines
@@ -80,7 +80,7 @@ def style_axes(ax) -> None:
 
 
 def logistic(w, L, a, w0):
-    """acc(W) = L / (1 + exp(-a (W - w0))) — the onhw_projection.m model."""
+    """acc(W) = L / (1 + exp(-a (W - w0))) - the onhw_projection.m model."""
     return L / (1.0 + np.exp(-a * (w - w0)))
 
 

@@ -83,7 +83,7 @@ def infer_writer_ids(chars: List[str]) -> np.ndarray:
     The OnHW pen records one writer at a time, who writes the alphabet
     sequentially (A..Z a..z). The bundled labels therefore appear in repeating
     alphabet cycles, but no explicit writer column is stored. We recover writer
-    boundaries by detecting where a character *repeats* — that repeat marks the
+    boundaries by detecting where a character *repeats* - that repeat marks the
     start of the next writer's session. This is what enables a true
     writer-independent (WI) split: no writer's samples can land in both train
     and test.
@@ -104,7 +104,7 @@ def make_split(n: int, y: np.ndarray, seed: int, mode: str = "random",
     """Train / val / test index split (60 / 20 / 20).
 
     mode="random": stratified by class (a writer may appear in train and test).
-    mode="writer": writer-independent — whole writers are assigned to exactly one
+    mode="writer": writer-independent - whole writers are assigned to exactly one
                    of train/val/test, so the test writers are entirely unseen.
                    This is the protocol the OnHW papers report as "WI".
     """
@@ -141,7 +141,7 @@ def normalize_and_pad(x: List[np.ndarray], train_idx: np.ndarray, maxlen: int):
 
 
 # --------------------------------------------------------------------------- #
-# Data augmentation (IMU time series) — applied to TRAIN samples only
+# Data augmentation (IMU time series) - applied to TRAIN samples only
 # --------------------------------------------------------------------------- #
 def _time_warp(seq, rng, sigma=0.2, knots=4):
     """Locally speed up / slow down the trajectory (smooth, monotonic warp)."""
