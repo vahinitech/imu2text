@@ -31,6 +31,21 @@ Files of interest
 - `onhw_projection.m` — MATLAB/Octave script that fits a logistic model to the learning curve and projects pen accuracy to full-dataset scale.
 - `docs/impacx_onhw_analysis.md` — analysis of the ImpAcX_OnHW DTW-kNN pipeline and how its matplotlib figures are rebuilt here.
 - `docs/onhw_enhancement_guide.md` — roadmap for character / symbol / seq2seq recognition across the OnHW dataset family (with pointers to REWI and related work).
+
+Dataset collection kit — moved to [vahinitech/datasets](https://github.com/vahinitech/datasets)
+
+The school data-collection tooling and docs that used to live here (capture
+app, sheet/booklet generators, raw-tree converter, station merge tool, the
+collection protocol / fieldwork procedure / dry-run checklist) now live in
+the dedicated datasets repo. This repo keeps the model training code; train
+on collected data with:
+
+```bash
+python onhw_models.py --channels 16 \
+    --imu-file <datasets-out>/all_x_dat_imu.pkl \
+    --gt-file  <datasets-out>/all_gt.pkl \
+    --writers-file <datasets-out>/writers.pkl --split writer
+```
 - `tests/` — smoke tests for splitting, writer inference, augmentation, normalization, and the CTC pipeline (run by CI).
 - `LICENSE` — project license and contact information.
 
