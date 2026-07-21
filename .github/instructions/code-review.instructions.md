@@ -9,6 +9,26 @@ This repo's own history is the standing lesson for what to watch for:
 `cnn_gnn.py`'s "~99% accuracy" was train-set memorization — the honest
 held-out figure was ~43–47%.
 
+## Provenance: Never Copied Research Code
+
+- **Flag any newly added code that looks lifted from a paper's official
+  implementation or another public repo** (unusual style vs. the rest of
+  the file, a comment/variable naming pattern that doesn't match this
+  codebase, a suspiciously complete/polished block appearing all at
+  once). Ask directly: "is this cited and independently written, or
+  copied?"
+- The correct pattern already exists here: `docs/impacx_onhw_analysis.md`
+  and `plot_results.py` explicitly cite ImpAcX_OnHW/`plot_kNN_results.py`
+  and are *independently reimplemented*, not pasted. New code referencing
+  a paper's method should follow that model — cite it, write it
+  ourselves.
+- If a PR's description says something like "adapted from <repo>" or
+  "based on <paper>'s code," that needs either an independent
+  reimplementation in the diff or documented author consent before
+  merge — not a copy-paste with a comment crediting the source. This is a
+  research project; unattributed/uncredited reuse is an academic-integrity
+  and IP risk, not just a style issue.
+
 ## Security Critical Issues
 
 - Dependency pins in `requirements.txt` are security-motivated

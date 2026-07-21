@@ -11,6 +11,21 @@
 - **Verify before claiming.** Numbers come from an actual run or a
   committed result in `results/` — never from memory or extrapolation.
   Cite which script and split produced any figure you quote.
+- **Never copy another researcher's code into this repo — reference it,
+  don't paste it.** This repo already does this right:
+  `docs/impacx_onhw_analysis.md` explicitly analyzes ImpAcX_OnHW's
+  pipeline and `plot_results.py` is rebuilt "in the style of" its
+  `plot_kNN_results.py" — independently reimplemented, cited, not copied.
+  When a paper's method or a public repo's implementation is genuinely
+  needed: (a) cite the paper/repo and reimplement it independently in our
+  own code, or (b) if literal reuse is truly unavoidable, get the
+  original author's explicit consent first and record who granted it and
+  under what terms in the commit/PR before merging. This is a research
+  project — unattributed code reuse is an academic-integrity and IP risk,
+  not a style nitpick. Applies with extra force to AI-assisted changes: a
+  model can reproduce code it saw during training without anyone noticing
+  the provenance, so treat any suspiciously polished or unusually-styled
+  block as a prompt to check where it actually came from before it ships.
 - **No AI-isms** in docs, comments, or commit messages; plain, specific
   language.
 - **Conventional commits** (`feat:`, `fix:`, `docs:`, `test:`); body says why.
