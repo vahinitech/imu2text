@@ -26,16 +26,20 @@ All datasets are recorded with a sensor-enhanced ballpoint pen (two 3-axis
 accelerometers, 3-axis gyroscope, 3-axis magnetometer, force sensor = the 13
 channels this repo already uses, sampled at ~100 Hz). Each dataset ships with
 official 5-fold **writer-dependent (WD)** and **writer-independent (WI)**
-splits. Approximate sizes (see the dataset page / papers for exact stats):
+splits. Sizes below: OnHW-chars is confirmed against the IMWUT 2020 paper;
+the other five come from published summaries of the IJDAR 2022 benchmark
+paper, whose PDF this repo does not hold - see
+`vahinitech/datasets` `docs/onhw_vs_vahini_methodology.md` section 2 for
+the verification status of each row.
 
 | Dataset | Task | Content | Scale |
 |---|---|---|---|
-| OnHW-chars | classification (52 / 26 classes) | single characters A–Z, a–z; upper / lower / combined variants | ≈31k samples, 119 writers |
-| OnHW-symbols | classification (~15 classes) | digits 0–9 and operators (+, −, ·, :, =, …) | ≈1k samples, ~52 writers |
-| OnHW-equations | seq2seq | equation strings from the symbols charset | ≈10.7k samples, 55 writers |
-| OnHW-words500 | seq2seq (closed 500-word vocab) | 500 unique words, repeated | ≈25k samples, ~53 writers |
-| OnHW-wordsRandom | seq2seq (open vocab) | randomly drawn words | ≈14.6k samples, ~54 writers |
-| OnHW-wordsTraj | seq2seq + trajectory | words with camera-tracked pen-tip trajectory ground truth | ≈4.3k samples, 2 writers |
+| OnHW-chars | classification (52 / 26 classes) | single characters A–Z, a–z; upper / lower / combined variants | 31,275 samples, 119 writers |
+| OnHW-symbols | classification (15 classes) | digits 0–9 and operators (+, −, ·, :, =) | 2,326 samples, 27 writers |
+| OnHW-equations | seq2seq | equation strings from the symbols charset | 10,713 samples, 55 writers |
+| OnHW-words500 | seq2seq (closed 500-word vocab) | 500 unique words, repeated | 25,218 samples, 53 writers |
+| OnHW-wordsRandom | seq2seq (open vocab) | randomly drawn words | 14,641 samples, 54 writers |
+| OnHW-wordsTraj | seq2seq + trajectory | words with tablet and camera pen-tip trajectory ground truth | 16,752 samples, 2 writers |
 
 What this repo covers today:
 
