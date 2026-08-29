@@ -30,6 +30,12 @@
   language.
 - **Conventional commits** (`feat:`, `fix:`, `docs:`, `test:`); body says why.
 - **Build and test before every commit; CI green before merge.**
+- **Benchmarking has its own rules** - see the `honest-benchmarking` skill
+  before running or reporting any accuracy number. The short version: seed
+  through `keras.utils.set_random_seed`, use `--deterministic` for any
+  before/after comparison, measure the noise floor on the dataset you are
+  actually using, and quote the split, its provenance, the dataset and the
+  class count with every figure.
 - **Docs-only changes skip CI** — `ci.yml` has `paths-ignore: ['**/*.md',
   'docs/**']`; a PR touching only markdown never triggers the pipeline. A
   mixed PR (docs + code) still runs everything.
@@ -57,8 +63,14 @@ without checking the advisories.
   extend, and never quote its self-evaluation numbers.
 - `make_learning_curve.py` / `plot_results.py` / `onhw_projection.m` —
   learning curve, figures, logistic projection to full-dataset scale.
+- `onhw_chars.py` / `onhw_symbols.py` / `onhw_words.py` / `onhw_download.py` -
+  loaders for the published Fraunhofer archives, plus the download catalog.
+  Verified against the real ZIPs; `onhw_augment.py` holds the transform policy.
 - `tests/` + `pytest.ini` (`pythonpath = .` so tests import the top-level
-  scripts regardless of invocation).
+  scripts regardless of invocation). `tests/test_real_data.py` runs the
+  loaders against real archives and skips unless `ONHW_DATA_DIR` is set -
+  synthetic fixtures share the loaders' assumptions and cannot catch a format
+  mismatch on their own.
 
 ## Cross-repo contract
 
