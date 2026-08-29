@@ -195,6 +195,50 @@ def load_official_split(
     return x, y, list(ds.classes), (tr, va, test_idx)
 
 
+def load_symbols_split(base_dir: str, kind: str, seed: int, val_frac: float = 0.15):
+    """Load the official OnHW-symbols or split-equations train/val partition.
+
+    Returns ``(x, y, classes, (train_idx, val_idx, test_idx), writer_indep)``,
+    the last read off the data rather than the directory name.
+
+    These archives ship one train/val split, not five folds, and whether it is
+    writer-dependent or writer-independent is a property of the archive: the
+    ``dep`` release shares all 27 writers across both sides, ``indep`` keeps
+    them disjoint. The shipped split becomes our test set, and a stratified
+    ``val_frac`` slice of the training half is held out for early stopping.
+    """
+    from .symbols import SYMBOLS_VOCAB, load_onhw_equations, load_onhw_symbols
+
+    loader = load_onhw_symbols if kind == "symbols" else load_onhw_equations
+    ds = loader(base_dir)
+    if not ds.has_official_split:
+        raise SystemExit(
+            f"{base_dir} ships no train/val split (the left-handed archive "
+            "does not). Use --imu-file/--gt-file with your own split instead."
+        )
+
+    y_train = np.asarray(
+        ds.y_train if kind == "symbols" else [seq[0] for seq in ds.Y_train],
+        dtype=np.int64,
+    )
+    y_val = np.asarray(
+        ds.y_val if kind == "symbols" else [seq[0] for seq in ds.Y_val],
+        dtype=np.int64,
+    )
+    x = list(ds.X_train) + list(ds.X_val)
+    y = np.concatenate([y_train, y_val])
+
+    n_train = len(ds.X_train)
+    test_idx = np.arange(n_train, len(x))
+    train_all = np.arange(n_train)
+    n_val = max(1, int(round(n_train * val_frac)))
+    stratify = y[train_all] if n_val >= len(set(y[train_all].tolist())) else None
+    tr, va = train_test_split(
+        train_all, test_size=n_val, random_state=seed, stratify=stratify
+    )
+    return x, y, list(SYMBOLS_VOCAB), (tr, va, test_idx), ds.is_writer_independent
+
+
 def make_split(
     n: int, y: np.ndarray, seed: int, mode: str = "random", writers: np.ndarray = None
 ):
@@ -660,6 +704,21 @@ def main() -> None:
         "are unmeasured on this subset",
     )
     ap.add_argument(
+        "--onhw-symbols",
+        default=None,
+        metavar="DIR",
+        help="use the official OnHW-symbols split in DIR (e.g. "
+        "data/OnHW-symbols_equations_dep); the archive decides whether that "
+        "split is writer-dependent or writer-independent",
+    )
+    ap.add_argument(
+        "--symbols-kind",
+        choices=("symbols", "equations"),
+        default="symbols",
+        help="--onhw-symbols: the _s files (single symbols) or the _e files "
+        "(per-symbol slices of equations)",
+    )
+    ap.add_argument(
         "--onhw-chars",
         default=None,
         metavar="DIR",
@@ -768,7 +827,16 @@ def main() -> None:
         tf.config.threading.set_inter_op_parallelism_threads(1)
         tf.config.threading.set_intra_op_parallelism_threads(1)
 
-    if args.onhw_chars:
+    if args.onhw_symbols:
+        x, y, classes, (tr, va, te), ds_protocol = load_symbols_split(
+            args.onhw_symbols, args.symbols_kind, args.seed
+        )
+        n, n_classes = len(x), len(classes)
+        writers = np.full(n, -1, dtype=np.int64)
+        split_desc = f"official {args.symbols_kind} split, " + (
+            "writer-independent" if ds_protocol else "writer-dependent"
+        )
+    elif args.onhw_chars:
         x, y, classes, (tr, va, te) = load_official_split(
             args.onhw_chars, args.case, args.dependency, args.fold, args.seed
         )
@@ -777,7 +845,9 @@ def main() -> None:
         # encodes the writer partition. -1 keeps per-writer normalization and
         # make_split(mode="writer") from silently treating them as one writer.
         writers = np.full(n, -1, dtype=np.int64)
-        split_desc = f"official {args.case}/{args.dependency}/fold{args.fold}"
+        split_desc = f"official {args.case}/{args.dependency}/fold{args.fold}, " + (
+            "writer-independent" if args.dependency == "indep" else "writer-dependent"
+        )
     else:
         x, y, classes = load_raw(args.imu_file, args.gt_file)
         n, n_classes = len(x), len(classes)
@@ -869,7 +939,13 @@ def main() -> None:
         for row in table:
             print("\t".join(map(str, row)))
     best = rows[0]
-    label = "writer-independent" if args.split == "writer" else "random split"
+    # The protocol is a property of the split that was used, not of --split,
+    # which the official-archive paths ignore. Saying "writer-independent"
+    # under a writer-dependent archive would mislabel the number.
+    if args.onhw_symbols or args.onhw_chars:
+        label = split_desc
+    else:
+        label = "writer-independent" if args.split == "writer" else "random split"
     print(
         f"\nBest held-out: {best['model']} @ {best['test_acc']:.2f}% "
         f"({n_classes}-class, {label})"

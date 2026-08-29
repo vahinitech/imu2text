@@ -182,6 +182,93 @@ well are characters recognised from an unseen writer". Nothing in this repo
 does domain adaptation yet - that is issue #14 - so we have no number that
 belongs in Table 4 at all.
 
+### Coverage
+
+The table below is **OnHW-chars only**, and only the right-handed archive.
+What each dataset has here today:
+
+| Dataset | Task | Loader | Benchmarked |
+|---|---|---|---|
+| OnHW-chars (right-handed) | 52/26-class classification | yes | yes, all six splits |
+| OnHW-chars_L (left-handed) | same | yes | no |
+| OnHW-symbols | 15-class classification | yes | yes, WD and WI |
+| OnHW-equations (split) | 15-class, per-symbol slices | yes | yes, WD and WI |
+| OnHW-words500 | seq2seq, closed 500-word vocab | yes | no |
+| OnHW-wordsRandom | seq2seq, open vocab | no | no |
+| OnHW-wordsTraj | seq2seq + trajectory regression | no | no |
+
+Two gaps worth naming.
+
+**Left-handed columns.** Ott et al. report right- and left-handed columns side
+by side. The left-handed OnHW-chars archive ships **no official splits**: it is
+2,270 samples from 9 writers as flat pickles. Their left-handed WD/WI columns
+come from splits they constructed. Any left-handed row here would come from
+splits we construct, so it would not be cell-for-cell comparable to theirs
+even when the protocol matches. `imu2text/chars.py` loads the archive with real
+writer IDs, so `make_split(mode="writer")` can build one.
+
+**Words and trajectories.** `imu2text/words.py` loads OnHW-words500 and
+implements lexicon-constrained CTC decoding, but no model has been trained on
+it. OnHW-wordsTraj has no loader at all. These are issues
+[#11](https://github.com/vahinitech/imu2text/issues/11) and the trajectory
+thread in [onhw_research_threads.md](onhw_research_threads.md).
+
+### OnHW-symbols
+
+15 classes (digits 0-9 and + - · : =), 2,326 samples from 27 writers, using
+each archive's own train/val split. Published row is Ott et al., ACM MM 2022,
+Table 2, right-handed writers.
+
+| Method | WD | WI |
+|---|--:|--:|
+| CNN+BiLSTM [60] | 96.20 | 79.51 |
+| InceptionTime [25] | 91.97 | 76.92 |
+| ResNet [86] | 94.50 | 77.41 |
+| CNN+BiLSTM+attn (this repo) | 90.49 | 71.52 |
+| CNN+BiLSTM+attn, aug x2, LS, LR sched | **95.77** | **72.83** |
+
+Close on writer-dependent (-0.43) and 6.7 points behind on
+writer-independent. With 1,575 training samples across 15 classes the WI split
+leaves little to generalise from, and the tuned configuration adds only 1.3
+points there against 5.3 on WD. The transfer-learning path in
+`imu2text/symbols.py` exists for this case and has not been measured.
+
+### OnHW-equations (split)
+
+The `_e` files: 39,643 per-symbol slices cut from 10,713 equations, same
+15-symbol charset. Published row is Table 2, right-handed writers.
+
+| Method | WD | WI |
+|---|--:|--:|
+| CNN+BiLSTM [60] | 95.70 | 83.88 |
+| InceptionTime [25] | 94.87 | 84.35 |
+| ResNet [86] | 94.68 | 83.45 |
+| CNN+BiLSTM+attn (this repo) | 95.33 | **87.04** |
+| CNN+BiLSTM+attn, aug x2, LS, LR sched | **96.25** | 86.12 |
+
+The tuned configuration is 0.92 points *behind* the plain one on WI here, the
+only split where that happens. With 26,942 training samples this is the largest
+classification set in the repo, and augmentation stops paying once the data is
+sufficient, matching what the 2xBiLSTM-100 rows show on OnHW-chars.
+
+### Across the three datasets
+
+Writer-independent, ours against the published CNN+BiLSTM row:
+
+| Dataset | Train samples | Published WI | Ours WI | Delta |
+|---|--:|--:|--:|--:|
+| OnHW-symbols | 1,575 | 79.51 | 72.83 | -6.68 |
+| OnHW-chars (52-class) | 19,819 | 68.06 | 72.46 | +4.40 |
+| OnHW-equations (split) | 26,942 | 83.88 | 87.04 | +3.16 |
+
+Ahead on the two larger sets, behind on the small one. The changes here are
+regularisation, and regularisation needs enough data to regularise: on 1,575
+samples across 15 classes it adds 1.3 points where it adds 5.3 on the same
+dataset's writer-dependent split. Transfer learning from OnHW-chars is the
+path that exists for the small-dataset case and has not been measured.
+
+### OnHW-chars
+
 Six official OnHW-chars splits, fold 0, 30 epochs, single seed. Published rows
 are Ott et al., ACM MM 2022, Table 3, right-handed writers.
 

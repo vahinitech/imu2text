@@ -291,3 +291,16 @@ def test_transfer_model_rejects_a_model_that_is_too_shallow():
     tiny = Model(inp, layers.Dense(52, activation="softmax")(inp))  # 2 layers
     with pytest.raises(ValueError, match="expected a model ending"):
         S.build_transfer_model(tiny, n_classes=15)
+
+
+def test_equations_dataset_exposes_the_same_split_properties(symbols_dir_official):
+    """The equations tuple needs these too; models.py reads them on both."""
+    ds = S.load_onhw_equations(symbols_dir_official)
+    assert ds.has_official_split is True
+    assert ds.is_writer_independent is False  # fixture shares writers
+
+
+def test_equations_unsplit_archive_reports_no_split(symbols_dir_unsplit):
+    ds = S.load_onhw_equations(symbols_dir_unsplit)
+    assert ds.has_official_split is False
+    assert ds.is_writer_independent is False

@@ -199,6 +199,22 @@ class OnHWEquationsDataset(NamedTuple):
     format: str = "equations_pkl"
 
     @property
+    def has_official_split(self) -> bool:
+        """True when the archive shipped its own train/val split."""
+        return self.split == "official"
+
+    @property
+    def is_writer_independent(self) -> bool:
+        """True when no writer appears in both train and val.
+
+        Read off the data rather than the archive name, so a number can be
+        labelled from what the split does. Meaningless with no val split.
+        """
+        if not len(self.val_ids):
+            return False
+        return set(self.train_ids.tolist()).isdisjoint(set(self.val_ids.tolist()))
+
+    @property
     def n_train(self) -> int:
         return len(self.X_train)
 
