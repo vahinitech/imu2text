@@ -16,3 +16,14 @@ __pycache__/
 # Ignore logs and results
 results/logs/
 *.log
+
+# Ignore virtual environments
+.venv/
+venv/
+
+# Ignore datasets fetched by onhw_download.py (the bundled all_*.pkl stay tracked)
+*.zip
+data/OnHW-*/
+data/onhw-*/
+data/Words500_*/
+data/ICROW_*/

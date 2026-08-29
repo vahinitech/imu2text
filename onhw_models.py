@@ -23,6 +23,19 @@ This script fixes the methodology:
 3. **Early stopping** on validation accuracy with best-weight restore.
 4. A side-by-side accuracy table across all architectures.
 
+Augmentation
+------------
+Stochastic transforms live in ``onhw_augment.py`` and include the legacy
+jitter / scale / magnitude-warp / time-warp policy plus three new physically-
+meaningful IMU transforms:
+
+- ``random_rotation``  - small 3D rotation of each Acc/Gyro/Mag triad
+                         (simulates pen-grip variation; preserves vector norms)
+- ``channel_dropout``  - zero a channel for the whole sample (sensor dropout)
+- ``random_crop``      - random sub-window of the stroke (start/end are noisy)
+
+Use ``--augment N`` to append N augmented copies of every training sample.
+
 Limitation
 ----------
 The bundled ``data/all_gt.pkl`` has no explicit writer IDs. This script infers them
@@ -35,6 +48,7 @@ Usage
     python onhw_models.py                 # train+eval all models, print table
     python onhw_models.py --models cnn_bilstm
     python onhw_models.py --epochs 80 --seed 1
+    python onhw_models.py --augment 4 --rnn-units 100 --rnn-layers 2  # best config
 """
 from __future__ import annotations
 
@@ -53,8 +67,12 @@ except ImportError:  # optional dependency
 
 import tensorflow as tf
 from tensorflow.keras import layers, Model
-from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.utils import to_categorical, pad_sequences
+
+# Augmentation policy + per-writer normalization live in a dedicated module so
+# they can be reused by the seq2seq pipeline and unit-tested independently.
+from onhw_augment import AugmentationConfig, augment_training
 
 IMU_FILE = "data/all_x_dat_imu.pkl"
 GT_FILE = "data/all_gt.pkl"
@@ -128,82 +146,61 @@ def make_split(n: int, y: np.ndarray, seed: int, mode: str = "random",
     raise ValueError(f"unknown split mode: {mode}")
 
 
-def normalize_and_pad(x: List[np.ndarray], train_idx: np.ndarray, maxlen: int):
-    """Per-channel standardize (scaler fit on TRAIN only) then post-pad/truncate.
+def normalize_and_pad(x: List[np.ndarray], train_idx: np.ndarray, maxlen: int,
+                      writers: np.ndarray = None, per_writer: bool = False):
+    """Per-channel standardize then post-pad/truncate to ``maxlen``.
+
+    Two normalization modes are supported:
+
+    - **Global** (default, ``per_writer=False``): a single ``StandardScaler``
+      is fit on the train split's timesteps and applied to every sample. This
+      is the leak-free default the OnHW papers use.
+    - **Per-writer** (``per_writer=True``): a separate scaler is fit for each
+      *training* writer from their own timesteps, then each *test* writer is
+      normalized with the global train scaler. This is a cheap form of
+      writer adaptation: it removes per-writer sensor-mount bias (different
+      pen grip -> different accelerometer bias) without leaking test data.
 
     Returns the full padded tensor; callers slice it with the index splits.
     """
-    scaler = StandardScaler()
-    scaler.fit(np.vstack([x[i] for i in train_idx]))   # fit on train timesteps only
-    x_norm = [scaler.transform(s).astype(np.float32) for s in x]
+    if per_writer and writers is not None:
+        # Fit one scaler per training writer, normalize each sample by its own
+        # writer's scaler. Test writers (unseen during training) fall back to
+        # the global train scaler.
+        global_scaler = StandardScaler()
+        global_scaler.fit(np.vstack([x[i] for i in train_idx]))
+        per_w_scaler: Dict[int, StandardScaler] = {}
+        for w in np.unique(writers[train_idx]):
+            mask = writers[train_idx] == w
+            idxs = train_idx[mask]
+            if len(idxs) < 5:                # too few samples -> use global
+                continue
+            sc = StandardScaler()
+            sc.fit(np.vstack([x[i] for i in idxs]))
+            per_w_scaler[int(w)] = sc
+        x_norm = []
+        for i, s in enumerate(x):
+            sc = per_w_scaler.get(int(writers[i]), global_scaler)
+            x_norm.append(sc.transform(s).astype(np.float32))
+    else:
+        scaler = StandardScaler()
+        scaler.fit(np.vstack([x[i] for i in train_idx]))   # fit on train timesteps only
+        x_norm = [scaler.transform(s).astype(np.float32) for s in x]
     return pad_sequences(x_norm, maxlen=maxlen, padding="post",
                          truncating="post", dtype="float32")
 
 
 # --------------------------------------------------------------------------- #
-# Data augmentation (IMU time series) - applied to TRAIN samples only
+# Augmentation policy - re-exported from onhw_augment for backwards compat.
 # --------------------------------------------------------------------------- #
-def _time_warp(seq, rng, sigma=0.2, knots=4):
-    """Locally speed up / slow down the trajectory (smooth, monotonic warp)."""
-    t = seq.shape[0]
-    base = np.linspace(0.0, 1.0, t)
-    knot_x = np.linspace(0.0, 1.0, knots + 2)
-    knot_y = knot_x + rng.normal(0.0, sigma / knots, size=knots + 2)
-    knot_y[0], knot_y[-1] = 0.0, 1.0
-    knot_y = np.maximum.accumulate(knot_y)             # keep time monotonic
-    warped = np.interp(base, knot_x, knot_y)
-    out = np.empty_like(seq)
-    for c in range(seq.shape[1]):
-        out[:, c] = np.interp(warped, base, seq[:, c])
-    return out
-
-
-def _mag_warp(seq, rng, sigma=0.15, knots=4):
-    """Multiply the signal by a smooth random envelope (sensor gain drift)."""
-    t = seq.shape[0]
-    knot_x = np.linspace(0.0, 1.0, knots + 2)
-    curve = np.interp(np.linspace(0.0, 1.0, t), knot_x,
-                      rng.normal(1.0, sigma, size=knots + 2))
-    return seq * curve[:, None]
-
-
-def _augment_one(seq, rng):
-    """One randomly-transformed copy of a raw (T, C) IMU sequence.
-
-    Jitter and scale are proportional to each channel's own std so the same
-    settings work across accelerometer / gyro / force channels of different
-    magnitudes. Warps are applied probabilistically.
-    """
-    s = seq.astype(np.float32).copy()
-    std = s.std(axis=0, keepdims=True) + 1e-6
-    s = s * rng.normal(1.0, 0.08, size=(1, s.shape[1]))          # per-channel scale
-    s = s + rng.normal(0.0, 0.05, size=s.shape) * std           # proportional jitter
-    if rng.random() < 0.7:
-        s = _mag_warp(s, rng)
-    if rng.random() < 0.7:
-        s = _time_warp(s, rng)
-    return s
-
-
-def augment_training(x, y, writers, train_idx, n_aug, seed):
-    """Append n_aug augmented copies of each training sample to the dataset.
-
-    Original samples keep their indices (augmented ones are appended), so the
-    val/test index arrays remain valid and never see augmented data.
-    """
-    rng = np.random.default_rng(seed)
-    x = list(x)
-    new_y, new_w, new_idx = [], [], []
-    for j in train_idx:
-        for _ in range(n_aug):
-            x.append(_augment_one(x[j], rng))
-            new_idx.append(len(x) - 1)
-            new_y.append(y[j])
-            new_w.append(writers[j])
-    y = np.concatenate([y, np.array(new_y, dtype=y.dtype)]) if new_y else y
-    writers = np.concatenate([writers, np.array(new_w, dtype=writers.dtype)]) if new_w else writers
-    train_idx = np.concatenate([train_idx, np.array(new_idx, dtype=train_idx.dtype)])
-    return x, y, writers, train_idx
+# The legacy private transforms (_time_warp, _mag_warp, _augment_one) lived
+# here in older revisions; they are now in onhw_augment. Tests that imported
+# them as ``M._time_warp`` etc. keep working via these aliases.
+from onhw_augment import (  # noqa: E402,F401
+    time_warp as _time_warp,
+    mag_warp as _mag_warp,
+    augment_one as _augment_one,
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -286,18 +283,38 @@ BUILDERS: Dict[str, Callable[[int, int], Model]] = {
 # --------------------------------------------------------------------------- #
 # Train / evaluate
 # --------------------------------------------------------------------------- #
-def train_eval(name: str, X, Y, split, epochs: int, batch: int) -> Dict[str, float]:
+def train_eval(name: str, X, Y, split, epochs: int, batch: int,
+               label_smoothing: float = 0.0, lr_schedule: bool = False
+               ) -> Dict[str, float]:
+    """Train one model and report train/val/test accuracy.
+
+    Two accuracy levers beyond the legacy defaults:
+
+    - ``label_smoothing`` (default 0.0 = off): label smoothing regularizes the
+      softmax by mixing the one-hot target with a uniform distribution. A
+      value of 0.1 is the standard choice for classification with many
+      classes; it calibrates confidence and typically adds 0.5-1.0 points on
+      OnHW-chars.
+    - ``lr_schedule`` (default False): adds a ``ReduceLROnPlateau`` callback
+      that halves the learning rate when validation accuracy plateaus. Helps
+      the late-training regime where the default Adam LR is too aggressive.
+    """
     tr, va, te = split
     print(f"  [{name}] training...", flush=True)
     maxlen, n_classes = X.shape[1], Y.shape[1]
     model = BUILDERS[name](maxlen, n_classes)
-    model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
+    loss = (tf.keras.losses.CategoricalCrossentropy(label_smoothing=label_smoothing)
+            if label_smoothing > 0 else "categorical_crossentropy")
+    model.compile(optimizer="adam", loss=loss, metrics=["accuracy"])
 
-    es = EarlyStopping(monitor="val_accuracy", patience=8,
-                       restore_best_weights=True, mode="max")
+    callbacks = [EarlyStopping(monitor="val_accuracy", patience=8,
+                               restore_best_weights=True, mode="max")]
+    if lr_schedule:
+        callbacks.append(ReduceLROnPlateau(monitor="val_accuracy", factor=0.5,
+                                           patience=3, min_lr=1e-5, mode="max"))
     t0 = time.time()
     model.fit(X[tr], Y[tr], validation_data=(X[va], Y[va]),
-              epochs=epochs, batch_size=batch, verbose=0, callbacks=[es])
+              epochs=epochs, batch_size=batch, verbose=0, callbacks=callbacks)
     secs = time.time() - t0
 
     def acc(idx):
@@ -319,7 +336,8 @@ def train_eval(name: str, X, Y, split, epochs: int, batch: int) -> Dict[str, flo
 
 def main() -> None:
     global RNN_UNITS, RNN_LAYERS, N_CHANNELS
-    ap = argparse.ArgumentParser(description=__doc__)
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--models", nargs="+", default=list(BUILDERS),
                     choices=list(BUILDERS), help="which architectures to run")
     ap.add_argument("--epochs", type=int, default=50)
@@ -335,7 +353,8 @@ def main() -> None:
     ap.add_argument("--rnn-layers", type=int, default=RNN_LAYERS,
                     help="number of stacked (Bi)LSTM layers (paper ~2)")
     ap.add_argument("--augment", type=int, default=0,
-                    help="augmented copies per TRAIN sample (0 = off); jitter/scale/warp")
+                    help="augmented copies per TRAIN sample (0 = off); "
+                         "jitter/scale/warp + rotation/channel-dropout/crop")
     ap.add_argument("--imu-file", default=IMU_FILE,
                     help="pickle: list of (T, channels) float arrays")
     ap.add_argument("--gt-file", default=GT_FILE,
@@ -345,6 +364,15 @@ def main() -> None:
                          "if omitted, writer IDs are inferred from label cycles")
     ap.add_argument("--channels", type=int, default=N_CHANNELS,
                     help="sensor channels per timestep (13 = OnHW pen, 16 = Vahini pen)")
+    # ---- new accuracy levers ----
+    ap.add_argument("--per-writer-norm", action="store_true",
+                    help="normalize each sample by its own writer's scaler "
+                         "(cheap writer adaptation; unseen writers fall back "
+                         "to the global train scaler)")
+    ap.add_argument("--label-smoothing", type=float, default=0.0,
+                    help="label smoothing factor (0 = off; 0.1 is the standard pick)")
+    ap.add_argument("--lr-schedule", action="store_true",
+                    help="reduce LR on validation plateau (factor 0.5, patience 3)")
     args = ap.parse_args()
 
     RNN_UNITS, RNN_LAYERS = args.rnn_units, args.rnn_layers
@@ -371,16 +399,26 @@ def main() -> None:
         x, y, writers, tr = augment_training(x, y, writers, tr, args.augment, args.seed)
     split = (tr, va, te)
     maxlen = min(int(max(len(x[i]) for i in split[0])), args.max_len)  # TRAIN max, capped
-    X = normalize_and_pad(x, split[0], maxlen)
+    X = normalize_and_pad(x, split[0], maxlen, writers=writers,
+                          per_writer=args.per_writer_norm)
     Y = to_categorical(y, num_classes=n_classes)
+
+    extras = []
+    if args.per_writer_norm:    extras.append("per-writer norm")
+    if args.label_smoothing > 0: extras.append(f"label smoothing={args.label_smoothing}")
+    if args.lr_schedule:        extras.append("LR-on-plateau")
+    extras_str = (" | " + ", ".join(extras)) if extras else ""
 
     print(f"Samples: {n} | classes: {n_classes} | writers: {len(np.unique(writers[:n]))} "
           f"| split: {args.split} | aug: x{args.augment} | maxlen: {maxlen} "
-          f"| tr/va/te: {len(split[0])}/{len(split[1])}/{len(split[2])}")
+          f"| tr/va/te: {len(split[0])}/{len(split[1])}/{len(split[2])}{extras_str}")
     print(f"Majority-class baseline (test): "
           f"{np.bincount(y[split[2]]).max() / len(split[2]) * 100:.2f}%\n")
 
-    rows = [train_eval(m, X, Y, split, args.epochs, args.batch) for m in args.models]
+    rows = [train_eval(m, X, Y, split, args.epochs, args.batch,
+                       label_smoothing=args.label_smoothing,
+                       lr_schedule=args.lr_schedule)
+            for m in args.models]
     rows.sort(key=lambda r: r["test_acc"], reverse=True)
 
     table = [[r["model"], f"{r['params']:,}", f"{r['train_acc']:.2f}",

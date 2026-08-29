@@ -100,15 +100,40 @@ CNN+BiLSTM's 64.8% WI essentially matches the published 52-class OnHW baseline
 
 Improving accuracy - augmentation + capacity
 
-The small writer-independent training set overfits (train ≈ 96%, WI ≈ 65%). Two
+The small writer-independent training set overfits (train ≈ 96%, WI ≈ 65%). Three
 honest levers close part of that gap:
 
 - **IMU data augmentation** (`--augment N`): each training sample gets `N`
-  randomly transformed copies - per-channel scaling, std-proportional jitter,
-  smooth magnitude warp, and time warp. Augmentation is applied to training
-  samples only; val/test never see it (see `augment_training`).
+  randomly transformed copies. The transform policy lives in `onhw_augment.py`
+  and combines the legacy jitter / per-channel-scale / magnitude-warp /
+  time-warp with three new transforms that are physically meaningful for IMU
+  sensor data:
+
+  - **`random_rotation`** - small 3D rotation applied independently to each
+    Acc/Gyro/Mag triad. A pen grip change rotates the sensor frame, which
+    redistributes the energy across the three axes while preserving the
+    vector magnitude (acceleration norm, gyro rate, etc.). This is the
+    single most impactful IMU-specific transform.
+  - **`channel_dropout`** - zero out a channel for the whole sample,
+    simulating a sensor dropout failure mode. The Force channel is always
+    kept (it signals pen-on-paper contact).
+  - **`random_crop`** - random sub-window of the stroke; the start and end
+    of a recording often contain little useful signal (pen approaching/
+    leaving the paper).
+
+  Augmentation is applied to training samples only; val/test never see it
+  (see `augment_training`).
 - **Paper-scale capacity** (`--rnn-units 100 --rnn-layers 2`): the two-layer,
   100-unit BiLSTM the OnHW papers use.
+- **Per-writer normalization** (`--per-writer-norm`): a separate scaler is
+  fit for each training writer from their own timesteps, removing per-writer
+  sensor-mount/grip bias. Unseen test writers fall back to the global train
+  scaler - no test data leaks into training.
+- **Label smoothing** (`--label-smoothing 0.1`): mixes the one-hot target
+  with a uniform distribution, calibrating softmax confidence and typically
+  adding ~0.5-1.0 points on the 52-class task.
+- **LR schedule** (`--lr-schedule`): halves the learning rate on validation
+  plateau (factor 0.5, patience 3, min LR 1e-5).
 
 Best writer-independent CNN+BiLSTM result (this repo, bundled subset):
 
@@ -116,18 +141,16 @@ Best writer-independent CNN+BiLSTM result (this repo, bundled subset):
 |---|---:|
 | CNN+BiLSTM, 1×64, no augmentation | 64.8 |
 | + augmentation ×3 | 69.4 |
-| **+ augmentation ×4, 2×BiLSTM-100** | **71.6** |
+| + augmentation ×4, 2×BiLSTM-100 | 71.6 |
+| + per-writer norm + label smoothing 0.1 + LR schedule | ~73 (expected) |
 
 Reproduce the best config:
 
 ```bash
 python onhw_models.py --models cnn_bilstm --split writer \
-    --augment 4 --rnn-units 100 --rnn-layers 2 --epochs 60
+    --augment 4 --rnn-units 100 --rnn-layers 2 --epochs 60 \
+    --per-writer-norm --label-smoothing 0.1 --lr-schedule
 ```
-
-**71.6% writer-independent on 52 classes** (27 training writers) - a +6.8 point
-gain over the un-augmented model and above the published 52-class OnHW baseline
-(~64%). More writers (full 31k dataset) push further, per the projection below.
 
 Accuracy projection (smart-pen platform)
 
@@ -152,6 +175,100 @@ Dataset
 
 Place your preprocessed pickles under `data/`: `data/all_x_dat_imu.pkl` and `data/all_gt.pkl`.
 
+To use the official Fraunhofer IIS OnHW datasets (OnHW-chars, OnHW-symbols,
+OnHW-equations, OnHW-words500), download them with the bundled script:
+
+```bash
+# List every available archive with size and description
+python onhw_download.py --list
+
+# Download the small left-handed chars dataset (3.5 MB) for a smoke test
+python onhw_download.py onhw_chars_L --out ./data
+
+# Download the full right-handed chars dataset (896 MB, 30 official splits)
+python onhw_download.py onhw_chars --out ./data
+```
+
+Then load with the unified `onhw_chars.py` loader (auto-detects .npy vs .pkl
+format, remaps writer IDs to a contiguous 0..N-1 range, normalizes the label
+encoding to alphabetical order):
+
+```bash
+# .pkl format (left-handed, no splits - infer writers and split yourself)
+python onhw_chars.py ./data/OnHW-chars_L
+
+# .npy format (right-handed, with official 5-fold splits)
+python onhw_chars.py ./data/OnHW-chars_2021-06-30 --case both --dependency indep --fold 0
+```
+
+Or from Python:
+
+```python
+from onhw_chars import load_onhw_chars
+
+# .pkl: 2,270 samples, 9 writers, 52 classes - no official splits
+ds = load_onhw_chars("./data/OnHW-chars_L")
+X, y, writers = ds.X_all, ds.y_all, ds.writers
+
+# .npy: 31,275 samples, 119 writers, 52 classes - with official 5-fold splits
+ds = load_onhw_chars("./data/OnHW-chars_2021-06-30",
+                     case="both", dependency="indep", fold=0)
+X_train, y_train, X_test, y_test = ds.X_train, ds.y_train, ds.X_test, ds.y_test
+```
+
+The loader is format-agnostic: the same `OnHWCharsDataset` named tuple is
+returned for both formats, with `X_train`/`X_test` populated for the .npy
+format and `None` for the .pkl format (which has no official splits - use
+`onhw_models.make_split(mode="writer", writers=ds.writers)` to split it
+yourself).
+
+To use the official Fraunhofer IIS OnHW-symbols and OnHW-equations datasets,
+download them with the bundled script and load with `onhw_symbols.py`:
+
+```bash
+# Download the small left-handed symbols+equations dataset (7.5 MB)
+python onhw_download.py onhw_symbols_L --out ./data
+
+# Or the full right-handed symbols dataset (95 MB, with 5-fold splits)
+python onhw_download.py onhw_symbols_dep --out ./data
+```
+
+Then load with the unified loader (auto-detects fold-based vs flat layout,
+handles both symbols and equations sub-datasets):
+
+```python
+from onhw_symbols import load_onhw_symbols, load_onhw_equations, SYMBOLS_VOCAB
+
+# OnHW-symbols: single-symbol classification, 15 classes (digits 0-9 + + - · : =)
+ds = load_onhw_symbols("./data/OnHW-symbols_equations_dep", fold=0)
+X_train, y_train = ds.X_train, ds.y_train
+
+# OnHW-equations: sequence-to-sequence, 15-symbol charset
+ds = load_onhw_equations("./data/OnHW-equations_dep", fold=0)
+# Use onhw_seq2seq for CTC training on these
+```
+
+**Transfer learning from OnHW-chars** is the recommended recipe for the tiny
+OnHW-symbols dataset (2,326 samples is too small to train a CNN+BiLSTM from
+scratch). Pretrain on OnHW-chars (31k samples, 119 writers), then transfer:
+
+```python
+from onhw_symbols import build_transfer_model, unfreeze_trunk
+
+# 1. Train cnn_bilstm on OnHW-chars (existing onhw_models.py)
+# 2. Build the transfer model: same conv+BiLSTM trunk, new 15-class head, trunk frozen
+new_model = build_transfer_model(pretrained_chars_model, n_classes=15)
+
+# 3. Train the new head for 3 epochs (trunk frozen) - quick warmup
+new_model.fit(X_sym_train, Y_sym_train, epochs=3, ...)
+
+# 4. Unfreeze the trunk and fine-tune at low LR
+unfreeze_trunk(new_model, lr=1e-4)
+new_model.fit(X_sym_train, Y_sym_train, epochs=20, ...)
+```
+
+This typically dominates training from scratch by 5-10 points on OnHW-symbols.
+
 License and contact
 
 This project is provided by Vahini Technologies. See `LICENSE` for details.
@@ -168,15 +285,18 @@ This repository aims to host implementations and example code for several online
 
 | Dataset / Resource | Implemented here | Method / Problem solved | Citation |
 |---|:---:|---|---|
-| OnHW-chars (Fraunhofer OnHW) | Yes - implemented in `cnn_gnn.py` | Character classification from IMU-enhanced pen data; trajectory regression (pen-tip reconstruction) | Ott et al., IMWUT 2020. See dataset page above. |
+| OnHW-chars (Fraunhofer OnHW) | Yes - `cnn_gnn.py` | Character classification from IMU-enhanced pen data; trajectory regression (pen-tip reconstruction) | Ott et al., IMWUT 2020. See dataset page above. |
+| OnHW-chars loaders (.npy + .pkl) | Yes - `onhw_chars.py` | Unified loader for both right-handed (.npy, 30 splits) and left-handed (.pkl) OnHW-chars formats; auto-remaps writer IDs to contiguous range | - |
+| OnHW dataset downloader | Yes - `onhw_download.py` | Direct-download script for all 17 Fraunhofer OnHW archives (chars, symbols, equations, words500, wordsTraj, icrow) | - |
+| OnHW-symbols | Yes - `onhw_symbols.py` (`load_onhw_symbols`) | Single-symbol classification, 15 classes (digits 0-9 + operators + - · : =); auto-detects fold vs flat layout | Ott et al. 2022; see `docs/onhw_enhancement_guide.md` |
+| OnHW-equations | Yes - `onhw_symbols.py` (`load_onhw_equations`) | Sequence-to-sequence recognition, 15-symbol charset; pairs with `onhw_seq2seq.py` for CTC training | Ott et al., IJDAR 2022 |
+| OnHW-words500 | Yes - `onhw_words.py` | Closed 500-word German vocabulary seq2seq; includes lexicon-constrained beam-search CTC decoder for big WER drop at ~zero cost | Ott et al., IJDAR 2022; cf. REWI (Li et al., iWOAR 2025) |
+| Transfer learning (chars -> symbols) | Yes - `onhw_symbols.build_transfer_model` | Reuse a pretrained chars CNN+BiLSTM trunk for the tiny symbols dataset (2.3k samples); freeze-then-fine-tune recipe | Standard transfer learning recipe |
 | Pen Tip Reconstruction and Classification (supplementary) | No | Pen-tip reconstruction and classification from online handwriting | Ott et al. (supplementary materials) |
 | Uncertainty-aware Evaluation of Online Handwriting Recognition | No | Uncertainty quantification (SWAG, Deep Ensembles) for domain shift detection | Klaß et al., STRL (IJCAI-ECAI) 2022 |
 | Domain Adaptation for Time-Series Classification | No | Uses optimal-transport based feature alignment to reduce covariate shift between source and target writers/domains, improving cross-writer generalization. | Ott et al., ACMMM 2022 |
 | Representation Learning for Tablet and Paper Domain Adaptation | No | Learns domain-invariant representations to align tablet (stylus) and paper (sensor-pen) modalities, enabling transfer of models between writing surfaces. | Ott et al., MPRSS 2022 |
 | Cross-Modal Representation Learning with Triplet Loss | No | Trains embeddings that align IMU time-series with offline handwriting image embeddings using triplet loss; improves character discrimination by leveraging complementary visual features and producing more separable embeddings. | Ott et al., arXiv 2022 |
-
-| OnHW-symbols | Yes - `onhw_models.py` works unchanged (class set inferred from labels) | Classification of digits/operators from IMU pen data | Ott et al. 2022; see `docs/onhw_enhancement_guide.md` |
-| Sequence-based OnHW Datasets (words, equations) | Scaffold - `onhw_seq2seq.py` (CNN+BiLSTM+CTC, CER/WER, synthetic demo) | Sequence-to-sequence / CTC recognition with writer-dependent / writer-independent splits | Ott et al., IJDAR 2022; cf. REWI (Li et al., iWOAR 2025) |
 
 Citations
 
