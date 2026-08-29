@@ -153,6 +153,48 @@ specific: "Two more schools are booked for March."
 - **Em dashes: default to none.** Use a comma, a colon, or a new sentence.
   One or two in a long piece is the ceiling, never the habit.
 
+## Never narrate your own honesty or your own edits
+
+Shipped text states what is true. It does not perform the act of being honest,
+and it does not talk about earlier versions of itself. The reader wants the
+result, not a confession.
+
+    BAD   Against the literature that is +4.4, not the larger margin this
+          README used to claim.
+    GOOD  CNN+BiLSTM (Ott et al., ACM MM 2022, Table 3) reports 68.06%.
+
+    BAD   To be honest, the numbers here are single-seed.
+    GOOD  Single seed, fold 0.
+
+    BAD   I should flag the part that does not flatter us.
+    GOOD  26-class: 78.5 lower against their 79.48.
+
+Specific bans:
+
+- "honest", "honestly", "to be fair", "I should flag", "worth being clear"
+- "this used to say X", "previously claimed", "corrected from", "I was wrong"
+- "not the larger margin", "which does not flatter us", "the part I got wrong"
+- Any sentence whose subject is the document, the author, or a past revision.
+
+A number with its conditions stated is honest. Saying so as well is noise, and
+in a repo whose whole point is honest evaluation it reads as protesting too
+much. Put corrections in the commit message, where the history belongs.
+
+## Keep PRs and issues to what the reader must act on
+
+A PR body says what changed and what a reviewer must check. An issue says what
+to do and how to tell when it is done. Neither is a place to reproduce the
+analysis, restate the reasoning, or narrate the process of getting there.
+
+- No section explaining what you tried and rejected unless it changes the
+  review.
+- No restating numbers already visible in the diff or the linked doc. Link.
+- No "caveats" section rehearsing what the docs already say.
+- Detail belongs in the code, the docs, or the commit message. A PR body that
+  runs past a screen is usually a doc in the wrong place.
+
+Add sections only when asked.
+
 ## Things never to add
 
 - "Challenges and Future Outlook" sections.
@@ -199,6 +241,8 @@ Checklist:
 - [ ] Straight quotes, minimal bold, no em dashes
 - [ ] Specific details, not generic praise
 - [ ] Has a voice
+- [ ] No narration of the document's own honesty or its earlier revisions
+- [ ] PR/issue body limited to what the reader must act on
 
 ## In this repo
 

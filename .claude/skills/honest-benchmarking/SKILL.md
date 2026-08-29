@@ -52,6 +52,27 @@ Never write an accuracy without all four of:
 Single seed on one fold is a data point, not a result. Say so. The 30
 published folds exist to be averaged.
 
+## Pick the right published number to compare against
+
+The OnHW papers report tables that measure different things, and picking the
+wrong one either flatters us or makes us look hopeless.
+
+- **Comparable:** Ott et al., ACM MM 2022, **Table 3**, right-handed writers.
+  Same six official OnHW-chars splits this repo trains on. Their CNN+BiLSTM
+  row: lower 79.48 WI, upper 85.60 WI, **combined 68.06 WI**. That last one is
+  the competitor for our 52-class number.
+- **Not comparable:** the same paper's **Table 4**, whose figures reach
+  100.00. That is *domain adaptation* - a right-handed model carried onto
+  left-handed writers using labelled samples from those writers, scored on a
+  small left-handed validation set whose own baseline is 25.19. It answers a
+  different question, and this repo has no number that belongs in it.
+- Also stale: the "~64%" from IMWUT 2020. It is real but it is the older
+  figure for the same architecture, and quoting it instead of 68.06 overstates
+  our margin.
+
+A figure over 95% on this task is a signal to go and read what the table
+measured, not a target to chase.
+
 ## Read the train column
 
 Train accuracy is where the diagnosis lives. On the official split:

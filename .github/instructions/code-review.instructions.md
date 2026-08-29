@@ -146,6 +146,12 @@ held-out figure was ~43–47%.
   +0.4 test for +5 train over 1x64, and adding augmentation on top of that
   capacity was worse than leaving it off. Regularisation helps; parameters do
   not.
+- **Check which published table a comparison is against.** Ott et al., ACM MM
+  2022 Table 3 (right-handed, six official splits, CNN+BiLSTM combined WI
+  68.06%) is comparable to what this repo trains. Table 4 in the same paper
+  reaches 100.00 because it measures supervised domain adaptation onto
+  left-handed writers, baseline 25.19 - a PR quoting it as a recognition
+  target is comparing against the wrong thing.
 - `--error-analysis` prints the confusion breakdown. Ask for it in any PR
   claiming an accuracy change on this task.
 - **Do not discard a change on single-configuration evidence.** Attention
