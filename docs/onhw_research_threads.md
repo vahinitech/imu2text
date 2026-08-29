@@ -190,3 +190,27 @@ threads make them easy to break:
   adapted using target-domain samples is not writer-independent in the sense
   the OnHW papers report, even when no target *labels* were used. State what
   the model saw, in the same sentence as the number.
+
+---
+
+## Tracked work
+
+The plan above and the accuracy findings in the README are broken into issues.
+Ordered by expected value per unit of work, which is not the order they were
+filed:
+
+| Issue | Why it is where it is |
+|---|---|
+| [#13 uncertainty-aware evaluation](https://github.com/vahinitech/imu2text/issues/13) | No download, no new architecture, and it answers whether the case errors are confidently wrong - which decides whether abstention recovers them in practice |
+| [#9 average over all 30 folds](https://github.com/vahinitech/imu2text/issues/9) | Every current number is one seed on one fold; a few hours of CPU removes the caveat from the whole benchmark table |
+| [#11 word context for case](https://github.com/vahinitech/imu2text/issues/11) | The largest identified gain. Case is a property of word position, not glyph shape, and the lexicon decoder is already written |
+| [#10 factorise letter and case heads](https://github.com/vahinitech/imu2text/issues/10) | Matches the diagnosis directly, and may fail informatively |
+| [#14 domain adaptation to the Vahini pen](https://github.com/vahinitech/imu2text/issues/14) | The thread that bears on our own 16-channel hardware |
+| [#12 hybrid classical + deep](https://github.com/vahinitech/imu2text/issues/12) | Filed with a prediction of 0 to +2 points, so a null result closes the direction cheaply |
+| [#15 sequence truncation study](https://github.com/vahinitech/imu2text/issues/15) | Cheap, and may interact with the case ceiling since capitals run longer |
+| [#16 verify the .npy loader contents](https://github.com/vahinitech/imu2text/issues/16) | Four of four loaders disagreed with the published format once already |
+
+The two threads with no issue yet are pen-tip reconstruction and cross-modal
+triplet learning. Both need the OnHW-wordsTraj loader, which is 2 GB of
+download and a new metric, and neither is worth starting before the cheaper
+work above has run.
