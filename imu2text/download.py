@@ -9,22 +9,22 @@ released by Fraunhofer IIS as direct-download ZIP archives at:
 
 This script lists the available archives, downloads one or more of them
 into a directory of your choice, and extracts them. It does not convert
-between pickle/npy formats - the loaders in ``onhw_chars.py`` and
-``onhw_seq2seq.py`` handle the format-specific reading.
+between pickle/npy formats - the loaders in ``imu2text/chars.py`` and
+``imu2text/seq2seq.py`` handle the format-specific reading.
 
 Usage
 -----
     # list every available archive with its size and contents
-    python onhw_download.py --list
+    python -m imu2text.download --list
 
     # download just the small left-handed chars dataset (3.5 MB) for a smoke test
-    python onhw_download.py onhw_chars_L --out ./data
+    python -m imu2text.download onhw_chars_L --out ./data
 
     # download the full right-handed chars dataset (896 MB) with official 5-fold splits
-    python onhw_download.py onhw_chars --out ./data
+    python -m imu2text.download onhw_chars --out ./data
 
     # download every archive (several GB)
-    python onhw_download.py all --out ./data
+    python -m imu2text.download all --out ./data
 
 Datasets
 --------
@@ -298,9 +298,11 @@ def main() -> None:
         if not args.datasets:
             print("\nPass dataset keys (or 'all') to download. Examples:")
             print(
-                "  python onhw_download.py onhw_chars_L --out ./data  # 3.5 MB smoke test"
+                "  python -m imu2text.download onhw_chars_L --out ./data  # 3.5 MB smoke test"
             )
-            print("  python onhw_download.py onhw_chars onhw_symbols_dep --out ./data")
+            print(
+                "  python -m imu2text.download onhw_chars onhw_symbols_dep --out ./data"
+            )
         return
 
     keys = list(DATASETS.keys()) if "all" in args.datasets else args.datasets

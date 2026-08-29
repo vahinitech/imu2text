@@ -71,7 +71,7 @@ distance loss plus a similarity loss improves both anyway.
 
 **What it would take here.** A second regression head on the existing CNN+BiLSTM
 trunk emitting (T, 2) pen-tip coordinates, a DTW or soft-DTW alignment loss,
-and a loss-weighting scheme. `cnn_gnn.py` already contains an illustrative
+and a loss-weighting scheme. `legacy/cnn_gnn.py` already contains an illustrative
 multi-task classification+trajectory example, so the shape is familiar to this
 repo - but that script is the legacy one, and its numbers are the memorisation
 figures the README warns about, so treat it as a sketch, not a starting point.
@@ -115,7 +115,7 @@ handwriting data is abundant; paper-plus-IMU data is what we are short of. If
 the tablet/paper gap can be bridged, the scarce-data problem in the "Why they
 exist" section above stops binding.
 
-**The dataset connection worth noticing.** `onhw_download.py` already lists
+**The dataset connection worth noticing.** `imu2text/download.py` already lists
 `icrow_dep` and `icrow_indep` (103 MB each, URLs verified live). ICROW is
 adapted from IRONOFF, a tablet-collected corpus - so **the tablet side of this
 experiment is already in our download catalog**, alongside OnHW-chars as the
@@ -169,7 +169,7 @@ architecture.
 Ordered by value per unit of work, not by the order the papers appeared:
 
 1. **Uncertainty-aware evaluation.** No download, no new model. Add ECE and a
-   reliability diagram to `onhw_models.py`'s reporting, and MC-dropout at
+   reliability diagram to `imu2text/models.py`'s reporting, and MC-dropout at
    predict time. Directly extends what the repo already claims to care about.
 2. **CORAL domain adaptation** on the existing OnHW-chars WD/WI folds. Small,
    self-contained, and it answers a question we actually have about the Vahini

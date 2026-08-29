@@ -8,7 +8,7 @@ import tempfile
 import numpy as np
 import pytest
 
-import onhw_words as W
+from imu2text import words as W
 
 
 # --------------------------------------------------------------------------- #

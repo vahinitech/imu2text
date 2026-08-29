@@ -69,7 +69,7 @@ training from scratch on OnHW-symbols by 5-10 points.
 
 Usage
 -----
-    from onhw_symbols import load_onhw_symbols, SYMBOLS_VOCAB
+    from imu2text.symbols import load_onhw_symbols, SYMBOLS_VOCAB
 
     # Load symbols (single-symbol classification)
     ds = load_onhw_symbols("./data/OnHW-symbols_equations_dep")
@@ -327,7 +327,7 @@ def _load_symbol_arrays(base_dir: str, suffix: str, kind: str):
         f"archives, or the unsplit layout (all_x_dat_imu_{suffix}.pkl + "
         f"all_gt_{suffix}.pkl + list_ids_{suffix}.pkl) shipped by the "
         "left-handed archive. Download with "
-        "`python onhw_download.py onhw_symbols_dep` (or onhw_symbols_L)."
+        "`python -m imu2text.download onhw_symbols_dep` (or onhw_symbols_L)."
     )
 
 
@@ -348,7 +348,7 @@ def load_onhw_symbols(base_dir: str) -> OnHWSymbolsDataset:
 
     The left-handed archive ships no split at all. Everything is returned as
     train with an empty val, and ``has_official_split`` is False - build a
-    split yourself (``onhw_models.make_split(mode="writer",
+    split yourself (``imu2text.models.make_split(mode="writer",
     writers=ds.train_ids)``) rather than evaluating on the empty val.
     """
     if not os.path.isdir(base_dir):

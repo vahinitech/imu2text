@@ -13,7 +13,7 @@ pytest.importorskip("tensorflow")  # onhw_models imports keras at module level
 # The skip above has to run first: the module pulls in keras at import
 # time, so importing it earlier would fail the whole file rather than
 # skip it when TensorFlow is missing.
-import onhw_models as M  # noqa: E402
+from imu2text import models as M  # noqa: E402
 
 
 def _fake_dataset(n_writers=6, alphabet="ABCD"):
@@ -305,7 +305,7 @@ def test_official_split_decodes_string_labels(official_npy_dir):
 
 def test_official_split_maps_labels_to_the_canonical_order(official_npy_dir):
     """Index 0 must mean 'A' and 26 must mean 'a', as everywhere else."""
-    import onhw_chars as C
+    from imu2text import chars as C
 
     _, y, classes, _ = M.load_official_split(
         official_npy_dir, "both", "indep", 0, seed=0

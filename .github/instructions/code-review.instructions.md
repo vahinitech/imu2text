@@ -6,7 +6,7 @@ applyTo: "**"
 
 IMU handwriting-recognition model training code (CNN/GNN/CTC seq2seq).
 This repo's own history is the standing lesson for what to watch for:
-`cnn_gnn.py`'s "~99% accuracy" was train-set memorization — the honest
+`legacy/cnn_gnn.py`'s "~99% accuracy" was train-set memorization — the honest
 held-out figure was ~43–47%.
 
 ## Provenance: Never Copied Research Code
@@ -18,7 +18,7 @@ held-out figure was ~43–47%.
   once). Ask directly: "is this cited and independently written, or
   copied?"
 - The correct pattern already exists here: `docs/impacx_onhw_analysis.md`
-  and `plot_results.py` explicitly cite ImpAcX_OnHW/`plot_kNN_results.py`
+  and `scripts/plot_results.py` explicitly cite ImpAcX_OnHW/`plot_kNN_results.py`
   and are *independently reimplemented*, not pasted. New code referencing
   a paper's method should follow that model — cite it, write it
   ourselves.
@@ -50,9 +50,9 @@ held-out figure was ~43–47%.
 - Check for train/normalization leakage: normalization stats, vocab, or
   any fitted parameter must be computed from train-only data, never from
   val/test.
-- `cnn_gnn.py` is legacy/reference-only — a PR extending it or citing its
+- `legacy/cnn_gnn.py` is legacy/reference-only — a PR extending it or citing its
   self-evaluation numbers as current performance should be redirected to
-  `onhw_models.py` (the honest benchmark suite) instead.
+  `imu2text/models.py` (the honest benchmark suite) instead.
 - Public-facing accuracy claims (docs, PR descriptions, commit messages)
   should match the ~65–80%-on-new-writers figure already established
   elsewhere in the org — flag anything that inflates it.
@@ -74,7 +74,7 @@ held-out figure was ~43–47%.
 - **Never fill missing metadata with a plausible value.** Absent writer IDs
   became zeros in one loader, which reads downstream as "one writer" and
   turns a writer-independent re-split into a leaky one. Use a sentinel
-  (`onhw_chars.WRITER_UNKNOWN`) and make consumers reject it.
+  (`imu2text.chars.WRITER_UNKNOWN`) and make consumers reject it.
 - Real recordings can be degenerate. Three of OnHW-chars' 31,275 samples have
   zero timesteps. A loader should drop them and say so, with counts per split,
   because dropping test samples changes the denominator of any accuracy.
@@ -109,7 +109,7 @@ held-out figure was ~43–47%.
 
 - Training loops: watch for unnecessary full-dataset copies, or data
   loading that isn't batched/streamed for larger pickles.
-- `onhw_seq2seq.py --demo` must stay lightweight (synthetic data, no
+- `python -m imu2text.seq2seq --demo` must stay lightweight (synthetic data, no
   download) — a PR that makes `--demo` require a real dataset breaks its
   purpose as a pipeline smoke check.
 

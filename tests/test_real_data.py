@@ -4,7 +4,8 @@ Every test here skips unless the archives are already extracted, so CI stays
 offline and fast. Point ``ONHW_DATA_DIR`` at a directory holding the extracted
 folders to run them:
 
-    python onhw_download.py onhw_chars_L onhw_symbols_L onhw_words500_indep_L --out ./data
+    python -m imu2text.download onhw_chars_L onhw_symbols_L onhw_words500_indep_L \
+        --out ./data
     ONHW_DATA_DIR=./data python -m pytest tests/test_real_data.py -v
 
 These exist because the synthetic fixtures elsewhere encode the same
@@ -41,7 +42,7 @@ def _require(*candidates):
 # OnHW-chars_L (3.5 MB)
 # --------------------------------------------------------------------------- #
 def test_real_chars_L_loads_with_the_documented_shape():
-    import onhw_chars as C
+    from imu2text import chars as C
 
     ds = C.load_onhw_chars(_require("OnHW-chars_L"))
     assert ds.format == "pkl"
@@ -52,7 +53,7 @@ def test_real_chars_L_loads_with_the_documented_shape():
 
 
 def test_real_chars_L_channels_are_13_wide():
-    import onhw_chars as C
+    from imu2text import chars as C
 
     ds = C.load_onhw_chars(_require("OnHW-chars_L"))
     assert all(s.shape[1] == C.N_CHANNELS for s in ds.X_all[:200])
@@ -60,14 +61,14 @@ def test_real_chars_L_channels_are_13_wide():
 
 def test_real_chars_L_writer_ids_are_remapped_contiguously():
     """The archive stores recording IDs (…, 1052, 4003), not 0..8."""
-    import onhw_chars as C
+    from imu2text import chars as C
 
     ds = C.load_onhw_chars(_require("OnHW-chars_L"))
     assert sorted(set(ds.writers.tolist())) == list(range(9))
 
 
 def test_real_chars_L_labels_follow_the_canonical_class_order():
-    import onhw_chars as C
+    from imu2text import chars as C
 
     ds = C.load_onhw_chars(_require("OnHW-chars_L"))
     assert "".join(ds.classes) == C.CHARS_BOTH
@@ -77,8 +78,8 @@ def test_real_chars_L_labels_follow_the_canonical_class_order():
 def test_real_chars_L_supports_a_writer_independent_split():
     """The whole point of keeping real writer IDs."""
     pytest.importorskip("tensorflow")
-    import onhw_chars as C
-    import onhw_models as M
+    from imu2text import chars as C
+    from imu2text import models as M
 
     ds = C.load_onhw_chars(_require("OnHW-chars_L"))
     tr, va, te = M.make_split(
@@ -93,7 +94,7 @@ def test_real_chars_L_supports_a_writer_independent_split():
 # OnHW-symbols / equations (7.5 MB)
 # --------------------------------------------------------------------------- #
 def test_real_symbols_L_has_15_classes():
-    import onhw_symbols as S
+    from imu2text import symbols as S
 
     ds = S.load_onhw_symbols(_require("OnHW-symbols_equations_L"))
     assert ds.n_classes == len(S.SYMBOLS_VOCAB) == 15
@@ -103,7 +104,7 @@ def test_real_symbols_L_has_15_classes():
 
 def test_real_symbols_L_ships_no_split():
     """The left-handed archive has no train/val split; that must be visible."""
-    import onhw_symbols as S
+    from imu2text import symbols as S
 
     ds = S.load_onhw_symbols(_require("OnHW-symbols_equations_L"))
     assert ds.has_official_split is False
@@ -113,7 +114,7 @@ def test_real_symbols_L_ships_no_split():
 
 def test_real_symbols_dep_uses_the_shipped_split():
     """The dep archive is flat with an official 1853/473 split and no folds."""
-    import onhw_symbols as S
+    from imu2text import symbols as S
 
     ds = S.load_onhw_symbols(_require("OnHW-symbols_equations_dep"))
     assert ds.has_official_split
@@ -124,7 +125,7 @@ def test_real_symbols_dep_uses_the_shipped_split():
 
 def test_real_symbols_dep_is_writer_dependent_as_its_name_says():
     """All 27 writers appear on both sides; reporting it as WI would be wrong."""
-    import onhw_symbols as S
+    from imu2text import symbols as S
 
     ds = S.load_onhw_symbols(_require("OnHW-symbols_equations_dep"))
     assert ds.is_writer_independent is False
@@ -132,7 +133,7 @@ def test_real_symbols_dep_is_writer_dependent_as_its_name_says():
 
 
 def test_real_symbols_dep_labels_span_the_charset():
-    import onhw_symbols as S
+    from imu2text import symbols as S
 
     ds = S.load_onhw_symbols(_require("OnHW-symbols_equations_dep"))
     assert set(np.unique(ds.y_train).tolist()) == set(range(15))
@@ -143,7 +144,7 @@ def test_real_symbols_dep_labels_span_the_charset():
 # --------------------------------------------------------------------------- #
 def test_real_words500_loads_from_a_bare_integer_fold_directory():
     """The published archives name folds `0`/`1`, not `fold_0`."""
-    import onhw_words as W
+    from imu2text import words as W
 
     ds = W.load_onhw_words500(_require("Words500_indep_L", "Words500_dep_L"), fold=0)
     assert ds.n_train > 0 and ds.n_val > 0
@@ -151,7 +152,7 @@ def test_real_words500_loads_from_a_bare_integer_fold_directory():
 
 def test_real_words500_labels_have_their_padding_stripped():
     """Labels ship right-padded to a fixed width with the blank index."""
-    import onhw_words as W
+    from imu2text import words as W
 
     ds = W.load_onhw_words500(_require("Words500_indep_L", "Words500_dep_L"), fold=0)
     assert all(W.WORDS500_BLANK_IDX not in y for y in ds.Y_train)
@@ -159,7 +160,7 @@ def test_real_words500_labels_have_their_padding_stripped():
 
 
 def test_real_words500_decodes_to_german_words():
-    import onhw_words as W
+    from imu2text import words as W
 
     ds = W.load_onhw_words500(_require("Words500_indep_L", "Words500_dep_L"), fold=0)
     assert all(w and w.strip() for w in ds.train_words)
@@ -167,7 +168,7 @@ def test_real_words500_decodes_to_german_words():
 
 
 def test_real_words500_lexicon_is_the_closed_500_word_vocabulary():
-    import onhw_words as W
+    from imu2text import words as W
 
     ds = W.load_onhw_words500(_require("Words500_indep_L", "Words500_dep_L"), fold=0)
     assert len(ds.lexicon) == 500
@@ -175,7 +176,7 @@ def test_real_words500_lexicon_is_the_closed_500_word_vocabulary():
 
 def test_real_words500_is_writer_independent_across_splits():
     """The `indep` archive must not share a writer between train and val."""
-    import onhw_words as W
+    from imu2text import words as W
 
     base = _require("Words500_indep_L")
     ds = W.load_onhw_words500(base, fold=0)
@@ -184,7 +185,7 @@ def test_real_words500_is_writer_independent_across_splits():
 
 def test_real_words500_folds_swap_the_writers():
     """Fold 1 is fold 0 with train and val exchanged (2 writers, 2 folds)."""
-    import onhw_words as W
+    from imu2text import words as W
 
     base = _require("Words500_indep_L")
     f0 = W.load_onhw_words500(base, fold=0)
@@ -194,7 +195,7 @@ def test_real_words500_folds_swap_the_writers():
 
 def test_real_words500_lexicon_decoder_recovers_a_known_word():
     """End-to-end: the real 500-word lexicon drives the decoder."""
-    import onhw_words as W
+    from imu2text import words as W
 
     ds = W.load_onhw_words500(_require("Words500_indep_L", "Words500_dep_L"), fold=0)
     decoder = W.LexiconDecoder(ds.lexicon, beam_width=8)

@@ -3,7 +3,7 @@
 ## Working rules (apply to every change)
 
 - **Honest evaluation is this repo's identity.** Its own README documents
-  the lesson: `cnn_gnn.py`'s "~99%" was train-set memorization; the real
+  the lesson: `legacy/cnn_gnn.py`'s "~99%" was train-set memorization; the real
   held-out figure was ~43–47%. Never report a number without stating the
   split (writer-independent vs random), and never let train data leak into
   normalization or evaluation. Publicly quoted accuracy is ~65–80% on new
@@ -14,7 +14,7 @@
 - **Never copy another researcher's code into this repo — reference it,
   don't paste it.** This repo already does this right:
   `docs/impacx_onhw_analysis.md` explicitly analyzes ImpAcX_OnHW's
-  pipeline and `plot_results.py` is rebuilt "in the style of" its
+  pipeline and `scripts/plot_results.py` is rebuilt "in the style of" its
   `plot_kNN_results.py" — independently reimplemented, cited, not copied.
   When a paper's method or a public repo's implementation is genuinely
   needed: (a) cite the paper/repo and reimplement it independently in our
@@ -46,7 +46,7 @@
 pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu  # CPU/CI
 python -m py_compile *.py            # syntax gate (CI does this)
 pytest                                # tests/ — split, writer inference, augmentation, CTC
-python onhw_seq2seq.py --demo         # verifies the seq2seq pipeline on synthetic data, no dataset needed
+python -m imu2text.seq2seq --demo         # verifies the seq2seq pipeline on synthetic data, no dataset needed
 ```
 
 `requirements.txt` pins are **security-motivated** (torch 2.7.1 for
@@ -55,17 +55,22 @@ without checking the advisories.
 
 ## Repo map
 
-- `onhw_models.py` — the honest benchmark suite: baselines + SOTA
+Layout: `imu2text/` is the package (loaders, augmentation, models, seq2seq),
+`scripts/` holds standalone runners, `legacy/` holds `cnn_gnn.py`. The package
+is imported from the source tree rather than installed - `pytest.ini` puts the
+repo root on `sys.path`. Entry points are `python -m imu2text.<module>`.
+
+- `imu2text/models.py` — the honest benchmark suite: baselines + SOTA
   CNN+BiLSTM, writer-independent and random splits; class set inferred
   from labels (handles OnHW-chars and OnHW-symbols).
-- `onhw_seq2seq.py` — CTC seq2seq (words/equations), CER/WER metrics.
-- `cnn_gnn.py` — legacy single-script example; keep for reference, don't
+- `imu2text/seq2seq.py` — CTC seq2seq (words/equations), CER/WER metrics.
+- `legacy/cnn_gnn.py` — legacy single-script example; keep for reference, don't
   extend, and never quote its self-evaluation numbers.
-- `make_learning_curve.py` / `plot_results.py` / `onhw_projection.m` —
+- `scripts/make_learning_curve.py` / `scripts/plot_results.py` / `scripts/onhw_projection.m` —
   learning curve, figures, logistic projection to full-dataset scale.
-- `onhw_chars.py` / `onhw_symbols.py` / `onhw_words.py` / `onhw_download.py` -
+- `imu2text/chars.py` / `imu2text/symbols.py` / `imu2text/words.py` / `imu2text/download.py` -
   loaders for the published Fraunhofer archives, plus the download catalog.
-  Verified against the real ZIPs; `onhw_augment.py` holds the transform policy.
+  Verified against the real ZIPs; `imu2text/augment.py` holds the transform policy.
 - `tests/` + `pytest.ini` (`pythonpath = .` so tests import the top-level
   scripts regardless of invocation). `tests/test_real_data.py` runs the
   loaders against real archives and skips unless `ONHW_DATA_DIR` is set -

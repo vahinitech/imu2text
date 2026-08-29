@@ -5,7 +5,7 @@ description: Use when running, reporting, or reviewing any accuracy/CER/WER expe
 
 # Honest benchmarking
 
-This repo exists because `cnn_gnn.py` reported ~99% and the honest held-out
+This repo exists because `legacy/cnn_gnn.py` reported ~99% and the honest held-out
 figure was ~43-47%. Every rule here comes from a mistake actually made in this
 codebase, most of them in PR #8.
 
@@ -20,7 +20,7 @@ came out two points lower.
 `--seed` alone does not pin a run. `tf.random.set_seed` does not reach the
 Keras layer initialisers, so two runs at the same seed start from different
 weights. Seeding goes through `keras.utils.set_random_seed` in
-`onhw_models.py`; a new entry point must do the same.
+`imu2text/models.py`; a new entry point must do the same.
 
 For any before/after comparison, pass `--deterministic`. It adds op
 determinism and single-threaded execution, costs 30-50% wall-clock, and makes

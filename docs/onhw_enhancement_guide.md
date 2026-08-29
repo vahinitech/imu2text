@@ -1,7 +1,7 @@
 # Enhancing this repo across the OnHW dataset family
 
 How to grow this repository from single-character classification
-(`onhw_models.py`) to the full [Fraunhofer IIS OnHW dataset family]
+(`imu2text/models.py`) to the full [Fraunhofer IIS OnHW dataset family]
 (https://www.iis.fraunhofer.de/de/ff/lv/dataanalytics/anwproj/schreibtrainer/onhw-dataset.html):
 character recognition, **symbol recognition**, and **sequence-to-sequence
 (words / equations)** recognition. Recommendations draw on:
@@ -45,16 +45,16 @@ What this repo covers today:
 
 | Task | Status |
 |---|---|
-| Character classification | `onhw_models.py` (CNN / LSTM / BiLSTM / CNN+BiLSTM, WI + random splits, augmentation) |
-| Symbol classification | **works out of the box** - `onhw_models.py` builds its class set from the labels, so pointing `IMU_FILE`/`GT_FILE` at OnHW-symbols pickles just works |
-| Seq2seq (words / equations) | `onhw_seq2seq.py` - CNN+BiLSTM+CTC scaffold with CER/WER metrics, greedy decoding, and a synthetic `--demo` verifying the pipeline |
-| Trajectory regression | `cnn_gnn.py` (illustrative multi-task example) |
+| Character classification | `imu2text/models.py` (CNN / LSTM / BiLSTM / CNN+BiLSTM, WI + random splits, augmentation) |
+| Symbol classification | **works out of the box** - `imu2text/models.py` builds its class set from the labels, so pointing `IMU_FILE`/`GT_FILE` at OnHW-symbols pickles just works |
+| Seq2seq (words / equations) | `imu2text/seq2seq.py` - CNN+BiLSTM+CTC scaffold with CER/WER metrics, greedy decoding, and a synthetic `--demo` verifying the pipeline |
+| Trajectory regression | `legacy/cnn_gnn.py` (illustrative multi-task example) |
 
 ## 2. Improving character recognition
 
 Ranked by expected value for this repo:
 
-1. **More writers.** The learning curve (`make_learning_curve.py`,
+1. **More writers.** The learning curve (`scripts/make_learning_curve.py`,
    `results/learning_curve.png`) shows WI accuracy still climbing at 27
    training writers; the full OnHW-chars set (119 writers) is the single
    biggest win. Use the official WI folds once the full dataset is downloaded.
@@ -82,7 +82,7 @@ Ranked by expected value for this repo:
 
 ## 3. Improving sequence-to-sequence (words / equations)
 
-`onhw_seq2seq.py` is the starting point (CNN+BiLSTM+CTC - the IJDAR 2022 and
+`imu2text/seq2seq.py` is the starting point (CNN+BiLSTM+CTC - the IJDAR 2022 and
 REWI baseline architecture). Priorities:
 
 1. **Get the real data.** Download OnHW-equations / words500 / wordsRandom
@@ -104,7 +104,7 @@ REWI baseline architecture). Priorities:
    - REWI-style efficiency pass: their 3.9M-parameter model shows capacity is
      not the bottleneck - writer robustness is.
 4. **Multi-task with trajectory.** OnHW-wordsTraj's camera ground truth lets
-   the seq2seq encoder also regress pen-tip position (as `cnn_gnn.py` sketches
+   the seq2seq encoder also regress pen-tip position (as `legacy/cnn_gnn.py` sketches
    for chars) - auxiliary trajectory loss regularizes the shared encoder.
 5. **Joint training across datasets.** Equations and words share the encoder;
    train one model with a merged charset, or pretrain on wordsRandom and
@@ -122,14 +122,14 @@ OnHW-symbols is tiny (~1k samples), so the levers are different:
    ×8–×16.
 3. **Synthetic data.** Ott et al. (2022) trained conditional GANs specifically
    on OnHW-symbols to synthesize IMU signals; a simpler modern take is motif
-   mixing/concatenation (see `make_demo_data` in `onhw_seq2seq.py`) or
+   mixing/concatenation (see `make_demo_data` in `imu2text/seq2seq.py`) or
    variational autoencoders per class.
 4. **Classical baseline.** At ~1k samples, ImpAcX-style DTW-kNN is competitive
    and needs no training - run it as the honesty baseline next to the nets.
 
 ## 5. Methodology guardrails (apply to every task)
 
-These are the rules already enforced in `onhw_models.py`; keep them for every
+These are the rules already enforced in `imu2text/models.py`; keep them for every
 new dataset:
 
 - **Writer-independent first.** WD numbers flatter; the OnHW literature's
@@ -139,6 +139,6 @@ new dataset:
 - **Report the majority-class / trivial baseline** next to every result.
 - **5 folds, mean ± std** - single-split results on ≤55 writers are noisy
   (ImpAcX's plotting of mean±std clouds across folds is the model to follow;
-  `plot_results.py` has the hook).
+  `scripts/plot_results.py` has the hook).
 - **CER/WER for sequences** (`onhw_seq2seq.cer/wer`), accuracy for
   classification.

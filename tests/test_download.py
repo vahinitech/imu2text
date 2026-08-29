@@ -1,4 +1,4 @@
-"""Tests for the dataset download helper (onhw_download.py).
+"""Tests for the dataset download helper (imu2text/download.py).
 
 Nothing here touches the network. The catalog is checked for internal
 consistency, and the archive handling is exercised against ZIPs built in a
@@ -11,7 +11,7 @@ import zipfile
 
 import pytest
 
-import onhw_download as D
+from imu2text import download as D
 
 
 # --------------------------------------------------------------------------- #

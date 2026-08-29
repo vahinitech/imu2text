@@ -6,7 +6,7 @@ import pickle
 import numpy as np
 import pytest
 
-import onhw_symbols as S
+from imu2text import symbols as S
 
 
 # --------------------------------------------------------------------------- #

@@ -1,9 +1,9 @@
 """IMU-specific data augmentation transforms for OnHW-style sensor sequences.
 
-This module collects the augmentation transforms used by ``onhw_models.py``.
+This module collects the augmentation transforms used by ``imu2text/models.py``.
 Splitting them out of the training script keeps the augmentation policy
 visible and unit-testable, and lets the same transforms be reused by the
-sequence-to-sequence pipeline (``onhw_seq2seq.py``) and any downstream
+sequence-to-sequence pipeline (``imu2text/seq2seq.py``) and any downstream
 task that operates on the same 13-channel OnHW channel layout.
 
 The OnHW pen produces 13 channels at every timestep:

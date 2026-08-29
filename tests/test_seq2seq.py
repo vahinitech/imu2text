@@ -9,7 +9,7 @@ pytest.importorskip("tensorflow")
 # The skip above has to run first: the module pulls in keras at import
 # time, so importing it earlier would fail the whole file rather than
 # skip it when TensorFlow is missing.
-import onhw_seq2seq as S  # noqa: E402
+from imu2text import seq2seq as S  # noqa: E402
 
 
 def test_edit_distance():

@@ -1,6 +1,6 @@
 """OnHW sequence-to-sequence recognition (words / equations / split-words) with CTC.
 
-While ``onhw_models.py`` classifies a whole recording into ONE character class,
+While ``imu2text/models.py`` classifies a whole recording into ONE character class,
 the sequence OnHW datasets (OnHW-words500, OnHW-wordsRandom, OnHW-equations,
 OnHW-wordsTraj) label a recording with a STRING (a word or an equation). That
 is a sequence-to-sequence problem: the model must emit a variable-length symbol
@@ -23,13 +23,13 @@ Data format
 Same convention as the character pipeline: two pickles, one with a list of
 (T_i, 13) float arrays and one with a list of label STRINGS, e.g.
 
-    python onhw_seq2seq.py --imu-file data/words_x.pkl --labels-file data/words_gt.pkl
+    python -m imu2text.seq2seq --imu-file data/words_x.pkl --labels-file data/words_gt.pkl
 
 No sequence dataset is bundled with this repo (download the OnHW words /
 equations datasets from the Fraunhofer IIS OnHW page). To verify the pipeline
 end-to-end without a download, run the built-in synthetic demo:
 
-    python onhw_seq2seq.py --demo
+    python -m imu2text.seq2seq --demo
 """
 
 from __future__ import annotations
@@ -309,8 +309,12 @@ def main() -> None:
     args = ap.parse_args()
     N_CHANNELS = args.channels
 
+    # set_random_seed covers python's `random`, numpy and TF in one call.
+    # tf.random.set_seed alone does NOT reach the Keras layer initialisers, so
+    # the demo started from different weights every run and could fail
+    # outright (100% CER) on an unlucky init. Same fix as imu2text/models.py.
+    tf.keras.utils.set_random_seed(args.seed)
     np.random.seed(args.seed)
-    tf.random.set_seed(args.seed)
 
     if args.demo:
         x, labels = make_demo_data(seed=args.seed)

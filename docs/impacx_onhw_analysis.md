@@ -1,7 +1,7 @@
 # ImpAcX_OnHW analysis: `DTW_KNN.py` and `plot_kNN_results.py`
 
 Analysis of [KorayKarabina/ImpAcX_OnHW](https://github.com/KorayKarabina/ImpAcX_OnHW),
-and how this repository rebuilds its matplotlib figures (`plot_results.py`).
+and how this repository rebuilds its matplotlib figures (`scripts/plot_results.py`).
 
 ## What the repo does
 
@@ -64,15 +64,15 @@ The script aggregates pickled per-fold score lists and draws
    level. Axis labels report "Average Testing Accuracy (5-fold Cross
    Validation)"; legend sits lower right.
 
-### How we rebuilt this style (`plot_results.py`)
+### How we rebuilt this style (`scripts/plot_results.py`)
 
-`plot_results.py` applies the same mechanics to this repository's results:
+`scripts/plot_results.py` applies the same mechanics to this repository's results:
 
 | ImpAcX original | This repo |
 |---|---|
 | `set_size()` pt→inch golden-ratio sizing | same function, same reference |
 | per-fold pickles → mean/std curves | `results/learning_curve.csv` (+ optional `results/benchmarks.csv`) |
-| accuracy vs. k in kNN | WI accuracy vs. number of training writers, with the logistic projection fit from `onhw_projection.m` overlaid |
+| accuracy vs. k in kNN | WI accuracy vs. number of training writers, with the logistic projection fit from `scripts/onhw_projection.m` overlaid |
 | second figure (NCA+kNN comparison) | model-comparison bar chart (CNN+BiLSTM / BiLSTM / CNN / LSTM / majority) |
 | PDF + `bbox_inches='tight'` | same, plus a PNG for quick viewing |
 | 10 ad-hoc named CSS colours | a small fixed colourblind-safe palette; every series also direct-labeled, so identity never relies on colour alone |
@@ -80,10 +80,10 @@ The script aggregates pickled per-fold score lists and draws
 Run it with:
 
 ```bash
-python make_learning_curve.py   # produces results/learning_curve.csv (skip if present)
-python plot_results.py          # writes results/learning_curve.pdf/.png, results/model_benchmarks.pdf/.png
+python scripts/make_learning_curve.py   # produces results/learning_curve.csv (skip if present)
+python scripts/plot_results.py          # writes results/learning_curve.pdf/.png, results/model_benchmarks.pdf/.png
 ```
 
 The mean±std "cloud" idiom (`fill_between`) becomes relevant here once
-`make_learning_curve.py` is run with multiple seeds; the plotting hook is the
+`scripts/make_learning_curve.py` is run with multiple seeds; the plotting hook is the
 same one ImpAcX left commented out.

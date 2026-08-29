@@ -13,7 +13,7 @@ Models implemented
 
 Why this exists
 ---------------
-``cnn_gnn.py`` reports ~99% accuracy, but it trains and evaluates on the *same*
+``legacy/cnn_gnn.py`` reports ~99% accuracy, but it trains and evaluates on the *same*
 array, so that number is train-set memorization (held-out accuracy is ~43%).
 This script fixes the methodology:
 
@@ -25,7 +25,7 @@ This script fixes the methodology:
 
 Augmentation
 ------------
-Stochastic transforms live in ``onhw_augment.py`` and include the legacy
+Stochastic transforms live in ``imu2text/augment.py`` and include the legacy
 jitter / scale / magnitude-warp / time-warp policy plus three new physically-
 meaningful IMU transforms:
 
@@ -45,10 +45,10 @@ prefer using true writer metadata and a group split on writer ID instead.
 
 Usage
 -----
-    python onhw_models.py                 # train+eval all models, print table
-    python onhw_models.py --models cnn_bilstm
-    python onhw_models.py --epochs 80 --seed 1
-    python onhw_models.py --augment 4 --rnn-units 100 --rnn-layers 2  # best config
+    python -m imu2text.models                 # train+eval all models, print table
+    python -m imu2text.models --models cnn_bilstm
+    python -m imu2text.models --epochs 80 --seed 1
+    python -m imu2text.models --augment 4 --rnn-units 100 --rnn-layers 2  # best config
 """
 
 from __future__ import annotations
@@ -74,7 +74,7 @@ from tensorflow.keras.utils import to_categorical, pad_sequences
 
 # Augmentation policy + per-writer normalization live in a dedicated module so
 # they can be reused by the seq2seq pipeline and unit-tested independently.
-from onhw_augment import AUG_POLICIES, augment_training
+from .augment import AUG_POLICIES, augment_training
 
 IMU_FILE = "data/all_x_dat_imu.pkl"
 GT_FILE = "data/all_gt.pkl"
@@ -148,14 +148,14 @@ def load_official_split(
     partition is whatever the archive baked in - it cannot be re-derived
     here, which is exactly why the official folds are used as-is.
     """
-    from onhw_chars import load_onhw_chars
+    from .chars import load_onhw_chars
 
     ds = load_onhw_chars(base_dir, case=case, dependency=dependency, fold=fold)
     if ds.format != "npy":
         raise SystemExit(
             f"{base_dir} is not the .npy OnHW-chars release (found "
             f"'{ds.format}'). The official splits only ship in the .npy "
-            "archive - download it with `python onhw_download.py onhw_chars`."
+            "archive - download it with `python -m imu2text.download onhw_chars`."
         )
 
     x = [np.asarray(s_, dtype=np.float32) for s_ in ds.X_all]
@@ -217,7 +217,7 @@ def make_split(
     if mode == "writer":
         if writers is None:
             raise ValueError("writers must be provided for mode='writer'")
-        # -1 marks "writer not recorded" (see onhw_chars.WRITER_UNKNOWN). Those
+        # -1 marks "writer not recorded" (see imu2text.chars.WRITER_UNKNOWN). Those
         # samples would all collapse into one pseudo-writer and turn a
         # writer-independent split into a leaky one, so refuse them outright.
         if np.any(np.asarray(writers) < 0):
@@ -350,7 +350,7 @@ def normalize_and_pad(
 # The legacy private transforms (_time_warp, _mag_warp, _augment_one) lived
 # here in older revisions; they are now in onhw_augment. Tests that imported
 # them as ``M._time_warp`` etc. keep working via these aliases.
-from onhw_augment import (  # noqa: E402,F401
+from .augment import (  # noqa: E402,F401
     time_warp as _time_warp,
     mag_warp as _mag_warp,
     augment_one as _augment_one,

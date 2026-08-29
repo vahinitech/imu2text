@@ -8,7 +8,7 @@ regressions without needing TensorFlow.
 import numpy as np
 import pytest
 
-import onhw_augment as A
+from imu2text import augment as A
 
 
 @pytest.fixture

@@ -1,4 +1,4 @@
-"""Tests for the OnHW-chars dataset loader (onhw_chars.py).
+"""Tests for the OnHW-chars dataset loader (imu2text/chars.py).
 
 Covers both the .pkl format (left-handed, no splits) and the .npy format
 (right-handed, 30 official splits). The .pkl tests use the small (3.5 MB)
@@ -15,7 +15,7 @@ import tempfile
 import numpy as np
 import pytest
 
-import onhw_chars as C
+from imu2text import chars as C
 
 
 # --------------------------------------------------------------------------- #
@@ -193,34 +193,6 @@ def test_class_strings():
 
 
 # --------------------------------------------------------------------------- #
-# Real OnHW-chars_L dataset (only if downloaded)
-# --------------------------------------------------------------------------- #
-@pytest.mark.skipif(
-    not os.path.exists(
-        "/home/z/my-project/imu2text-work/onhw_data/OnHW-chars_L/OnHW-chars_L/all_x_dat_imu.pkl"
-    ),
-    reason="OnHW-chars_L not downloaded (smoke-test only)",
-)
-def test_real_onhw_chars_L_loads():
-    """Smoke test against the real Fraunhofer OnHW-chars_L dataset."""
-    ds = C.load_onhw_chars(
-        "/home/z/my-project/imu2text-work/onhw_data/OnHW-chars_L/OnHW-chars_L"
-    )
-    assert ds.format == "pkl"
-    assert ds.n_samples == 2270
-    assert ds.n_classes == 52
-    assert ds.n_writers == 9
-    assert ds.classes[0] == "A"
-    assert ds.classes[25] == "Z"
-    assert ds.classes[26] == "a"
-    assert ds.classes[51] == "z"
-    # All sequences have 13 channels
-    assert all(s.shape[1] == 13 for s in ds.X_all)
-    # Writer IDs are remapped to 0..8
-    assert set(ds.writers.tolist()) == set(range(9))
-
-
-# --------------------------------------------------------------------------- #
 # Writer IDs
 #
 # The .npy archives ship pre-made splits and no per-sample writer IDs. Filling
@@ -254,7 +226,7 @@ def test_writer_unknown_sentinel_is_negative():
 def test_unknown_writer_ids_are_refused_by_the_writer_split(npy_dataset_dir):
     """The two halves of the guard have to line up: sentinel in, error out."""
     pytest.importorskip("tensorflow")
-    import onhw_models as M
+    from imu2text import models as M
 
     ds = C.load_onhw_chars(npy_dataset_dir, case="both", dependency="indep", fold=0)
     with pytest.raises(ValueError, match="unknown"):

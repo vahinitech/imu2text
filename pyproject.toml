@@ -10,6 +10,10 @@ target-version = ["py310"]
 ignored-modules = ["tensorflow", "tensorflow.keras", "torch", "torch_geometric"]
 jobs = 0
 
+# scripts/ and legacy/ import the package from the source tree, so pylint
+# needs the repo root on sys.path the same way pytest.ini arranges it.
+init-hook = 'import sys; sys.path.insert(0, ".")'
+
 [tool.pylint."messages control"]
 disable = [
     # The lazy imports are deliberate. onhw_symbols and onhw_models import

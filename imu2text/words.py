@@ -64,14 +64,14 @@ The integer-encoded labels use the 59-character charset:
 
 Usage
 -----
-    from onhw_words import load_onhw_words500, WORDS500_VOCAB
+    from imu2text.words import load_onhw_words500, WORDS500_VOCAB
 
     ds = load_onhw_words500("./data/Words500_dep_R", fold=0)
     X_train, Y_train = ds.X_train, ds.Y_train
     lexicon = list(set(ds.train_words + ds.val_words))   # 500 unique words
 
     # train a CTC model (use onhw_seq2seq.build_ctc_models), then decode:
-    from onhw_words import LexiconDecoder
+    from imu2text.words import LexiconDecoder
     decoder = LexiconDecoder(lexicon, charset=WORDS500_VOCAB)
     hyps = decoder.decode(infer_model, X_test, down_len)
 """
@@ -246,7 +246,8 @@ def load_onhw_words500(base_dir: str, fold: int = 0) -> OnHWWordsDataset:
         if not os.path.exists(os.path.join(fold_dir, fname)):
             raise FileNotFoundError(
                 f"missing {fname} in {fold_dir}. The Words500 archive may be "
-                "corrupted; re-download with onhw_download.py onhw_words500_dep"
+                "corrupted; re-download with "
+                "`python -m imu2text.download onhw_words500_dep`"
             )
 
     def _load_pkl(name):
@@ -323,7 +324,7 @@ class LexiconDecoder:
     eliminates most garbage outputs at near-zero cost.
 
     The decoder is intentionally simple (no LM, no word-boundary handling)
-    so it stays a drop-in replacement for ``onhw_seq2seq.ctc_greedy_decode``.
+    so it stays a drop-in replacement for ``imu2text.seq2seq.ctc_greedy_decode``.
     For real production use, a proper beam search with a character-level LM
     (e.g. KenLM) is recommended; this implementation gets the closed-vocab
     bonus for free.

@@ -18,7 +18,7 @@ Figures produced (into results/):
      onhw_projection.m) extrapolated to full-dataset scale.
   2. model_benchmarks.pdf/.png - held-out WI accuracy per architecture.
 
-Usage:  python plot_results.py [--width 500]
+Usage:  python scripts/plot_results.py [--width 500]
 """
 
 from __future__ import annotations

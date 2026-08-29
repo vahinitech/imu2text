@@ -8,19 +8,24 @@ full-dataset scale.
 Output: results/learning_curve.csv  with columns
     n_writers, n_samples, wi_test_acc
 
-Run:  python make_learning_curve.py
+Run:  python scripts/make_learning_curve.py
 """
 
 import csv
 import os
 import pickle
+import sys
 
-import numpy as np
-import tensorflow as tf
+# Running this file directly puts scripts/ on sys.path, not the repo root, so
+# the package next to it would not be importable without this.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import numpy as np  # noqa: E402
+import tensorflow as tf  # noqa: E402
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.utils import to_categorical
 
-import onhw_models as M
+from imu2text import models as M
 
 SEED = 0
 EPOCHS = 40

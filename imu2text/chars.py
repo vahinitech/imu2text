@@ -74,7 +74,7 @@ from typing import List, NamedTuple, Optional
 
 import numpy as np
 
-# Channel layout - shared with onhw_augment.SENSOR_GROUPS but kept local to
+# Channel layout - shared with imu2text.augment.SENSOR_GROUPS but kept local to
 # avoid a circular import (onhw_augment is the canonical home, this is just
 # documentation of what each column is for downstream users).
 CHANNEL_NAMES = [
@@ -113,7 +113,7 @@ class OnHWCharsDataset(NamedTuple):
     ``writers`` are derived by concatenation. The .pkl format has no splits,
     so ``X_all`` / ``y_all`` / ``writers`` are populated and the train/test
     arrays are ``None`` (the caller is expected to split using
-    ``onhw_models.make_split`` with the inferred writer IDs).
+    ``imu2text.models.make_split`` with the inferred writer IDs).
     """
 
     X_train: Optional[List[np.ndarray]]
