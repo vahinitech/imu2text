@@ -43,6 +43,7 @@ Files of interest
 - `imu2text/models.py` - honest OnHW benchmark suite: baselines (CNN, LSTM, BiLSTM) and the SOTA CNN+BiLSTM, with both writer-independent and random splits. The class set is inferred from the labels, so the same script handles OnHW-chars **and OnHW-symbols** pickles.
 - `imu2text/seq2seq.py` - sequence-to-sequence (words / equations) recognition: CNN+BiLSTM encoder trained with CTC, greedy decoding, CER/WER metrics. Run `python -m imu2text.seq2seq --demo` to verify the pipeline on synthetic data without downloading a dataset.
 - `scripts/make_learning_curve.py` - trains the SOTA model on an increasing number of writers (writer-independent) to produce the accuracy learning curve.
+- `scripts/plot_architecture.py` - model architecture and transfer-learning diagrams, drawn from the live Keras models rather than a hand-maintained description.
 - `scripts/plot_error_analysis.py` - the four-panel error figure: where the errors go, which confusions dominate, what case costs each letter, and whether the cue is in the signal at all.
 - `scripts/plot_results.py` - publication-quality matplotlib figures (learning curve + logistic projection, model benchmark bars), rebuilt in the style of ImpAcX_OnHW's `plot_kNN_results.py`.
 - `scripts/onhw_projection.m` - MATLAB/Octave script that fits a logistic model to the learning curve and projects pen accuracy to full-dataset scale.
@@ -128,6 +129,30 @@ Writer-independent results on the bundled subset (2,270 samples, 45 writers,
 The ordering matches the literature (CNN+BiLSTM > BiLSTM > CNN > LSTM), and
 CNN+BiLSTM's 64.8% WI essentially matches the published 52-class OnHW baseline
 (~64%, Ott et al. 2020) - on only 27 training writers.
+
+Architectures
+
+![Model architectures](results/architecture.png)
+
+Both stacks are drawn by introspecting the Keras models, so the figure cannot
+drift from `imu2text/models.py`. The attention variant differs only after the
+BiLSTM: instead of reading out the final state, it keeps every timestep and
+learns which ones matter, for 13k extra parameters (145,000 to 157,928).
+
+Transfer learning to OnHW-symbols reuses that trunk:
+
+![Transfer learning](results/transfer_learning.png)
+
+`imu2text.symbols.build_transfer_model` clones the trunk, freezes it, and
+attaches a new head, so during the warmup phase 1,515 of 141,263 parameters
+train. `unfreeze_trunk()` then releases the rest at a lower learning rate. The
+figure reads each layer's `trainable` flag off the model the function actually
+returns, so what it labels frozen is frozen. Layout after Figure 6 of Ott et
+al., ACM MM 2022 (`data/ACMMM_2022.pdf`); the drawing code is our own.
+
+```bash
+python scripts/plot_architecture.py            # both figures
+```
 
 Official OnHW-chars benchmark
 

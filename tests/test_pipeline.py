@@ -528,3 +528,39 @@ def test_rank_auc_handles_an_empty_group():
     from scripts.plot_error_analysis import rank_auc
 
     assert np.isnan(rank_auc(np.array([]), np.array([1.0, 2])))
+
+
+# --------------------------------------------------------------------------- #
+# Architecture figure
+#
+# The figures are drawn from the live models, so the helpers that read a layer
+# have to keep working when a builder changes.
+# --------------------------------------------------------------------------- #
+def test_every_layer_maps_to_a_drawing_family():
+    """An unmapped layer would silently render in the 'input / output' grey."""
+    from scripts.plot_architecture import FAMILY, classify
+
+    for name in ("cnn", "lstm", "bilstm", "cnn_bilstm", "cnn_bilstm_attn"):
+        for layer in M.BUILDERS[name](40, 12).layers:
+            assert classify(layer) in FAMILY
+
+
+def test_describe_names_the_layer_and_its_size():
+    from scripts.plot_architecture import describe
+
+    model = M.BUILDERS["cnn_bilstm"](40, 12)
+    labels = [describe(l) for l in model.layers]
+    assert any(l.startswith("Conv1D") for l in labels)
+    assert any(l.startswith("BiLSTM") for l in labels)
+    assert "Dense 12" in labels  # the head matches n_classes
+
+
+def test_transfer_figure_reads_real_trainable_flags():
+    """The figure labels layers frozen; that has to come from the model."""
+    from imu2text.symbols import build_transfer_model
+
+    pretrained = M.BUILDERS["cnn_bilstm"](40, 52)
+    transfer = build_transfer_model(pretrained, n_classes=15)
+    flags = [l.trainable for l in transfer.layers[1:]]
+    assert flags[-1] is True  # the new head trains
+    assert not any(flags[:-1])  # everything before it is frozen
