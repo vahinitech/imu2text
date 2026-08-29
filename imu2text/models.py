@@ -54,6 +54,7 @@ Usage
 from __future__ import annotations
 
 import argparse
+import os
 import pickle
 import time
 from typing import Callable, Dict, List, Tuple
@@ -726,6 +727,14 @@ def main() -> None:
         help="reduce LR on validation plateau (factor 0.5, patience 3)",
     )
     ap.add_argument(
+        "--save-predictions",
+        default=None,
+        metavar="PATH",
+        help="write the best model's test predictions to a .npz "
+        "(true, pred, classes) so the error figure can be rebuilt "
+        "without retraining",
+    )
+    ap.add_argument(
         "--error-analysis",
         action="store_true",
         help="after training, break the test errors down by "
@@ -865,6 +874,17 @@ def main() -> None:
         f"\nBest held-out: {best['model']} @ {best['test_acc']:.2f}% "
         f"({n_classes}-class, {label})"
     )
+    if args.save_predictions:
+        os.makedirs(os.path.dirname(args.save_predictions) or ".", exist_ok=True)
+        np.savez(
+            args.save_predictions,
+            true=best["test_true"],
+            pred=best["test_pred"],
+            classes=np.array(classes),
+            model=best["model"],
+            test_acc=best["test_acc"],
+        )
+        print(f"  wrote predictions to {args.save_predictions}")
     if args.error_analysis:
         error_analysis(best["test_pred"], best["test_true"], classes)
 

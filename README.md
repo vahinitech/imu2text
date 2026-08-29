@@ -43,6 +43,7 @@ Files of interest
 - `imu2text/models.py` - honest OnHW benchmark suite: baselines (CNN, LSTM, BiLSTM) and the SOTA CNN+BiLSTM, with both writer-independent and random splits. The class set is inferred from the labels, so the same script handles OnHW-chars **and OnHW-symbols** pickles.
 - `imu2text/seq2seq.py` - sequence-to-sequence (words / equations) recognition: CNN+BiLSTM encoder trained with CTC, greedy decoding, CER/WER metrics. Run `python -m imu2text.seq2seq --demo` to verify the pipeline on synthetic data without downloading a dataset.
 - `scripts/make_learning_curve.py` - trains the SOTA model on an increasing number of writers (writer-independent) to produce the accuracy learning curve.
+- `scripts/plot_error_analysis.py` - the four-panel error figure: where the errors go, which confusions dominate, what case costs each letter, and whether the cue is in the signal at all.
 - `scripts/plot_results.py` - publication-quality matplotlib figures (learning curve + logistic projection, model benchmark bars), rebuilt in the style of ImpAcX_OnHW's `plot_kNN_results.py`.
 - `scripts/onhw_projection.m` - MATLAB/Octave script that fits a logistic model to the learning curve and projects pen accuracy to full-dataset scale.
 - `docs/impacx_onhw_analysis.md` - analysis of the ImpAcX_OnHW DTW-kNN pipeline and how its matplotlib figures are rebuilt here.
@@ -245,22 +246,49 @@ counted rather than guessed at. `--error-analysis` breaks the test set down by
 confusion pair:
 
 ```bash
-python -m imu2text.models --models cnn_bilstm \
+python -m imu2text.models --models cnn_bilstm_attn \
     --onhw-chars data/onhw-chars_2021-06-30 --case both --dependency indep \
-    --fold 0 --epochs 20 --error-analysis
+    --fold 0 --epochs 30 --augment 2 --aug-policy extended \
+    --label-smoothing 0.1 --lr-schedule --error-analysis
 ```
 
 ```
-Error analysis on 7956 test samples (2544 wrong, 31.98% error)
-case-insensitive accuracy : 80.32%  (plain: 68.02%)
-errors that are case only : 978/2544 (38.4% of all errors)
-top 12 confusions: 'z'->'Z' 's'->'S' 'o'->'O' 'p'->'P' 'x'->'X' 'v'->'V'
-                   'W'->'w' 'w'->'W' 'y'->'Y' 'u'->'U' 'c'->'C' 'Y'->'y'
+Error analysis on 7956 test samples (2191 wrong, 27.54% error)
+case-insensitive accuracy : 84.34%  (plain: 72.46%)
+errors that are case only : 945/2191 (43.1% of all errors)
+top 12 confusions: 's'->'S' 'o'->'O' 'w'->'W' 'v'->'V' 'z'->'Z' 'u'->'U'
+                   'x'->'X' 'c'->'C' 'p'->'P' 'W'->'w' 'Y'->'y' 'y'->'Y'
 ```
+
+That is the 72.5% model. The weaker 20-epoch baseline had 38.4% of its errors
+in case; improving the model from 68.0% to 72.5% pushed the share *up* to
+43.1%, because the fixable errors are the ones that got fixed.
+
+![Where the OnHW-chars errors are](results/error_analysis.png)
+
+Rebuild the figure with:
+
+```bash
+python -m imu2text.models --models cnn_bilstm_attn \
+    --onhw-chars data/onhw-chars_2021-06-30 --case both --dependency indep \
+    --fold 0 --epochs 30 --augment 2 --aug-policy extended \
+    --label-smoothing 0.1 --lr-schedule \
+    --save-predictions results/predictions_official_fold0.npz
+
+python scripts/plot_error_analysis.py \
+    --predictions results/predictions_official_fold0.npz \
+    --onhw-chars data/onhw-chars_2021-06-30
+```
+
+Panel A drops the diagonal so only errors are drawn, and the two red lines mark
+where a letter confused with its own other case has to land: 26 off the
+diagonal. Almost all of the mass sits on them. Every value is also in
+`results/error_analysis_confusions.csv`, so nothing here is readable only by
+colour.
 
 Every one of the twelve most common confusions is a letter mistaken for its own
-other case. Fold case away and the same model scores 80.3% instead of 68.0%:
-about twelve points of the error is nothing but upper-versus-lower.
+other case. Fold case away and the same model scores 84.3% instead of 72.5%: about twelve
+points of the error is nothing but upper-versus-lower.
 
 **The sensor cannot resolve it.** For pairs that share a glyph shape - C/c,
 O/o, S/s, U/u, V/v, W/w, X/x, Z/z, K/k, P/p - the only distinguishing feature

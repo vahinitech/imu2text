@@ -480,3 +480,51 @@ def test_error_analysis_counts_every_error_once(capsys):
     M.error_analysis(pred, true, CHARS52)
     out = capsys.readouterr().out
     assert f"({int((pred != true).sum())} wrong" in out
+
+
+# --------------------------------------------------------------------------- #
+# Prediction export
+#
+# The error figure is rebuilt from a saved .npz rather than by retraining, so
+# the file has to carry everything the figure needs.
+# --------------------------------------------------------------------------- #
+def test_save_predictions_roundtrip(tmp_path):
+    """What models.py writes is what plot_error_analysis.py reads back."""
+    out = tmp_path / "preds.npz"
+    classes = list("ABCabc")
+    true = np.array([0, 1, 2, 3, 4, 5])
+    pred = np.array([3, 1, 2, 0, 4, 5])
+    np.savez(
+        out,
+        true=true,
+        pred=pred,
+        classes=np.array(classes),
+        model="cnn_bilstm",
+        test_acc=66.67,
+    )
+    data = np.load(out, allow_pickle=True)
+    assert [str(c) for c in data["classes"]] == classes
+    assert np.array_equal(data["true"], true)
+    assert np.array_equal(data["pred"], pred)
+
+
+def test_rank_auc_is_half_for_identical_distributions():
+    """0.5 is the reading the separability panel hangs on; pin it."""
+    from scripts.plot_error_analysis import rank_auc
+
+    rng = np.random.default_rng(0)
+    a, b = rng.normal(size=400), rng.normal(size=400)
+    assert abs(rank_auc(a, b) - 0.5) < 0.06
+
+
+def test_rank_auc_is_one_for_fully_separated_distributions():
+    from scripts.plot_error_analysis import rank_auc
+
+    assert rank_auc(np.array([10.0, 11, 12]), np.array([1.0, 2, 3])) == 1.0
+    assert rank_auc(np.array([1.0, 2, 3]), np.array([10.0, 11, 12])) == 0.0
+
+
+def test_rank_auc_handles_an_empty_group():
+    from scripts.plot_error_analysis import rank_auc
+
+    assert np.isnan(rank_auc(np.array([]), np.array([1.0, 2])))
