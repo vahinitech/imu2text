@@ -1,10 +1,20 @@
 name: CI
 
 on:
+  # Docs-only changes (README/CLAUDE.md/docs/**) skip this whole pipeline --
+  # nothing here builds or tests markdown. A push/PR that touches even one
+  # non-doc file still runs everything; paths-ignore only fires when EVERY
+  # changed file matches.
   push:
     branches: [ main, OfflineHW ]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
 
 jobs:
   build:

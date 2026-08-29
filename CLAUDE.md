@@ -1,0 +1,73 @@
+# CLAUDE.md — imu2text (IMU handwriting-recognition models)
+
+## Working rules (apply to every change)
+
+- **Honest evaluation is this repo's identity.** Its own README documents
+  the lesson: `cnn_gnn.py`'s "~99%" was train-set memorization; the real
+  held-out figure was ~43–47%. Never report a number without stating the
+  split (writer-independent vs random), and never let train data leak into
+  normalization or evaluation. Publicly quoted accuracy is ~65–80% on new
+  writers — don't inflate it anywhere.
+- **Verify before claiming.** Numbers come from an actual run or a
+  committed result in `results/` — never from memory or extrapolation.
+  Cite which script and split produced any figure you quote.
+- **Never copy another researcher's code into this repo — reference it,
+  don't paste it.** This repo already does this right:
+  `docs/impacx_onhw_analysis.md` explicitly analyzes ImpAcX_OnHW's
+  pipeline and `plot_results.py` is rebuilt "in the style of" its
+  `plot_kNN_results.py" — independently reimplemented, cited, not copied.
+  When a paper's method or a public repo's implementation is genuinely
+  needed: (a) cite the paper/repo and reimplement it independently in our
+  own code, or (b) if literal reuse is truly unavoidable, get the
+  original author's explicit consent first and record who granted it and
+  under what terms in the commit/PR before merging. This is a research
+  project — unattributed code reuse is an academic-integrity and IP risk,
+  not a style nitpick. Applies with extra force to AI-assisted changes: a
+  model can reproduce code it saw during training without anyone noticing
+  the provenance, so treat any suspiciously polished or unusually-styled
+  block as a prompt to check where it actually came from before it ships.
+- **No AI-isms** in docs, comments, or commit messages; plain, specific
+  language.
+- **Conventional commits** (`feat:`, `fix:`, `docs:`, `test:`); body says why.
+- **Build and test before every commit; CI green before merge.**
+- **Docs-only changes skip CI** — `ci.yml` has `paths-ignore: ['**/*.md',
+  'docs/**']`; a PR touching only markdown never triggers the pipeline. A
+  mixed PR (docs + code) still runs everything.
+
+## Commands (mirror of `.github/workflows/ci.yml`)
+
+```bash
+pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu  # CPU/CI
+python -m py_compile *.py            # syntax gate (CI does this)
+pytest                                # tests/ — split, writer inference, augmentation, CTC
+python onhw_seq2seq.py --demo         # verifies the seq2seq pipeline on synthetic data, no dataset needed
+```
+
+`requirements.txt` pins are **security-motivated** (torch 2.7.1 for
+CVE-2025-32434, scikit-learn 1.5.2 for CVE-2024-5206) — don't loosen them
+without checking the advisories.
+
+## Repo map
+
+- `onhw_models.py` — the honest benchmark suite: baselines + SOTA
+  CNN+BiLSTM, writer-independent and random splits; class set inferred
+  from labels (handles OnHW-chars and OnHW-symbols).
+- `onhw_seq2seq.py` — CTC seq2seq (words/equations), CER/WER metrics.
+- `cnn_gnn.py` — legacy single-script example; keep for reference, don't
+  extend, and never quote its self-evaluation numbers.
+- `make_learning_curve.py` / `plot_results.py` / `onhw_projection.m` —
+  learning curve, figures, logistic projection to full-dataset scale.
+- `tests/` + `pytest.ini` (`pythonpath = .` so tests import the top-level
+  scripts regardless of invocation).
+
+## Cross-repo contract
+
+- Training data comes from **vahinitech/datasets** (`build_dataset.py` →
+  `all_x_dat_imu.pkl`, `all_gt.pkl`, `writers.pkl`, codes in the same
+  order). Writer-independent splits depend on that ordering — schema
+  changes must be coordinated there, and the collection kit itself lives
+  there, not here.
+- `writers.pkl` holds pseudonymous student codes only. Nothing in this
+  repo may introduce or log real identities; results and figures are
+  reported in aggregate (see datasets repo issue #6 for the
+  identity-separation rules).
