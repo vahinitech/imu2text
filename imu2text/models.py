@@ -1,4 +1,4 @@
-"""OnHW character-recognition benchmark models (honest evaluation).
+"""OnHW character-recognition benchmark models.
 
 This module implements the OnHW-chars classification baselines and the
 state-of-the-art **CNN+BiLSTM** architecture, evaluated the way the published

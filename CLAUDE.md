@@ -2,7 +2,7 @@
 
 ## Working rules (apply to every change)
 
-- **Honest evaluation is this repo's identity.** Its own README documents
+- **Evaluation rigour is this repo's identity.** Its own README documents
   the lesson: `legacy/cnn_gnn.py`'s "~99%" was train-set memorization; the real
   held-out figure was ~43–47%. Never report a number without stating the
   split (writer-independent vs random), and never let train data leak into

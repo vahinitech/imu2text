@@ -21,7 +21,7 @@ machine-written too. Keep the voice:
   works" beats a neutral list of pros and cons.
 - Vary the rhythm. Short sentences. Then a longer one that takes its time.
 - Allow mixed feelings. "Impressive, and a bit odd" beats "impressive".
-- Use "I" when it fits. First person is honest, not unprofessional.
+- Use "I" when it fits. First person is direct, not unprofessional.
 - Be specific about the feeling. Not "this is concerning" but "a station
   loading the wrong prompt file and nobody noticing for a week bothers me".
 
@@ -153,17 +153,17 @@ specific: "Two more schools are booked for March."
 - **Em dashes: default to none.** Use a comma, a colon, or a new sentence.
   One or two in a long piece is the ceiling, never the habit.
 
-## Never narrate your own honesty or your own edits
+## Never narrate your own trustworthiness or your own edits
 
-Shipped text states what is true. It does not perform the act of being honest,
-and it does not talk about earlier versions of itself. The reader wants the
+Shipped text states what is true. It does not comment on its own candour, and
+it does not talk about earlier versions of itself. The reader wants the
 result, not a confession.
 
     BAD   Against the literature that is +4.4, not the larger margin this
           README used to claim.
     GOOD  CNN+BiLSTM (Ott et al., ACM MM 2022, Table 3) reports 68.06%.
 
-    BAD   To be honest, the numbers here are single-seed.
+    BAD   To be frank, the numbers here are single-seed.
     GOOD  Single seed, fold 0.
 
     BAD   I should flag the part that does not flatter us.
@@ -176,9 +176,9 @@ Specific bans:
 - "not the larger margin", "which does not flatter us", "the part I got wrong"
 - Any sentence whose subject is the document, the author, or a past revision.
 
-A number with its conditions stated is honest. Saying so as well is noise, and
-in a repo whose whole point is honest evaluation it reads as protesting too
-much. Put corrections in the commit message, where the history belongs.
+A number with its conditions stated needs no character reference. Adding one
+reads as protesting too much. Put corrections in the commit message, where the
+history belongs.
 
 ## Keep PRs and issues to what the reader must act on
 
@@ -241,7 +241,7 @@ Checklist:
 - [ ] Straight quotes, minimal bold, no em dashes
 - [ ] Specific details, not generic praise
 - [ ] Has a voice
-- [ ] No narration of the document's own honesty or its earlier revisions
+- [ ] No narration of the document's own candour or its earlier revisions
 - [ ] PR/issue body limited to what the reader must act on
 
 ## In this repo

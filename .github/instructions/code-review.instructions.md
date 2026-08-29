@@ -41,7 +41,7 @@ figure was ~43–47%.
   CVE-2025-32434 was.
 - No hardcoded absolute paths or credentials for dataset locations.
 
-## Evaluation Honesty (this repo's #1 review criterion)
+## Evaluation Rigour (this repo's #1 review criterion)
 
 - **Never approve a PR that reports accuracy/CER/WER without stating the
   split** (writer-independent vs. random) and what data it was measured

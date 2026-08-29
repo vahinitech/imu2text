@@ -209,7 +209,7 @@ def _archive_root(zf: zipfile.ZipFile) -> str:
     The Fraunhofer archives each unpack into one folder, but reading
     ``namelist()[0]`` assumes the first entry is inside it. Take the common
     first path segment across all members instead, so an archive with a
-    stray root-level file (or a flat archive) is reported honestly.
+    stray root-level file (or a flat archive) is reported as such.
     """
     tops = {name.split("/")[0] for name in zf.namelist() if name.strip("/")}
     return tops.pop() if len(tops) == 1 else ""

@@ -11,7 +11,7 @@ Modules
 ``augment``
     IMU-specific augmentation transforms and the two named policies.
 ``models``
-    The honest benchmark suite: baselines, CNN+BiLSTM, the attention-pooled
+    The benchmark suite: baselines, CNN+BiLSTM, the attention-pooled
     variant, and both writer-independent and official-split evaluation.
 ``seq2seq``
     CTC sequence-to-sequence recognition for words and equations.

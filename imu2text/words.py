@@ -395,7 +395,7 @@ class LexiconDecoder:
         With ``strict=True`` (the default) the result is always either a
         lexicon word or the empty string: the task is closed-vocabulary, so a
         partial prefix like "BE" is never a legitimate answer, and an empty
-        decode reports the miss honestly. Pass ``strict=False`` to fall back
+        decode reports the miss. Pass ``strict=False`` to fall back
         to the best prefix instead, which scores better under CER.
         """
         T, V = posteriors.shape
