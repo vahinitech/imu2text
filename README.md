@@ -71,9 +71,6 @@ Contributions are welcome. Run `pytest`, `black` and `pylint` before opening a
 pull request; CI gates all three. Working rules are in
 [CLAUDE.md](CLAUDE.md).
 
-Training data comes from
-[vahinitech/datasets](https://github.com/vahinitech/datasets).
-
 ## License
 
 MIT. Maintained by [@vahinitech](https://github.com/vahinitech).
