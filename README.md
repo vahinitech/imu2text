@@ -53,7 +53,8 @@ case-insensitively the same model reads 84.3%.
 ![Error analysis](results/error_analysis.png)
 
 Full tables, the accuracy ceiling and the machine specification are in
-[docs/benchmarks.md](docs/benchmarks.md).
+[docs/benchmarks.md](docs/benchmarks.md). Abbreviations are in
+[docs/glossary.md](docs/glossary.md).
 
 ## Run the benchmark
 
