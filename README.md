@@ -4,6 +4,8 @@ Handwriting recognition from a sensor-enhanced ballpoint pen. Trains and
 evaluates on the Fraunhofer IIS OnHW datasets (13 IMU channels at 100 Hz) and
 reports writer-independent accuracy on the official splits.
 
+New here? Start with [docs/getting_started.md](docs/getting_started.md).
+
 ## Install
 
 ```bash
