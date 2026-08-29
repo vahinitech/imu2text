@@ -65,6 +65,7 @@ Usage
     ds = load_onhw_chars("./data/OnHW-chars_L")
     x, y, writers = ds.X_all, ds.y_all, ds.writers
 """
+
 from __future__ import annotations
 
 import os
@@ -73,16 +74,23 @@ from typing import List, NamedTuple, Optional
 
 import numpy as np
 
-
 # Channel layout - shared with onhw_augment.SENSOR_GROUPS but kept local to
 # avoid a circular import (onhw_augment is the canonical home, this is just
 # documentation of what each column is for downstream users).
 CHANNEL_NAMES = [
-    "acc1_x", "acc1_y", "acc1_z",      # 0-2: front accelerometer
-    "acc2_x", "acc2_y", "acc2_z",      # 3-5: rear accelerometer
-    "gyro_x",  "gyro_y",  "gyro_z",    # 6-8: gyroscope
-    "mag_x",   "mag_y",   "mag_z",     # 9-11: magnetometer
-    "force",                          # 12: pen-tip force
+    "acc1_x",
+    "acc1_y",
+    "acc1_z",  # 0-2: front accelerometer
+    "acc2_x",
+    "acc2_y",
+    "acc2_z",  # 3-5: rear accelerometer
+    "gyro_x",
+    "gyro_y",
+    "gyro_z",  # 6-8: gyroscope
+    "mag_x",
+    "mag_y",
+    "mag_z",  # 9-11: magnetometer
+    "force",  # 12: pen-tip force
 ]
 N_CHANNELS = 13
 
@@ -107,16 +115,17 @@ class OnHWCharsDataset(NamedTuple):
     arrays are ``None`` (the caller is expected to split using
     ``onhw_models.make_split`` with the inferred writer IDs).
     """
+
     X_train: Optional[List[np.ndarray]]
     y_train: Optional[np.ndarray]
     X_test: Optional[List[np.ndarray]]
     y_test: Optional[np.ndarray]
     X_all: List[np.ndarray]
     y_all: np.ndarray
-    writers: np.ndarray                # per-sample writer IDs (0-indexed),
-                                       # or all WRITER_UNKNOWN for .npy splits
-    classes: List[str]                 # e.g. list("ABC...Zabc...z")
-    format: str                        # "npy" or "pkl"
+    writers: np.ndarray  # per-sample writer IDs (0-indexed),
+    # or all WRITER_UNKNOWN for .npy splits
+    classes: List[str]  # e.g. list("ABC...Zabc...z")
+    format: str  # "npy" or "pkl"
 
     @property
     def n_samples(self) -> int:
@@ -144,9 +153,11 @@ class OnHWCharsDataset(NamedTuple):
 
     def summary(self) -> str:
         lens = [len(s) for s in self.X_all]
-        return (f"OnHW-chars ({self.format}): N={self.n_samples}, "
-                f"C={self.n_classes}, W={self.n_writers}, "
-                f"len mean={np.mean(lens):.1f} min={min(lens)} max={max(lens)}")
+        return (
+            f"OnHW-chars ({self.format}): N={self.n_samples}, "
+            f"C={self.n_classes}, W={self.n_writers}, "
+            f"len mean={np.mean(lens):.1f} min={min(lens)} max={max(lens)}"
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -167,14 +178,16 @@ def _load_npy_split(base: str, case: str, dependency: str, fold: int):
     folder = os.path.join(base, f"onhw2_{case}_{dependency}_{fold}")
     if not os.path.isdir(folder):
         raise FileNotFoundError(
-            f"split folder not found: {folder}. Did you download onhw_chars?")
+            f"split folder not found: {folder}. Did you download onhw_chars?"
+        )
 
     X_train = list(np.load(os.path.join(folder, "X_train.npy"), allow_pickle=True))
     X_test = list(np.load(os.path.join(folder, "X_test.npy"), allow_pickle=True))
     y_train = np.load(os.path.join(folder, "y_train.npy"), allow_pickle=True)
     y_test = np.load(os.path.join(folder, "y_test.npy"), allow_pickle=True)
-    classes = list({"lower": CHARS_LOWER, "upper": CHARS_UPPER,
-                    "both": CHARS_BOTH}[case])
+    classes = list(
+        {"lower": CHARS_LOWER, "upper": CHARS_UPPER, "both": CHARS_BOTH}[case]
+    )
     y_train = _encode_labels(y_train, classes, folder)
     y_test = _encode_labels(y_test, classes, folder)
     return X_train, y_train, X_test, y_test, classes
@@ -198,7 +211,8 @@ def _encode_labels(y: np.ndarray, classes: List[str], folder: str) -> np.ndarray
     except KeyError as exc:
         raise ValueError(
             f"label {exc.args[0]!r} in {folder} is not in the {len(classes)}-class "
-            f"set for this case ({''.join(classes)!r}). Wrong --case?") from None
+            f"set for this case ({''.join(classes)!r}). Wrong --case?"
+        ) from None
 
 
 # --------------------------------------------------------------------------- #
@@ -215,7 +229,8 @@ def _load_pkl_chars(base: str):
     for f in required:
         if not os.path.exists(os.path.join(base, f)):
             raise FileNotFoundError(
-                f"missing {f} in {base}. Did you download onhw_chars_L?")
+                f"missing {f} in {base}. Did you download onhw_chars_L?"
+            )
 
     with open(os.path.join(base, "all_x_dat_imu.pkl"), "rb") as f:
         X = [np.asarray(s, dtype=np.float32) for s in pickle.load(f)]
@@ -244,8 +259,9 @@ def _remap_writer_ids(writers_raw: np.ndarray) -> np.ndarray:
 # --------------------------------------------------------------------------- #
 # Public entry point
 # --------------------------------------------------------------------------- #
-def load_onhw_chars(base_dir: str, case: str = "both",
-                    dependency: str = "indep", fold: int = 0) -> OnHWCharsDataset:
+def load_onhw_chars(
+    base_dir: str, case: str = "both", dependency: str = "indep", fold: int = 0
+) -> OnHWCharsDataset:
     """Load OnHW-chars from either format, auto-detected from ``base_dir``.
 
     Parameters
@@ -293,7 +309,8 @@ def load_onhw_chars(base_dir: str, case: str = "both",
 
     if os.path.isdir(npy_marker):
         X_train, y_train, X_test, y_test, classes = _load_npy_split(
-            base_dir, case, dependency, fold)
+            base_dir, case, dependency, fold
+        )
         # The .npy splits bake the writer partition into the split itself and
         # ship no per-sample writer IDs. Filling in zeros would claim "one
         # writer" and quietly turn a writer-independent re-split into a
@@ -305,14 +322,21 @@ def load_onhw_chars(base_dir: str, case: str = "both",
         y_all = np.concatenate([y_train, y_test]).astype(np.int64)
         writers = np.full(len(X_all), WRITER_UNKNOWN, dtype=np.int64)
         return OnHWCharsDataset(
-            X_train=X_train, y_train=y_train,
-            X_test=X_test, y_test=y_test,
-            X_all=X_all, y_all=y_all, writers=writers,
-            classes=classes, format="npy",
+            X_train=X_train,
+            y_train=y_train,
+            X_test=X_test,
+            y_test=y_test,
+            X_all=X_all,
+            y_all=y_all,
+            writers=writers,
+            classes=classes,
+            format="npy",
         )
 
     if os.path.exists(pkl_marker):
-        X_all, y_str, y_int, writers_raw = _load_pkl_chars(base_dir)
+        # The stored integer encoding is discarded: labels are re-derived from
+        # the strings below so the class order matches load_raw's everywhere.
+        X_all, y_str, _stored_enc, writers_raw = _load_pkl_chars(base_dir)
         writers = _remap_writer_ids(writers_raw)
         # Use the string labels for the class list so the order is the same
         # as onhw_models.load_raw (alphabetical), independent of Fraunhofer's
@@ -323,31 +347,50 @@ def load_onhw_chars(base_dir: str, case: str = "both",
         char_to_idx = {c: i for i, c in enumerate(classes)}
         y_all = np.array([char_to_idx[c] for c in y_str], dtype=np.int64)
         return OnHWCharsDataset(
-            X_train=None, y_train=None, X_test=None, y_test=None,
-            X_all=X_all, y_all=y_all, writers=writers,
-            classes=classes, format="pkl",
+            X_train=None,
+            y_train=None,
+            X_test=None,
+            y_test=None,
+            X_all=X_all,
+            y_all=y_all,
+            writers=writers,
+            classes=classes,
+            format="pkl",
         )
 
     raise FileNotFoundError(
         f"could not detect OnHW-chars format in {base_dir}. Expected either "
         f"an `onhw2_*` subfolder (.npy) or `all_x_dat_imu.pkl` (.pkl). "
-        "Did you extract the ZIP archive?")
+        "Did you extract the ZIP archive?"
+    )
 
 
 # --------------------------------------------------------------------------- #
 # CLI for quick inspection
 # --------------------------------------------------------------------------- #
 def main() -> None:
+    """CLI: load an OnHW-chars folder and print what it contains."""
     import argparse
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("base_dir", help="path to the extracted OnHW-chars folder")
-    ap.add_argument("--case", default="both", choices=["lower", "upper", "both"],
-                    help="character case (.npy only; default: both)")
-    ap.add_argument("--dependency", default="indep", choices=["dep", "indep"],
-                    help="split type (.npy only; default: indep)")
-    ap.add_argument("--fold", type=int, default=0,
-                    help="fold index 0-4 (.npy only; default: 0)")
+    ap.add_argument(
+        "--case",
+        default="both",
+        choices=["lower", "upper", "both"],
+        help="character case (.npy only; default: both)",
+    )
+    ap.add_argument(
+        "--dependency",
+        default="indep",
+        choices=["dep", "indep"],
+        help="split type (.npy only; default: indep)",
+    )
+    ap.add_argument(
+        "--fold", type=int, default=0, help="fold index 0-4 (.npy only; default: 0)"
+    )
     args = ap.parse_args()
 
     ds = load_onhw_chars(args.base_dir, args.case, args.dependency, args.fold)
@@ -356,8 +399,10 @@ def main() -> None:
     print(f"Classes ({ds.n_classes}): {''.join(ds.classes)}")
     if ds.X_train is not None:
         print(f"Train: {len(ds.X_train)} samples, Test: {len(ds.X_test)} samples")
-        print(f"Train label balance: min={np.bincount(ds.y_train).min()}, "
-              f"max={np.bincount(ds.y_train).max()}")
+        print(
+            f"Train label balance: min={np.bincount(ds.y_train).min()}, "
+            f"max={np.bincount(ds.y_train).max()}"
+        )
     else:
         print(f"Writers (remapped): {sorted(set(ds.writers.tolist()))}")
         print(f"Samples per writer: {np.bincount(ds.writers).tolist()}")

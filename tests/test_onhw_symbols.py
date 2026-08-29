@@ -1,8 +1,7 @@
 """Tests for the OnHW-symbols and OnHW-equations loaders + transfer learning."""
+
 import os
 import pickle
-import shutil
-import tempfile
 
 import numpy as np
 import pytest
@@ -60,7 +59,7 @@ def symbols_dir_official(tmp_path):
         for split, n in (("train", 12), ("val", 6)):
             x = [rng.normal(size=(20, 13)).astype(np.float32) for _ in range(n)]
             y = [i % 15 for i in range(n)]
-            ids = [1001 + (i % 3) for i in range(n)]     # same writers both sides
+            ids = [1001 + (i % 3) for i in range(n)]  # same writers both sides
             for name, obj in (
                 (f"all_x_dat_{split}_imu_{suffix}.pkl", x),
                 (f"all_{split}_gt_{suffix}.pkl", y),
@@ -149,10 +148,10 @@ def test_loader_reads_the_official_layout_file_names(symbols_dir_official):
     The dep/indep archives name that file all_x_dat_train_imu_s.pkl, so the
     loader could not open them at all.
     """
-    assert os.path.exists(os.path.join(symbols_dir_official,
-                                       "all_x_dat_train_imu_s.pkl"))
-    assert not os.path.exists(os.path.join(symbols_dir_official,
-                                           "all_x_dat_imu_s.pkl"))
+    assert os.path.exists(
+        os.path.join(symbols_dir_official, "all_x_dat_train_imu_s.pkl")
+    )
+    assert not os.path.exists(os.path.join(symbols_dir_official, "all_x_dat_imu_s.pkl"))
     assert S.load_onhw_symbols(symbols_dir_official).n_train == 12
 
 
@@ -189,7 +188,6 @@ def test_equations_decode_to_charset_symbols(symbols_dir_official):
     assert all(w in S.SYMBOLS_VOCAB for w in ds.train_words)
 
 
-
 # --------------------------------------------------------------------------- #
 # Transfer learning helper tests (require TF, skipped without)
 # --------------------------------------------------------------------------- #
@@ -199,12 +197,13 @@ def tiny_pretrained_model():
     pytest.importorskip("tensorflow")
     import tensorflow as tf
     from tensorflow.keras import layers, Model
+
     inp = layers.Input(shape=(20, 13))
     x = layers.Conv1D(8, 3, padding="same", activation="relu")(inp)
     x = layers.Bidirectional(layers.LSTM(8))(x)
     x = layers.Dense(16, activation="relu")(x)
     x = layers.Dropout(0.3)(x)
-    out = layers.Dense(52, activation="softmax")(x)         # chars head
+    out = layers.Dense(52, activation="softmax")(x)  # chars head
     model = Model(inp, out, name="fake_chars_model")
     model.compile(optimizer="adam", loss="categorical_crossentropy")
     return model
@@ -245,24 +244,23 @@ def test_unfreeze_trunk_makes_all_layers_trainable(tiny_pretrained_model):
 # back into the pretrained chars model and change it in place.
 # --------------------------------------------------------------------------- #
 def test_transfer_model_shares_no_layers_with_the_pretrained_model(
-        tiny_pretrained_model):
+    tiny_pretrained_model,
+):
     new = S.build_transfer_model(tiny_pretrained_model, n_classes=15)
-    shared = [a.name for a in new.layers for b in tiny_pretrained_model.layers
-              if a is b]
+    shared = [
+        a.name for a in new.layers for b in tiny_pretrained_model.layers if a is b
+    ]
     assert shared == [], f"layers shared with the pretrained model: {shared}"
 
 
-def test_transfer_model_leaves_the_pretrained_model_trainable(
-        tiny_pretrained_model):
+def test_transfer_model_leaves_the_pretrained_model_trainable(tiny_pretrained_model):
     before = [l.trainable for l in tiny_pretrained_model.layers]
     S.build_transfer_model(tiny_pretrained_model, n_classes=15)
     after = [l.trainable for l in tiny_pretrained_model.layers]
     assert before == after, "building the transfer model froze the original"
 
 
-def test_fine_tuning_does_not_change_the_pretrained_weights(
-        tiny_pretrained_model):
-    import numpy as np
+def test_fine_tuning_does_not_change_the_pretrained_weights(tiny_pretrained_model):
     import tensorflow as tf
 
     before = [w.copy() for w in tiny_pretrained_model.get_weights()]
@@ -271,14 +269,14 @@ def test_fine_tuning_does_not_change_the_pretrained_weights(
     x = np.random.default_rng(0).random((24, 20, 13))
     y = tf.keras.utils.to_categorical(np.arange(24) % 15, 15)
     new.fit(x, y, epochs=2, verbose=0)
-    assert all(np.array_equal(a, b)
-               for a, b in zip(before, tiny_pretrained_model.get_weights()))
+    assert all(
+        np.array_equal(a, b)
+        for a, b in zip(before, tiny_pretrained_model.get_weights())
+    )
 
 
 def test_transfer_model_copies_the_trunk_weights(tiny_pretrained_model):
     """Cloning must carry the learned weights over, not reinitialise them."""
-    import numpy as np
-
     new = S.build_transfer_model(tiny_pretrained_model, n_classes=15)
     old_trunk = tiny_pretrained_model.layers[1].get_weights()
     new_trunk = new.layers[1].get_weights()
@@ -286,11 +284,10 @@ def test_transfer_model_copies_the_trunk_weights(tiny_pretrained_model):
 
 
 def test_transfer_model_rejects_a_model_that_is_too_shallow():
-    import pytest as _pytest
-    tf = _pytest.importorskip("tensorflow")
+    pytest.importorskip("tensorflow")
     from tensorflow.keras import layers, Model
 
     inp = layers.Input(shape=(13,))
-    tiny = Model(inp, layers.Dense(52, activation="softmax")(inp))   # 2 layers
-    with _pytest.raises(ValueError, match="expected a model ending"):
+    tiny = Model(inp, layers.Dense(52, activation="softmax")(inp))  # 2 layers
+    with pytest.raises(ValueError, match="expected a model ending"):
         S.build_transfer_model(tiny, n_classes=15)

@@ -1,0 +1,39 @@
+# Test-only relaxations. Each is a pytest convention that pylint reads as a
+# defect, not a lowered standard: the source tree is checked with the stricter
+# settings in ../pyproject.toml.
+[MAIN]
+ignored-modules = tensorflow,tensorflow.keras,torch,torch_geometric
+# The tests import the top-level scripts, the same way pytest.ini's
+# "pythonpath = ." arranges. Run pylint from the repo root.
+init-hook = 'import sys; sys.path.insert(0, ".")'
+max-line-length = 100
+
+[MESSAGES CONTROL]
+disable =
+    # A fixture is passed to a test by parameter name, which shadows the
+    # fixture function. That is how pytest works.
+    redefined-outer-name,
+    # Test names are the documentation here: they read as sentences
+    # ("test_writer_split_rejects_unknown_writer_ids"), and a docstring
+    # restating the name adds nothing. Tests that need an explanation have one.
+    missing-function-docstring,
+    # Some behaviour worth pinning lives in private helpers, and testing it
+    # through the public surface only would test less.
+    protected-access,
+    # Fixtures import TensorFlow after an importorskip so the file skips
+    # rather than errors when it is missing.
+    import-outside-toplevel,
+    duplicate-code,
+
+[BASIC]
+good-names = X, Y, x, y, n, i, j, k, t, c, w, p, f, s, a, b, u, l, r,
+             M, S, A, C, W, D, R, T, V, N,
+             tr, va, te, rng, ds, lo, hi, _
+
+# Dataset names carry a capital (OnHW-chars_L is the left-handed release), and
+# X_train / Y_val are the conventional spellings for design matrices.
+function-rgx = ^(test|_)?[a-z][a-zA-Z0-9_]*$
+variable-rgx = ^[A-Za-z_][A-Za-z0-9_]*$
+
+[DESIGN]
+max-locals = 30

@@ -10,6 +10,7 @@ Output: results/learning_curve.csv  with columns
 
 Run:  python make_learning_curve.py
 """
+
 import csv
 import os
 import pickle
@@ -29,6 +30,7 @@ FRACTIONS = [0.2, 0.4, 0.6, 0.8, 1.0]
 
 
 def main() -> None:
+    """Train on a growing number of writers and write the learning curve CSV."""
     np.random.seed(SEED)
     tf.random.set_seed(SEED)
     os.makedirs("results", exist_ok=True)
@@ -55,19 +57,30 @@ def main() -> None:
         X = M.normalize_and_pad(x, tr, maxlen)
 
         model = M.build_cnn_bilstm(maxlen, n_classes)
-        model.compile(optimizer="adam", loss="categorical_crossentropy",
-                      metrics=["accuracy"])
-        es = EarlyStopping(monitor="val_accuracy", patience=8,
-                           restore_best_weights=True, mode="max")
-        model.fit(X[tr], Y[tr], validation_data=(X[va], Y[va]),
-                  epochs=EPOCHS, batch_size=BATCH, verbose=0, callbacks=[es])
+        model.compile(
+            optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"]
+        )
+        es = EarlyStopping(
+            monitor="val_accuracy", patience=8, restore_best_weights=True, mode="max"
+        )
+        model.fit(
+            X[tr],
+            Y[tr],
+            validation_data=(X[va], Y[va]),
+            epochs=EPOCHS,
+            batch_size=BATCH,
+            verbose=0,
+            callbacks=[es],
+        )
         pred = model.predict(X[te], verbose=0)
         acc = float((np.argmax(pred, 1) == np.argmax(Y[te], 1)).mean())
         rows.append((k, len(tr), acc * 100))
-        print(f"  writers={k:2d}  samples={len(tr):4d}  WI_test_acc={acc*100:5.2f}%",
-              flush=True)
+        print(
+            f"  writers={k:2d}  samples={len(tr):4d}  WI_test_acc={acc*100:5.2f}%",
+            flush=True,
+        )
 
-    with open("results/learning_curve.csv", "w", newline="") as f:
+    with open("results/learning_curve.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["n_writers", "n_samples", "wi_test_acc"])
         w.writerows(rows)

@@ -79,21 +79,21 @@ Usage
     ds = load_onhw_equations("./data/OnHW-equations_dep")
     # Use onhw_seq2seq for CTC training on these
 """
+
 from __future__ import annotations
 
 import os
 import pickle
-from typing import Dict, List, NamedTuple, Optional, Sequence, Tuple
+from typing import List, NamedTuple, Sequence
 
 import numpy as np
-
 
 # --------------------------------------------------------------------------- #
 # Symbol vocabulary (15 classes, shared by symbols and equations)
 # --------------------------------------------------------------------------- #
 # 0-9 are digits, 10-14 are operators: + - · : =
 SYMBOLS_VOCAB = "0123456789+-·:="
-SYMBOLS_BLANK_IDX = len(SYMBOLS_VOCAB)   # CTC blank = index 15
+SYMBOLS_BLANK_IDX = len(SYMBOLS_VOCAB)  # CTC blank = index 15
 
 
 def encode_symbol(s: str) -> int:
@@ -121,13 +121,14 @@ def decode_symbol_seq(indices: Sequence[int]) -> str:
 # --------------------------------------------------------------------------- #
 class OnHWSymbolsDataset(NamedTuple):
     """OnHW-symbols single-symbol classification dataset (15 classes)."""
+
     X_train: List[np.ndarray]
     X_val: List[np.ndarray]
-    y_train: np.ndarray             # int64, 0..14
+    y_train: np.ndarray  # int64, 0..14
     y_val: np.ndarray
     train_ids: np.ndarray
     val_ids: np.ndarray
-    split: str = "official"         # "official" (shipped) or "none" (unsplit)
+    split: str = "official"  # "official" (shipped) or "none" (unsplit)
     format: str = "symbols_pkl"
 
     @property
@@ -166,26 +167,35 @@ class OnHWSymbolsDataset(NamedTuple):
 
     def summary(self) -> str:
         lens = [len(s) for s in self.X_train] + [len(s) for s in self.X_val]
-        protocol = ("no split shipped" if not self.has_official_split else
-                    "writer-independent" if self.is_writer_independent else
-                    "writer-dependent")
-        return (f"OnHW-symbols ({protocol}): "
-                f"train={self.n_train} val={self.n_val} "
-                f"writers={self.n_writers} classes={self.n_classes} "
-                f"len mean={np.mean(lens):.0f} max={max(lens)}")
+        protocol = (
+            "no split shipped"
+            if not self.has_official_split
+            else (
+                "writer-independent"
+                if self.is_writer_independent
+                else "writer-dependent"
+            )
+        )
+        return (
+            f"OnHW-symbols ({protocol}): "
+            f"train={self.n_train} val={self.n_val} "
+            f"writers={self.n_writers} classes={self.n_classes} "
+            f"len mean={np.mean(lens):.0f} max={max(lens)}"
+        )
 
 
 class OnHWEquationsDataset(NamedTuple):
     """OnHW-equations sequence-to-sequence dataset (15-symbol charset)."""
+
     X_train: List[np.ndarray]
     X_val: List[np.ndarray]
-    Y_train: List[List[int]]        # token sequences, each 0..14
+    Y_train: List[List[int]]  # token sequences, each 0..14
     Y_val: List[List[int]]
-    train_words: List[str]          # decoded equation strings
+    train_words: List[str]  # decoded equation strings
     val_words: List[str]
     train_ids: np.ndarray
     val_ids: np.ndarray
-    split: str = "official"         # "official" (shipped) or "none" (unsplit)
+    split: str = "official"  # "official" (shipped) or "none" (unsplit)
     format: str = "equations_pkl"
 
     @property
@@ -212,17 +222,24 @@ class OnHWEquationsDataset(NamedTuple):
     def summary(self) -> str:
         lens = [len(s) for s in self.X_train] + [len(s) for s in self.X_val]
         label_lens = [len(seq) for seq in self.Y_train + self.Y_val]
-        protocol = ("no split shipped" if self.split != "official" else
-                    "writer-independent"
-                    if len(self.val_ids) and set(self.train_ids.tolist())
-                    .isdisjoint(set(self.val_ids.tolist()))
-                    else "writer-dependent")
-        return (f"OnHW-equations ({protocol}): "
-                f"train={self.n_train} val={self.n_val} "
-                f"writers={self.n_writers} "
-                f"lexicon={len(self.lexicon)} eqs "
-                f"IMU len mean={np.mean(lens):.0f} "
-                f"label len mean={np.mean(label_lens):.1f}")
+        protocol = (
+            "no split shipped"
+            if self.split != "official"
+            else (
+                "writer-independent"
+                if len(self.val_ids)
+                and set(self.train_ids.tolist()).isdisjoint(set(self.val_ids.tolist()))
+                else "writer-dependent"
+            )
+        )
+        return (
+            f"OnHW-equations ({protocol}): "
+            f"train={self.n_train} val={self.n_val} "
+            f"writers={self.n_writers} "
+            f"lexicon={len(self.lexicon)} eqs "
+            f"IMU len mean={np.mean(lens):.0f} "
+            f"label len mean={np.mean(label_lens):.1f}"
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -310,7 +327,8 @@ def _load_symbol_arrays(base_dir: str, suffix: str, kind: str):
         f"archives, or the unsplit layout (all_x_dat_imu_{suffix}.pkl + "
         f"all_gt_{suffix}.pkl + list_ids_{suffix}.pkl) shipped by the "
         "left-handed archive. Download with "
-        "`python onhw_download.py onhw_symbols_dep` (or onhw_symbols_L).")
+        "`python onhw_download.py onhw_symbols_dep` (or onhw_symbols_L)."
+    )
 
 
 def load_onhw_symbols(base_dir: str) -> OnHWSymbolsDataset:
@@ -335,11 +353,15 @@ def load_onhw_symbols(base_dir: str) -> OnHWSymbolsDataset:
     """
     if not os.path.isdir(base_dir):
         raise FileNotFoundError(f"directory not found: {base_dir}")
-    Xtr, ytr, itr, Xva, yva, iva, split = _load_symbol_arrays(
-        base_dir, "s", "symbols")
+    Xtr, ytr, itr, Xva, yva, iva, split = _load_symbol_arrays(base_dir, "s", "symbols")
     return OnHWSymbolsDataset(
-        X_train=Xtr, X_val=Xva, y_train=ytr, y_val=yva,
-        train_ids=itr, val_ids=iva, split=split,
+        X_train=Xtr,
+        X_val=Xva,
+        y_train=ytr,
+        y_val=yva,
+        train_ids=itr,
+        val_ids=iva,
+        split=split,
     )
 
 
@@ -358,24 +380,32 @@ def load_onhw_equations(base_dir: str) -> OnHWEquationsDataset:
     if not os.path.isdir(base_dir):
         raise FileNotFoundError(f"directory not found: {base_dir}")
     Xtr, ytr, itr, Xva, yva, iva, split = _load_symbol_arrays(
-        base_dir, "e", "equations")
+        base_dir, "e", "equations"
+    )
 
-    to_seq = lambda arr: [[int(v)] for v in arr]
+    def to_seq(arr):
+        return [[int(v)] for v in arr]
+
     Y_train, Y_val = to_seq(ytr), to_seq(yva)
     return OnHWEquationsDataset(
-        X_train=Xtr, X_val=Xva,
-        Y_train=Y_train, Y_val=Y_val,
+        X_train=Xtr,
+        X_val=Xva,
+        Y_train=Y_train,
+        Y_val=Y_val,
         train_words=[decode_symbol_seq(s) for s in Y_train],
         val_words=[decode_symbol_seq(s) for s in Y_val],
-        train_ids=itr, val_ids=iva, split=split,
+        train_ids=itr,
+        val_ids=iva,
+        split=split,
     )
 
 
 # --------------------------------------------------------------------------- #
 # Transfer learning helper (chars -> symbols)
 # --------------------------------------------------------------------------- #
-def build_transfer_model(pretrained_chars_model, n_classes: int = 15,
-                         freeze_epochs: int = 3):
+def build_transfer_model(
+    pretrained_chars_model, n_classes: int = 15, freeze_epochs: int = 3
+):
     """Build a transfer-learning model from a pretrained OnHW-chars model.
 
     Takes a trained ``cnn_bilstm`` model (from ``onhw_models.build_cnn_bilstm``)
@@ -414,12 +444,14 @@ def build_transfer_model(pretrained_chars_model, n_classes: int = 15,
     if len(pretrained_chars_model.layers) < 3:
         raise ValueError(
             "expected a model ending in <trunk> -> ... -> Dense(softmax); got "
-            f"{len(pretrained_chars_model.layers)} layers")
+            f"{len(pretrained_chars_model.layers)} layers"
+        )
 
     # Everything up to (but not including) the old classification head. For
     # cnn_bilstm that is Input -> Conv1D -> ... -> BiLSTM -> Dense -> Dropout.
-    trunk = Model(pretrained_chars_model.input,
-                  pretrained_chars_model.layers[-2].output)
+    trunk = Model(
+        pretrained_chars_model.input, pretrained_chars_model.layers[-2].output
+    )
 
     # Clone before reusing. A functional Model built directly on another
     # model's tensors shares its *layer objects*, so freezing the trunk here
@@ -430,19 +462,22 @@ def build_transfer_model(pretrained_chars_model, n_classes: int = 15,
     trunk_copy = tf.keras.models.clone_model(trunk)
     trunk_copy.set_weights(trunk.get_weights())
 
-    new_output = layers.Dense(n_classes, activation="softmax",
-                              name="transfer_softmax")(trunk_copy.output)
+    new_output = layers.Dense(n_classes, activation="softmax", name="transfer_softmax")(
+        trunk_copy.output
+    )
     new_model = Model(trunk_copy.input, new_output, name="transfer_from_chars")
 
     # Freeze the trunk; only the new head trains during the warmup epochs.
     for layer in new_model.layers[:-1]:
         layer.trainable = False
-    new_model.compile(optimizer="adam",
-                      loss="categorical_crossentropy",
-                      metrics=["accuracy"])
-    print(f"Transfer model: {new_model.count_params():,} params, "
-          f"trunk frozen for first {freeze_epochs} epochs, then unfreeze "
-          f"and fine-tune at lr=1e-4.")
+    new_model.compile(
+        optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"]
+    )
+    print(
+        f"Transfer model: {new_model.count_params():,} params, "
+        f"trunk frozen for first {freeze_epochs} epochs, then unfreeze "
+        f"and fine-tune at lr=1e-4."
+    )
     return new_model
 
 
@@ -454,11 +489,14 @@ def unfreeze_trunk(model, lr: float = 1e-4):
     pretrained features don't get washed out.
     """
     import tensorflow as tf
+
     for layer in model.layers[:-1]:
         layer.trainable = True
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr),
-                  loss="categorical_crossentropy",
-                  metrics=["accuracy"])
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=lr),
+        loss="categorical_crossentropy",
+        metrics=["accuracy"],
+    )
     return model
 
 
@@ -466,13 +504,20 @@ def unfreeze_trunk(model, lr: float = 1e-4):
 # CLI
 # --------------------------------------------------------------------------- #
 def main() -> None:
+    """CLI: load an OnHW-symbols or equations folder and print a summary."""
     import argparse
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("base_dir", help="path to extracted OnHW-symbols_equations folder")
 
-    ap.add_argument("--task", choices=["symbols", "equations"], default="symbols",
-                    help="which sub-dataset to load (default: symbols)")
+    ap.add_argument(
+        "--task",
+        choices=["symbols", "equations"],
+        default="symbols",
+        help="which sub-dataset to load (default: symbols)",
+    )
     args = ap.parse_args()
 
     if args.task == "symbols":
@@ -482,7 +527,9 @@ def main() -> None:
     print(ds.summary())
     if args.task == "symbols":
         print(f"Classes ({ds.n_classes}): {SYMBOLS_VOCAB}")
-        print(f"Train label balance: {np.bincount(ds.y_train, minlength=ds.n_classes).tolist()}")
+        print(
+            f"Train label balance: {np.bincount(ds.y_train, minlength=ds.n_classes).tolist()}"
+        )
     else:
         print(f"First 5 train equations: {ds.train_words[:5]}")
         print(f"Lexicon size: {len(ds.lexicon)} unique equations")

@@ -6,6 +6,7 @@ OnHW-chars_L dataset that CI can download on the fly; the .npy tests
 synthetically generate a tiny mock of the .npy folder structure so they
 don't need the 896 MB download.
 """
+
 import os
 import pickle
 import shutil
@@ -24,12 +25,12 @@ import onhw_chars as C
 def pkl_dataset_dir():
     """A tiny synthetic .pkl dataset in the OnHW-chars_L layout."""
     rng = np.random.default_rng(0)
-    alphabet = "ABCabc"     # 6 classes for a fast fixture
-    writers_raw = [10, 10, 10, 20, 20, 20, 30, 30, 30]   # 3 writers, non-contiguous IDs
+    alphabet = "ABCabc"  # 6 classes for a fast fixture
+    writers_raw = [10, 10, 10, 20, 20, 20, 30, 30, 30]  # 3 writers, non-contiguous IDs
     n = len(writers_raw)
     x = [rng.normal(0, 1, size=(20 + i % 3, 13)).astype(np.float32) for i in range(n)]
     y_str = list(alphabet) * (n // len(alphabet))
-    y_int = [i for i in range(len(alphabet))] * (n // len(alphabet))
+    y_int = list(range(len(alphabet))) * (n // len(alphabet))
 
     d = tempfile.mkdtemp(prefix="onhw_chars_pkl_")
     for fname, obj in [
@@ -61,11 +62,19 @@ def npy_dataset_dir():
                 os.makedirs(folder, exist_ok=True)
                 # Train: 6 samples, Test: 3 samples
                 X_train = np.array(
-                    [rng.normal(0, 1, size=(20 + i, 13)).astype(np.float32)
-                     for i in range(6)], dtype=object)
+                    [
+                        rng.normal(0, 1, size=(20 + i, 13)).astype(np.float32)
+                        for i in range(6)
+                    ],
+                    dtype=object,
+                )
                 X_test = np.array(
-                    [rng.normal(0, 1, size=(20 + i, 13)).astype(np.float32)
-                     for i in range(3)], dtype=object)
+                    [
+                        rng.normal(0, 1, size=(20 + i, 13)).astype(np.float32)
+                        for i in range(3)
+                    ],
+                    dtype=object,
+                )
                 y_train = np.array([i % n_classes for i in range(6)], dtype=np.int64)
                 y_test = np.array([i % n_classes for i in range(3)], dtype=np.int64)
                 np.save(os.path.join(folder, "X_train.npy"), X_train, allow_pickle=True)
@@ -84,7 +93,7 @@ def test_load_pkl_basic(pkl_dataset_dir):
     assert ds.format == "pkl"
     assert ds.n_samples == 9
     assert ds.n_classes == 6
-    assert ds.n_writers == 3                # 3 unique raw IDs remapped to 0,1,2
+    assert ds.n_writers == 3  # 3 unique raw IDs remapped to 0,1,2
     assert ds.classes == sorted("ABCabc")
     # X_all is a list of (T, 13) float arrays
     assert all(isinstance(s, np.ndarray) for s in ds.X_all)
@@ -110,8 +119,8 @@ def test_pkl_label_encoding_is_canonical(pkl_dataset_dir):
     # classes is sorted alphabetically
     assert ds.classes == ["A", "B", "C", "a", "b", "c"]
     # first sample's label corresponds to first character in the alphabet cycle
-    assert ds.y_all[0] == 0      # 'A'
-    assert ds.y_all[3] == 3      # 'a'
+    assert ds.y_all[0] == 0  # 'A'
+    assert ds.y_all[3] == 3  # 'a'
 
 
 def test_pkl_summary_string(pkl_dataset_dir):
@@ -187,12 +196,16 @@ def test_class_strings():
 # Real OnHW-chars_L dataset (only if downloaded)
 # --------------------------------------------------------------------------- #
 @pytest.mark.skipif(
-    not os.path.exists("/home/z/my-project/imu2text-work/onhw_data/OnHW-chars_L/OnHW-chars_L/all_x_dat_imu.pkl"),
+    not os.path.exists(
+        "/home/z/my-project/imu2text-work/onhw_data/OnHW-chars_L/OnHW-chars_L/all_x_dat_imu.pkl"
+    ),
     reason="OnHW-chars_L not downloaded (smoke-test only)",
 )
 def test_real_onhw_chars_L_loads():
     """Smoke test against the real Fraunhofer OnHW-chars_L dataset."""
-    ds = C.load_onhw_chars("/home/z/my-project/imu2text-work/onhw_data/OnHW-chars_L/OnHW-chars_L")
+    ds = C.load_onhw_chars(
+        "/home/z/my-project/imu2text-work/onhw_data/OnHW-chars_L/OnHW-chars_L"
+    )
     assert ds.format == "pkl"
     assert ds.n_samples == 2270
     assert ds.n_classes == 52
@@ -240,13 +253,12 @@ def test_writer_unknown_sentinel_is_negative():
 
 def test_unknown_writer_ids_are_refused_by_the_writer_split(npy_dataset_dir):
     """The two halves of the guard have to line up: sentinel in, error out."""
-    tf = pytest.importorskip("tensorflow")          # noqa: F841
+    pytest.importorskip("tensorflow")
     import onhw_models as M
 
     ds = C.load_onhw_chars(npy_dataset_dir, case="both", dependency="indep", fold=0)
     with pytest.raises(ValueError, match="unknown"):
-        M.make_split(len(ds.X_all), ds.y_all, seed=0, mode="writer",
-                     writers=ds.writers)
+        M.make_split(len(ds.X_all), ds.y_all, seed=0, mode="writer", writers=ds.writers)
 
 
 def test_remap_writer_ids_makes_them_contiguous():
@@ -259,6 +271,6 @@ def test_remap_writer_ids_makes_them_contiguous():
 def test_remap_writer_ids_preserves_grouping():
     raw = np.array([4003, 1052, 4003, 0, 1052, 0])
     out = C._remap_writer_ids(raw)
-    for a in range(len(raw)):
-        for b in range(len(raw)):
-            assert (raw[a] == raw[b]) == (out[a] == out[b])
+    for a, raw_a in enumerate(raw):
+        for b, raw_b in enumerate(raw):
+            assert (raw_a == raw_b) == (out[a] == out[b])

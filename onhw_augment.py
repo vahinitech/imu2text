@@ -46,13 +46,13 @@ magnitude warp + time warp - the exact policy behind the measured 64.8% ->
 rotation, channel dropout and random crop; it is unmeasured here, so it is
 opt-in rather than default.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Dict, List, Optional
 
 import numpy as np
-
 
 # Channel layout of the OnHW DigiPen (and the Vahini pen, which extends it
 # with 3 extra channels at the end). All transforms operate on the first 13
@@ -61,8 +61,8 @@ import numpy as np
 SENSOR_GROUPS: Dict[str, List[int]] = {
     "acc1": [0, 1, 2],
     "acc2": [3, 4, 5],
-    "gyro":  [6, 7, 8],
-    "mag":   [9, 10, 11],
+    "gyro": [6, 7, 8],
+    "mag": [9, 10, 11],
 }
 FORCE_IDX = 12
 TRIAD_GROUPS = list(SENSOR_GROUPS.values())
@@ -71,7 +71,9 @@ TRIAD_GROUPS = list(SENSOR_GROUPS.values())
 # --------------------------------------------------------------------------- #
 # Individual transforms
 # --------------------------------------------------------------------------- #
-def jitter(seq: np.ndarray, rng: np.random.Generator, sigma: float = 0.05) -> np.ndarray:
+def jitter(
+    seq: np.ndarray, rng: np.random.Generator, sigma: float = 0.05
+) -> np.ndarray:
     """Add Gaussian noise proportional to each channel's std.
 
     Acc / Gyro / Mag / Force channels have wildly different magnitudes
@@ -85,15 +87,17 @@ def jitter(seq: np.ndarray, rng: np.random.Generator, sigma: float = 0.05) -> np
     return seq + noise * std.astype(seq.dtype, copy=False)
 
 
-def per_channel_scale(seq: np.ndarray, rng: np.random.Generator,
-                      sigma: float = 0.08) -> np.ndarray:
+def per_channel_scale(
+    seq: np.ndarray, rng: np.random.Generator, sigma: float = 0.08
+) -> np.ndarray:
     """Multiply each channel by an independent Gaussian gain (sensor gain drift)."""
     gains = rng.normal(1.0, sigma, size=(1, seq.shape[1])).astype(seq.dtype, copy=False)
     return seq * gains
 
 
-def mag_warp(seq: np.ndarray, rng: np.random.Generator,
-             sigma: float = 0.15, knots: int = 4) -> np.ndarray:
+def mag_warp(
+    seq: np.ndarray, rng: np.random.Generator, sigma: float = 0.15, knots: int = 4
+) -> np.ndarray:
     """Multiply the signal by a smooth random envelope (sensor gain drift).
 
     The envelope is a piecewise-linear curve through ``knots+2`` random
@@ -102,13 +106,15 @@ def mag_warp(seq: np.ndarray, rng: np.random.Generator,
     """
     t = seq.shape[0]
     knot_x = np.linspace(0.0, 1.0, knots + 2)
-    curve = np.interp(np.linspace(0.0, 1.0, t), knot_x,
-                      rng.normal(1.0, sigma, size=knots + 2)).astype(seq.dtype, copy=False)
+    curve = np.interp(
+        np.linspace(0.0, 1.0, t), knot_x, rng.normal(1.0, sigma, size=knots + 2)
+    ).astype(seq.dtype, copy=False)
     return seq * curve[:, None]
 
 
-def time_warp(seq: np.ndarray, rng: np.random.Generator,
-              sigma: float = 0.2, knots: int = 4) -> np.ndarray:
+def time_warp(
+    seq: np.ndarray, rng: np.random.Generator, sigma: float = 0.2, knots: int = 4
+) -> np.ndarray:
     """Locally speed up / slow down the trajectory (smooth, monotonic warp).
 
     A piecewise-linear random time map with fixed knot x-positions and
@@ -120,7 +126,7 @@ def time_warp(seq: np.ndarray, rng: np.random.Generator,
     knot_x = np.linspace(0.0, 1.0, knots + 2)
     knot_y = knot_x + rng.normal(0.0, sigma / knots, size=knots + 2)
     knot_y[0], knot_y[-1] = 0.0, 1.0
-    knot_y = np.maximum.accumulate(knot_y)             # keep time monotonic
+    knot_y = np.maximum.accumulate(knot_y)  # keep time monotonic
     warped = np.interp(base, knot_x, knot_y)
     out = np.empty_like(seq)
     for c in range(seq.shape[1]):
@@ -128,7 +134,9 @@ def time_warp(seq: np.ndarray, rng: np.random.Generator,
     return out
 
 
-def _random_rotation_matrix(rng: np.random.Generator, max_angle_deg: float) -> np.ndarray:
+def _random_rotation_matrix(
+    rng: np.random.Generator, max_angle_deg: float
+) -> np.ndarray:
     """A small random 3x3 rotation matrix.
 
     Built as R = Rz(c) * Ry(b) * Rx(a) with each Euler angle drawn uniformly
@@ -147,8 +155,9 @@ def _random_rotation_matrix(rng: np.random.Generator, max_angle_deg: float) -> n
     return Rz @ Ry @ Rx
 
 
-def random_rotation(seq: np.ndarray, rng: np.random.Generator,
-                    max_angle_deg: float = 10.0) -> np.ndarray:
+def random_rotation(
+    seq: np.ndarray, rng: np.random.Generator, max_angle_deg: float = 10.0
+) -> np.ndarray:
     """Apply an independent small 3D rotation to each Acc/Gyro/Mag triad.
 
     A different rotation is drawn for each triad because the four sensors sit
@@ -161,14 +170,15 @@ def random_rotation(seq: np.ndarray, rng: np.random.Generator,
     out = seq.astype(seq.dtype, copy=True)
     for cols in TRIAD_GROUPS:
         if max(cols) >= seq.shape[1]:
-            break                               # fewer channels than 13, no more triads
+            break  # fewer channels than 13, no more triads
         R = _random_rotation_matrix(rng, max_angle_deg).astype(seq.dtype)
-        out[:, cols] = out[:, cols] @ R.T       # (T, 3) @ (3, 3) -> rotate each row
+        out[:, cols] = out[:, cols] @ R.T  # (T, 3) @ (3, 3) -> rotate each row
     return out
 
 
-def channel_dropout(seq: np.ndarray, rng: np.random.Generator,
-                    p_drop: float = 0.05) -> np.ndarray:
+def channel_dropout(
+    seq: np.ndarray, rng: np.random.Generator, p_drop: float = 0.05
+) -> np.ndarray:
     """Zero out a few channels for the whole sample (sensor dropout).
 
     Simulates a sensor channel going dead for a whole recording - a rare but
@@ -179,9 +189,9 @@ def channel_dropout(seq: np.ndarray, rng: np.random.Generator,
     """
     n_channels = seq.shape[1]
     drop = rng.random(n_channels) < p_drop
-    if FORCE_IDX < n_channels:                   # always keep the force channel
+    if FORCE_IDX < n_channels:  # always keep the force channel
         drop[FORCE_IDX] = False
-    if drop.sum() > n_channels // 2:             # never drop more than half
+    if drop.sum() > n_channels // 2:  # never drop more than half
         drop[:] = False
     if drop.any():
         seq = seq.copy()
@@ -189,8 +199,9 @@ def channel_dropout(seq: np.ndarray, rng: np.random.Generator,
     return seq
 
 
-def random_crop(seq: np.ndarray, rng: np.random.Generator,
-                min_frac: float = 0.85) -> np.ndarray:
+def random_crop(
+    seq: np.ndarray, rng: np.random.Generator, min_frac: float = 0.85
+) -> np.ndarray:
     """Random sub-window of the sequence, padded back to the original length.
 
     A pen stroke's start/end often contain little useful signal (pen
@@ -233,13 +244,14 @@ class AugmentationConfig:
     ``AugmentationConfig.extended()`` or ``--aug-policy extended``, and record
     whatever number the run produces before recommending them.
     """
+
     jitter_sigma: float = 0.05
     scale_sigma: float = 0.08
     mag_warp_sigma: float = 0.15
     mag_warp_knots: int = 4
     time_warp_sigma: float = 0.2
     time_warp_knots: int = 4
-    rotation_max_deg: float = 10.0      # magnitude only; p_rotation gates it
+    rotation_max_deg: float = 10.0  # magnitude only; p_rotation gates it
     channel_dropout_p: float = 0.05
     crop_min_frac: float = 0.85
     # Probabilities of applying each transform (independent Bernoulli draws).
@@ -274,8 +286,9 @@ AUG_POLICIES = {
 }
 
 
-def augment_one(seq: np.ndarray, rng: np.random.Generator,
-                cfg: Optional[AugmentationConfig] = None) -> np.ndarray:
+def augment_one(
+    seq: np.ndarray, rng: np.random.Generator, cfg: Optional[AugmentationConfig] = None
+) -> np.ndarray:
     """Apply the default augmentation policy to one (T, C) sequence.
 
     The policy is the legacy jitter+scale+mag_warp+time_warp policy, plus
@@ -313,10 +326,15 @@ def augment_one(seq: np.ndarray, rng: np.random.Generator,
     return s
 
 
-def augment_training(x: List[np.ndarray], y: np.ndarray, writers: np.ndarray,
-                     train_idx: np.ndarray, n_aug: int, seed: int,
-                     cfg: Optional[AugmentationConfig] = None
-                     ) -> tuple:
+def augment_training(
+    x: List[np.ndarray],
+    y: np.ndarray,
+    writers: np.ndarray,
+    train_idx: np.ndarray,
+    n_aug: int,
+    seed: int,
+    cfg: Optional[AugmentationConfig] = None,
+) -> tuple:
     """Append ``n_aug`` augmented copies of each training sample.
 
     Mirrors the contract of the original ``onhw_models.augment_training``:
@@ -334,10 +352,10 @@ def augment_training(x: List[np.ndarray], y: np.ndarray, writers: np.ndarray,
             new_w.append(writers[j])
     if new_y:
         y = np.concatenate([y, np.array(new_y, dtype=y.dtype)])
-        writers = np.concatenate(
-            [writers, np.array(new_w, dtype=writers.dtype)])
+        writers = np.concatenate([writers, np.array(new_w, dtype=writers.dtype)])
         train_idx = np.concatenate(
-            [train_idx, np.array(new_idx, dtype=train_idx.dtype)])
+            [train_idx, np.array(new_idx, dtype=train_idx.dtype)]
+        )
     return x, y, writers, train_idx
 
 

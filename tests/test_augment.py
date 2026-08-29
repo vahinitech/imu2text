@@ -4,6 +4,7 @@ These cover the deterministic invariants (output shape, magnitude
 preservation for rotations, no-leak for ``augment_training``) so CI catches
 regressions without needing TensorFlow.
 """
+
 import numpy as np
 import pytest
 
@@ -98,7 +99,7 @@ def test_augment_training_appends_only_training_samples():
     tr = np.arange(20)
     va = np.arange(20, 25)
     te = np.arange(25, 30)
-    x2, y2, w2, tr2 = A.augment_training(x, y, writers, tr, n_aug=3, seed=0)
+    x2, _, _, tr2 = A.augment_training(x, y, writers, tr, n_aug=3, seed=0)
     assert len(x2) == n + 3 * len(tr)
     assert len(tr2) == 4 * len(tr)
     # val/test indices still address original, untouched samples
@@ -124,9 +125,15 @@ def test_augmentation_config_defaults_match_legacy():
 def test_augment_one_zero_config_is_identity(seq):
     """A policy with all probabilities 0 must return the input unchanged."""
     cfg = A.AugmentationConfig(
-        p_jitter=0.0, p_scale=0.0, p_mag_warp=0.0, p_time_warp=0.0,
-        p_rotation=0.0, p_channel_dropout=0.0, p_crop=0.0,
-        rotation_max_deg=0.0, channel_dropout_p=0.0,
+        p_jitter=0.0,
+        p_scale=0.0,
+        p_mag_warp=0.0,
+        p_time_warp=0.0,
+        p_rotation=0.0,
+        p_channel_dropout=0.0,
+        p_crop=0.0,
+        rotation_max_deg=0.0,
+        channel_dropout_p=0.0,
     )
     out = A.augment_one(seq, np.random.default_rng(11), cfg)
     assert np.allclose(out, seq, atol=1e-6)
@@ -179,23 +186,38 @@ def test_legacy_never_rotates(seq):
     rng = np.random.default_rng(0)
     # Ratios between triad channels stay fixed under scale/jitter-free settings,
     # so isolate rotation by disabling everything else.
-    cfg = A.AugmentationConfig(p_jitter=0.0, p_scale=0.0, p_mag_warp=0.0,
-                               p_time_warp=0.0, p_rotation=cfg.p_rotation,
-                               p_channel_dropout=0.0, p_crop=0.0)
+    cfg = A.AugmentationConfig(
+        p_jitter=0.0,
+        p_scale=0.0,
+        p_mag_warp=0.0,
+        p_time_warp=0.0,
+        p_rotation=cfg.p_rotation,
+        p_channel_dropout=0.0,
+        p_crop=0.0,
+    )
     for _ in range(30):
         assert np.allclose(A.augment_one(seq, rng, cfg), seq, atol=1e-5)
 
 
 def test_extended_does_rotate(seq):
     """Guards against the extended policy silently degrading to legacy."""
-    cfg = A.AugmentationConfig(p_jitter=0.0, p_scale=0.0, p_mag_warp=0.0,
-                               p_time_warp=0.0, p_rotation=1.0,
-                               p_channel_dropout=0.0, p_crop=0.0)
+    cfg = A.AugmentationConfig(
+        p_jitter=0.0,
+        p_scale=0.0,
+        p_mag_warp=0.0,
+        p_time_warp=0.0,
+        p_rotation=1.0,
+        p_channel_dropout=0.0,
+        p_crop=0.0,
+    )
     out = A.augment_one(seq, np.random.default_rng(1), cfg)
     assert not np.allclose(out, seq, atol=1e-5)
-    for cols in A.TRIAD_GROUPS:                     # but magnitudes survive
-        assert np.allclose(np.linalg.norm(seq[:, cols], axis=1),
-                           np.linalg.norm(out[:, cols], axis=1), atol=1e-3)
+    for cols in A.TRIAD_GROUPS:  # but magnitudes survive
+        assert np.allclose(
+            np.linalg.norm(seq[:, cols], axis=1),
+            np.linalg.norm(out[:, cols], axis=1),
+            atol=1e-3,
+        )
 
 
 def test_augment_training_honours_the_policy():
@@ -218,15 +240,24 @@ def test_augment_training_honours_the_policy():
 def test_transforms_survive_other_channel_counts(n_channels):
     seq = np.random.default_rng(0).normal(size=(24, n_channels)).astype(np.float32)
     rng = np.random.default_rng(1)
-    for fn in (A.jitter, A.per_channel_scale, A.mag_warp, A.time_warp,
-               A.random_rotation, A.channel_dropout, A.random_crop):
+    for fn in (
+        A.jitter,
+        A.per_channel_scale,
+        A.mag_warp,
+        A.time_warp,
+        A.random_rotation,
+        A.channel_dropout,
+        A.random_crop,
+    ):
         assert fn(seq, rng).shape == seq.shape, f"{fn.__name__} changed shape"
 
 
 def test_channel_dropout_does_not_index_past_a_narrow_input():
     """Force sits at column 12; a 6-channel sample has no such column."""
     seq = np.ones((10, 6), dtype=np.float32)
-    assert A.channel_dropout(seq, np.random.default_rng(0), p_drop=0.5).shape == seq.shape
+    assert (
+        A.channel_dropout(seq, np.random.default_rng(0), p_drop=0.5).shape == seq.shape
+    )
 
 
 def test_rotation_leaves_extra_channels_alone():

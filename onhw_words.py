@@ -75,14 +75,14 @@ Usage
     decoder = LexiconDecoder(lexicon, charset=WORDS500_VOCAB)
     hyps = decoder.decode(infer_model, X_test, down_len)
 """
+
 from __future__ import annotations
 
 import os
 import pickle
-from typing import Dict, List, NamedTuple, Optional, Sequence, Tuple
+from typing import Dict, List, NamedTuple, Sequence
 
 import numpy as np
-
 
 # --------------------------------------------------------------------------- #
 # Charset and vocabulary
@@ -92,7 +92,7 @@ import numpy as np
 # this exact order. (Earlier docs referenced "57" - that count omitted the
 # lowercase ä ö ü ß which are distinct from their uppercase counterparts.)
 WORDS500_VOCAB = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÄÖÜäöüß"
-WORDS500_BLANK_IDX = len(WORDS500_VOCAB)   # CTC blank = index 59
+WORDS500_BLANK_IDX = len(WORDS500_VOCAB)  # CTC blank = index 59
 
 
 def _vocab_index_table() -> Dict[str, int]:
@@ -131,6 +131,7 @@ class OnHWWordsDataset(NamedTuple):
     format : str
         Always "words500_pkl".
     """
+
     X_train: List[np.ndarray]
     X_val: List[np.ndarray]
     Y_train: List[List[int]]
@@ -165,11 +166,13 @@ class OnHWWordsDataset(NamedTuple):
 
     def summary(self) -> str:
         lens = [len(s) for s in self.X_train] + [len(s) for s in self.X_val]
-        return (f"OnHW-words500 (fold {self.fold}): "
-                f"train={self.n_train} val={self.n_val} "
-                f"writers={self.n_writers} "
-                f"lexicon={len(self.lexicon)} words "
-                f"len mean={np.mean(lens):.0f} max={max(lens)}")
+        return (
+            f"OnHW-words500 (fold {self.fold}): "
+            f"train={self.n_train} val={self.n_val} "
+            f"writers={self.n_writers} "
+            f"lexicon={len(self.lexicon)} words "
+            f"len mean={np.mean(lens):.0f} max={max(lens)}"
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -186,12 +189,14 @@ def _find_fold_dir(base_dir: str, fold: int) -> str:
         candidate = os.path.join(base_dir, name)
         if os.path.isdir(candidate):
             return candidate
-    available = sorted(d for d in os.listdir(base_dir)
-                       if os.path.isdir(os.path.join(base_dir, d)))
+    available = sorted(
+        d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))
+    )
     raise FileNotFoundError(
         f"fold {fold} not found under {base_dir} (looked for '{fold}' and "
         f"'fold_{fold}'). Subdirectories present: {available or 'none'}. "
-        "Did you download and extract onhw_words500_dep / onhw_words500_indep?")
+        "Did you download and extract onhw_words500_dep / onhw_words500_indep?"
+    )
 
 
 def _strip_padding(seq: Sequence[int]) -> List[int]:
@@ -230,22 +235,30 @@ def load_onhw_words500(base_dir: str, fold: int = 0) -> OnHWWordsDataset:
     fold_dir = _find_fold_dir(base_dir, fold)
 
     required = [
-        "all_x_dat_train_imu.pkl", "all_x_dat_val_imu.pkl",
-        "all_train_gt.pkl", "all_val_gt.pkl",
-        "train_ids.pkl", "val_ids.pkl",
+        "all_x_dat_train_imu.pkl",
+        "all_x_dat_val_imu.pkl",
+        "all_train_gt.pkl",
+        "all_val_gt.pkl",
+        "train_ids.pkl",
+        "val_ids.pkl",
     ]
     for fname in required:
         if not os.path.exists(os.path.join(fold_dir, fname)):
             raise FileNotFoundError(
                 f"missing {fname} in {fold_dir}. The Words500 archive may be "
-                "corrupted; re-download with onhw_download.py onhw_words500_dep")
+                "corrupted; re-download with onhw_download.py onhw_words500_dep"
+            )
 
     def _load_pkl(name):
         with open(os.path.join(fold_dir, name), "rb") as f:
             return pickle.load(f)
 
-    X_train = [np.asarray(s, dtype=np.float32) for s in _load_pkl("all_x_dat_train_imu.pkl")]
-    X_val = [np.asarray(s, dtype=np.float32) for s in _load_pkl("all_x_dat_val_imu.pkl")]
+    X_train = [
+        np.asarray(s, dtype=np.float32) for s in _load_pkl("all_x_dat_train_imu.pkl")
+    ]
+    X_val = [
+        np.asarray(s, dtype=np.float32) for s in _load_pkl("all_x_dat_val_imu.pkl")
+    ]
     Y_train = [_strip_padding(lab) for lab in _load_pkl("all_train_gt.pkl")]
     Y_val = [_strip_padding(lab) for lab in _load_pkl("all_val_gt.pkl")]
     train_ids = np.array(list(_load_pkl("train_ids.pkl")), dtype=np.int64)
@@ -264,13 +277,18 @@ def load_onhw_words500(base_dir: str, fold: int = 0) -> OnHWWordsDataset:
             raise ValueError(
                 f"found token {max_tok} but the words500 charset only has "
                 f"{len(WORDS500_VOCAB)} symbols (+ blank at {WORDS500_BLANK_IDX}) "
-                "- the data may be encoded with a different charset")
+                "- the data may be encoded with a different charset"
+            )
 
     return OnHWWordsDataset(
-        X_train=X_train, X_val=X_val,
-        Y_train=Y_train, Y_val=Y_val,
-        train_words=train_words, val_words=val_words,
-        train_ids=train_ids, val_ids=val_ids,
+        X_train=X_train,
+        X_val=X_val,
+        Y_train=Y_train,
+        Y_val=Y_val,
+        train_words=train_words,
+        val_words=val_words,
+        train_ids=train_ids,
+        val_ids=val_ids,
         fold=fold,
     )
 
@@ -278,6 +296,23 @@ def load_onhw_words500(base_dir: str, fold: int = 0) -> OnHWWordsDataset:
 # --------------------------------------------------------------------------- #
 # Lexicon-constrained beam-search decoder
 # --------------------------------------------------------------------------- #
+def _accumulate(
+    beams: Dict[str, List[float]], prefix: str, slot: int, value: float
+) -> None:
+    """Add ``value`` to one half of a beam's log-probability pair.
+
+    ``slot`` 0 holds the mass of alignments ending in a blank and slot 1 the
+    mass of those ending in the last emitted label. Values are summed in log
+    space, since a prefix is usually reachable by several alignments and CTC
+    scores the sequence, not its best path.
+    """
+    entry = beams.get(prefix)
+    if entry is None:
+        entry = [-np.inf, -np.inf]
+        beams[prefix] = entry
+    entry[slot] = np.logaddexp(entry[slot], value)
+
+
 class LexiconDecoder:
     """Lexicon-constrained beam-search CTC decoder for closed-vocabulary HWR.
 
@@ -313,9 +348,14 @@ class LexiconDecoder:
         False to return the best prefix instead, for partial CER credit.
     """
 
-    def __init__(self, lexicon: Sequence[str], charset: str = WORDS500_VOCAB,
-                 beam_width: int = 8, lexicon_bonus: float = 1.0,
-                 strict: bool = True):
+    def __init__(
+        self,
+        lexicon: Sequence[str],
+        charset: str = WORDS500_VOCAB,
+        beam_width: int = 8,
+        lexicon_bonus: float = 1.0,
+        strict: bool = True,
+    ):
         self.charset = charset
         self.beam_width = beam_width
         self.lexicon_bonus = lexicon_bonus
@@ -362,7 +402,8 @@ class LexiconDecoder:
         if V != blank + 1:
             raise ValueError(
                 f"posteriors have {V} columns but charset has {blank} symbols; "
-                f"expected {blank + 1} (charset + CTC blank)")
+                f"expected {blank + 1} (charset + CTC blank)"
+            )
         log_p = np.log(np.asarray(posteriors, dtype=np.float64) + 1e-12)
 
         NEG = -np.inf
@@ -374,17 +415,10 @@ class LexiconDecoder:
             row = log_p[t]
             nxt: Dict[str, List[float]] = {}
 
-            def bump(key: str, slot: int, value: float) -> None:
-                entry = nxt.get(key)
-                if entry is None:
-                    entry = [NEG, NEG]
-                    nxt[key] = entry
-                entry[slot] = np.logaddexp(entry[slot], value)
-
             for prefix, (pb, pnb) in beams.items():
                 total = np.logaddexp(pb, pnb)
                 # Blank: the label sequence is unchanged, alignment ends blank.
-                bump(prefix, 0, total + row[blank])
+                _accumulate(nxt, prefix, 0, total + row[blank])
                 last = prefix[-1] if prefix else None
                 for tok in range(blank):
                     ch = self.charset[tok]
@@ -392,26 +426,29 @@ class LexiconDecoder:
                     if ch == last:
                         # Repeating the last label collapses into it, so the
                         # sequence is unchanged and the alignment ends on it.
-                        bump(prefix, 1, pnb + p)
+                        _accumulate(nxt, prefix, 1, pnb + p)
                         # Emitting a genuine second copy needs a blank first,
                         # so only the blank-ending mass can extend the prefix.
                         grown = prefix + ch
                         if self._is_valid_prefix(grown):
-                            bump(grown, 1, pb + p)
+                            _accumulate(nxt, grown, 1, pb + p)
                     else:
                         grown = prefix + ch
                         if self._is_valid_prefix(grown):
-                            bump(grown, 1, total + p)
+                            _accumulate(nxt, grown, 1, total + p)
 
-            if not nxt:                     # nothing survived pruning
+            if not nxt:  # nothing survived pruning
                 break
-            beams = dict(sorted(nxt.items(),
-                                key=lambda kv: -np.logaddexp(kv[1][0], kv[1][1]))
-                         [: self.beam_width])
+            beams = dict(
+                sorted(nxt.items(), key=lambda kv: -np.logaddexp(kv[1][0], kv[1][1]))[
+                    : self.beam_width
+                ]
+            )
 
         scored = [(np.logaddexp(pb, pnb), s) for s, (pb, pnb) in beams.items()]
-        words = [(lp + self.lexicon_bonus, s) for lp, s in scored
-                 if self._is_full_word(s)]
+        words = [
+            (lp + self.lexicon_bonus, s) for lp, s in scored if self._is_full_word(s)
+        ]
         if words:
             return max(words)[1]
         # No beam spelled a complete word. On a closed vocabulary a partial
@@ -423,8 +460,9 @@ class LexiconDecoder:
             return ""
         return max(scored)[1] if scored else ""
 
-    def decode(self, infer_model, X: np.ndarray, down_len: int,
-               batch: int = 32) -> List[str]:
+    def decode(
+        self, infer_model, X: np.ndarray, down_len: int, batch: int = 32
+    ) -> List[str]:
         """Run lexicon-constrained beam search on a batch of IMU sequences.
 
         Parameters
@@ -441,7 +479,7 @@ class LexiconDecoder:
         """
         out: List[str] = []
         for i in range(0, len(X), batch):
-            chunk = X[i:i + batch]
+            chunk = X[i : i + batch]
             preds = infer_model.predict(chunk, verbose=0)
             for j in range(len(chunk)):
                 out.append(self.decode_one(preds[j][:down_len]))
@@ -461,8 +499,18 @@ def _demo():
     its keep when the model is unsure.
     """
     rng = np.random.default_rng(0)
-    lexicon = ["HALLO", "WELT", "PYTHON", "CTC", "BEAM",
-               "DECODE", "LEXICON", "WORD", "TEST", "BERLIN"]
+    lexicon = [
+        "HALLO",
+        "WELT",
+        "PYTHON",
+        "CTC",
+        "BEAM",
+        "DECODE",
+        "LEXICON",
+        "WORD",
+        "TEST",
+        "BERLIN",
+    ]
     charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     decoder = LexiconDecoder(lexicon, charset=charset, beam_width=4)
 
@@ -505,18 +553,26 @@ def _demo():
             correct_lexicon += 1
     n = len(lexicon) * 3
     print(f"Greedy decode:  {correct_greedy}/{n} correct ({correct_greedy/n*100:.0f}%)")
-    print(f"Lexicon decode: {correct_lexicon}/{n} correct ({correct_lexicon/n*100:.0f}%)")
+    print(
+        f"Lexicon decode: {correct_lexicon}/{n} correct ({correct_lexicon/n*100:.0f}%)"
+    )
     print(f"Lexicon: {lexicon}")
 
 
 def main() -> None:
+    """CLI: run the lexicon-decode demo, or summarise a Words500 fold."""
     import argparse
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("base_dir", nargs="?", help="path to extracted Words500 folder")
     ap.add_argument("--fold", type=int, default=0, help="fold index 0-4 (default 0)")
-    ap.add_argument("--demo", action="store_true",
-                    help="run the synthetic lexicon-decode demo (no data needed)")
+    ap.add_argument(
+        "--demo",
+        action="store_true",
+        help="run the synthetic lexicon-decode demo (no data needed)",
+    )
     args = ap.parse_args()
 
     if args.demo:

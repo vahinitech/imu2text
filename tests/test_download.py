@@ -5,6 +5,7 @@ consistency, and the archive handling is exercised against ZIPs built in a
 temp directory - including a malicious one, since these archives are fetched
 over the network and unpacked on a developer's machine.
 """
+
 import os
 import zipfile
 
@@ -103,13 +104,14 @@ def test_safe_extract_refuses_an_absolute_member(tmp_path):
         try:
             D._safe_extract(zf, str(out))
         except ValueError:
-            pass                      # refused outright is fine
+            pass  # refused outright is fine
     assert not os.path.exists("/tmp/absolute_escape.pkl")
 
 
 def test_archive_root_finds_the_single_top_level_folder(tmp_path):
-    zip_path = _make_zip(tmp_path / "one.zip",
-                         ["OnHW-chars_L/all_gt.pkl", "OnHW-chars_L/list_ids.pkl"])
+    zip_path = _make_zip(
+        tmp_path / "one.zip", ["OnHW-chars_L/all_gt.pkl", "OnHW-chars_L/list_ids.pkl"]
+    )
     with zipfile.ZipFile(zip_path) as zf:
         assert D._archive_root(zf) == "OnHW-chars_L"
 
@@ -129,8 +131,10 @@ def test_archive_root_is_empty_for_a_flat_archive(tmp_path):
 
 def test_download_one_skips_an_existing_archive(tmp_path, monkeypatch):
     """skip_existing must not re-fetch; the network call would fail the test."""
+
     def explode(*a, **k):
         raise AssertionError("urlretrieve should not have been called")
+
     monkeypatch.setattr(D.urllib.request, "urlretrieve", explode)
 
     zip_path = tmp_path / "onhw_chars_L.zip"

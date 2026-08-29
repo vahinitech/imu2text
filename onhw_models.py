@@ -50,6 +50,7 @@ Usage
     python onhw_models.py --epochs 80 --seed 1
     python onhw_models.py --augment 4 --rnn-units 100 --rnn-layers 2  # best config
 """
+
 from __future__ import annotations
 
 import argparse
@@ -60,6 +61,7 @@ from typing import Callable, Dict, List, Tuple
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+
 try:
     from tabulate import tabulate
 except ImportError:  # optional dependency
@@ -72,7 +74,7 @@ from tensorflow.keras.utils import to_categorical, pad_sequences
 
 # Augmentation policy + per-writer normalization live in a dedicated module so
 # they can be reused by the seq2seq pipeline and unit-tested independently.
-from onhw_augment import AUG_POLICIES, AugmentationConfig, augment_training
+from onhw_augment import AUG_POLICIES, augment_training
 
 IMU_FILE = "data/all_x_dat_imu.pkl"
 GT_FILE = "data/all_gt.pkl"
@@ -86,14 +88,15 @@ MIN_SAMPLES_PER_WRITER_SCALER = 5
 # --------------------------------------------------------------------------- #
 # Data
 # --------------------------------------------------------------------------- #
-def load_raw(imu_file: str = IMU_FILE,
-             gt_file: str = GT_FILE) -> Tuple[List[np.ndarray], np.ndarray, List[str]]:
+def load_raw(
+    imu_file: str = IMU_FILE, gt_file: str = GT_FILE
+) -> Tuple[List[np.ndarray], np.ndarray, List[str]]:
     """Load the IMU sequences and integer-encode the character labels (0..C-1)."""
     with open(imu_file, "rb") as f:
         x = [np.asarray(s, dtype=np.float32) for s in pickle.load(f)]
     with open(gt_file, "rb") as f:
         chars = list(pickle.load(f))
-    classes = sorted(set(chars))                       # e.g. ['A'..'Z','a'..'z']
+    classes = sorted(set(chars))  # e.g. ['A'..'Z','a'..'z']
     char_to_idx = {c: i for i, c in enumerate(classes)}
     y = np.array([char_to_idx[c] for c in chars], dtype=np.int64)
     return x, y, classes
@@ -113,7 +116,7 @@ def infer_writer_ids(chars: List[str]) -> np.ndarray:
     writer = np.empty(len(chars), dtype=np.int64)
     wid, seen = 0, set()
     for i, c in enumerate(chars):
-        if c in seen:                                  # alphabet cycled -> new writer
+        if c in seen:  # alphabet cycled -> new writer
             wid += 1
             seen = set()
         writer[i] = wid
@@ -121,8 +124,15 @@ def infer_writer_ids(chars: List[str]) -> np.ndarray:
     return writer
 
 
-def load_official_split(base_dir: str, case: str, dependency: str, fold: int,
-                        seed: int, val_frac: float = 0.15, min_len: int = 1):
+def load_official_split(
+    base_dir: str,
+    case: str,
+    dependency: str,
+    fold: int,
+    seed: int,
+    val_frac: float = 0.15,
+    min_len: int = 1,
+):
     """Load one of the 30 official OnHW-chars splits from the .npy release.
 
     Returns ``(x, y, classes, (train_idx, val_idx, test_idx))``.
@@ -145,7 +155,8 @@ def load_official_split(base_dir: str, case: str, dependency: str, fold: int,
         raise SystemExit(
             f"{base_dir} is not the .npy OnHW-chars release (found "
             f"'{ds.format}'). The official splits only ship in the .npy "
-            "archive - download it with `python onhw_download.py onhw_chars`.")
+            "archive - download it with `python onhw_download.py onhw_chars`."
+        )
 
     x = [np.asarray(s_, dtype=np.float32) for s_ in ds.X_all]
     y = np.asarray(ds.y_all, dtype=np.int64)
@@ -160,9 +171,11 @@ def load_official_split(base_dir: str, case: str, dependency: str, fold: int,
     if len(keep) < len(x):
         kept_train = int(np.sum(keep < n_train))
         n_test = len(x) - n_train
-        print(f"  dropped {len(x) - len(keep)} sample(s) with fewer than "
-              f"{min_len} timestep(s): {n_train - kept_train} of {n_train} "
-              f"train, {n_test - (len(keep) - kept_train)} of {n_test} test")
+        print(
+            f"  dropped {len(x) - len(keep)} sample(s) with fewer than "
+            f"{min_len} timestep(s): {n_train - kept_train} of {n_train} "
+            f"train, {n_test - (len(keep) - kept_train)} of {n_test} test"
+        )
         x = [x[i] for i in keep]
         y = y[keep]
         n_train = kept_train
@@ -175,13 +188,15 @@ def load_official_split(base_dir: str, case: str, dependency: str, fold: int,
     # than failing on a small case or a rare-class subset.
     n_val = max(1, int(round(len(train_all) * val_frac)))
     stratify = y[train_all] if n_val >= len(set(y[train_all].tolist())) else None
-    tr, va = train_test_split(train_all, test_size=n_val,
-                              random_state=seed, stratify=stratify)
+    tr, va = train_test_split(
+        train_all, test_size=n_val, random_state=seed, stratify=stratify
+    )
     return x, y, list(ds.classes), (tr, va, test_idx)
 
 
-def make_split(n: int, y: np.ndarray, seed: int, mode: str = "random",
-               writers: np.ndarray = None):
+def make_split(
+    n: int, y: np.ndarray, seed: int, mode: str = "random", writers: np.ndarray = None
+):
     """Train / val / test index split (60 / 20 / 20).
 
     mode="random": stratified by class (a writer may appear in train and test).
@@ -191,8 +206,12 @@ def make_split(n: int, y: np.ndarray, seed: int, mode: str = "random",
     """
     if mode == "random":
         idx = np.arange(n)
-        train, tmp = train_test_split(idx, test_size=0.40, random_state=seed, stratify=y)
-        val, test = train_test_split(tmp, test_size=0.50, random_state=seed, stratify=y[tmp])
+        train, tmp = train_test_split(
+            idx, test_size=0.40, random_state=seed, stratify=y
+        )
+        val, test = train_test_split(
+            tmp, test_size=0.50, random_state=seed, stratify=y[tmp]
+        )
         return train, val, test
 
     if mode == "writer":
@@ -206,20 +225,35 @@ def make_split(n: int, y: np.ndarray, seed: int, mode: str = "random",
                 "mode='writer' needs a real writer ID for every sample, but "
                 "some are -1 (unknown). The .npy OnHW-chars archives ship "
                 "pre-made splits instead of writer IDs - use their "
-                "dependency='indep' folds for writer-independent evaluation.")
+                "dependency='indep' folds for writer-independent evaluation."
+            )
         uniq = np.unique(writers)
         if len(uniq) < 3:
-            raise ValueError("mode='writer' requires at least 3 writers for a train/val/test split")
-        train_w, tmp_w = train_test_split(uniq, test_size=0.40, random_state=seed, shuffle=True)
-        val_w, test_w = train_test_split(tmp_w, test_size=0.50, random_state=seed, shuffle=True)
-        sel = lambda group: np.flatnonzero(np.isin(writers, group))
+            raise ValueError(
+                "mode='writer' requires at least 3 writers for a train/val/test split"
+            )
+        train_w, tmp_w = train_test_split(
+            uniq, test_size=0.40, random_state=seed, shuffle=True
+        )
+        val_w, test_w = train_test_split(
+            tmp_w, test_size=0.50, random_state=seed, shuffle=True
+        )
+
+        def sel(group):
+            return np.flatnonzero(np.isin(writers, group))
+
         return sel(train_w), sel(val_w), sel(test_w)
 
     raise ValueError(f"unknown split mode: {mode}")
 
 
-def normalize_and_pad(x: List[np.ndarray], train_idx: np.ndarray, maxlen: int,
-                      writers: np.ndarray = None, mode: str = "global"):
+def normalize_and_pad(
+    x: List[np.ndarray],
+    train_idx: np.ndarray,
+    maxlen: int,
+    writers: np.ndarray = None,
+    mode: str = "global",
+):
     """Per-channel standardize then post-pad/truncate to ``maxlen``.
 
     Three normalization modes, differing in what statistics each sample is
@@ -259,12 +293,17 @@ def normalize_and_pad(x: List[np.ndarray], train_idx: np.ndarray, maxlen: int,
         raise ValueError(
             f"{len(empty)} sample(s) have zero timesteps (first at index "
             f"{empty[0]}); they cannot be standardized. Filter them out before "
-            "normalizing - the published OnHW-chars archive contains a few.")
+            "normalizing - the published OnHW-chars archive contains a few."
+        )
 
     if mode == "per_sample":
-        x_norm = [((s - s.mean(axis=0, keepdims=True))
-                   / (s.std(axis=0, keepdims=True) + 1e-6)).astype(np.float32)
-                  for s in x]
+        x_norm = [
+            (
+                (s - s.mean(axis=0, keepdims=True))
+                / (s.std(axis=0, keepdims=True) + 1e-6)
+            ).astype(np.float32)
+            for s in x
+        ]
     elif mode == "per_writer":
         if writers is None:
             raise ValueError("mode='per_writer' requires writer IDs")
@@ -275,7 +314,8 @@ def normalize_and_pad(x: List[np.ndarray], train_idx: np.ndarray, maxlen: int,
             raise ValueError(
                 "mode='per_writer' needs a real writer ID for every sample, "
                 "but some are -1 (unknown). The .npy OnHW-chars archives ship "
-                "no writer IDs; use --norm global or per_sample with them.")
+                "no writer IDs; use --norm global or per_sample with them."
+            )
         global_scaler = StandardScaler()
         global_scaler.fit(np.vstack([x[i] for i in train_idx]))
         # Fit one scaler per writer from that writer's own timesteps, across
@@ -284,20 +324,24 @@ def normalize_and_pad(x: List[np.ndarray], train_idx: np.ndarray, maxlen: int,
         for w in np.unique(writers):
             idxs = np.flatnonzero(writers == w)
             if len(idxs) < MIN_SAMPLES_PER_WRITER_SCALER:
-                continue                     # too few samples -> use global
+                continue  # too few samples -> use global
             sc = StandardScaler()
             sc.fit(np.vstack([x[i] for i in idxs]))
             per_w_scaler[int(w)] = sc
-        x_norm = [per_w_scaler.get(int(writers[i]), global_scaler)
-                  .transform(s).astype(np.float32)
-                  for i, s in enumerate(x)]
+        x_norm = [
+            per_w_scaler.get(int(writers[i]), global_scaler)
+            .transform(s)
+            .astype(np.float32)
+            for i, s in enumerate(x)
+        ]
     else:
         scaler = StandardScaler()
-        scaler.fit(np.vstack([x[i] for i in train_idx]))   # fit on train timesteps only
+        scaler.fit(np.vstack([x[i] for i in train_idx]))  # fit on train timesteps only
         x_norm = [scaler.transform(s).astype(np.float32) for s in x]
 
-    return pad_sequences(x_norm, maxlen=maxlen, padding="post",
-                         truncating="post", dtype="float32")
+    return pad_sequences(
+        x_norm, maxlen=maxlen, padding="post", truncating="post", dtype="float32"
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -329,6 +373,7 @@ def _cnn_trunk(x):
 
 
 def build_cnn(maxlen: int, n_classes: int) -> Model:
+    """Convolution-only baseline: the CNN trunk, average-pooled over time."""
     inp = layers.Input(shape=(maxlen, N_CHANNELS))
     x = _cnn_trunk(inp)
     x = layers.GlobalAveragePooling1D()(x)
@@ -354,6 +399,7 @@ def _stack_rnn(x, bidirectional: bool):
 
 
 def build_lstm(maxlen: int, n_classes: int) -> Model:
+    """Recurrent baseline: a forward-only LSTM straight over the raw channels."""
     inp = layers.Input(shape=(maxlen, N_CHANNELS))
     x = layers.Masking(mask_value=0.0)(inp)
     x = _stack_rnn(x, bidirectional=False)
@@ -363,6 +409,7 @@ def build_lstm(maxlen: int, n_classes: int) -> Model:
 
 
 def build_bilstm(maxlen: int, n_classes: int) -> Model:
+    """Recurrent baseline reading the stroke in both directions, no CNN trunk."""
     inp = layers.Input(shape=(maxlen, N_CHANNELS))
     x = layers.Masking(mask_value=0.0)(inp)
     x = _stack_rnn(x, bidirectional=True)
@@ -399,12 +446,11 @@ def build_cnn_bilstm_attn(maxlen: int, n_classes: int) -> Model:
     inp = layers.Input(shape=(maxlen, N_CHANNELS))
     x = _cnn_trunk(inp)
     for _ in range(RNN_LAYERS):
-        x = layers.Bidirectional(
-            layers.LSTM(RNN_UNITS, return_sequences=True))(x)
+        x = layers.Bidirectional(layers.LSTM(RNN_UNITS, return_sequences=True))(x)
 
-    score = layers.Dense(1, use_bias=False)(x)          # (B, T, 1)
-    weights = layers.Softmax(axis=1)(score)             # over time
-    context = layers.Dot(axes=1)([weights, x])          # (B, 1, 2*units)
+    score = layers.Dense(1, use_bias=False)(x)  # (B, T, 1)
+    weights = layers.Softmax(axis=1)(score)  # over time
+    context = layers.Dot(axes=1)([weights, x])  # (B, 1, 2*units)
     context = layers.Flatten()(context)
     pooled = layers.Concatenate()([context, layers.GlobalMaxPooling1D()(x)])
 
@@ -426,9 +472,16 @@ BUILDERS: Dict[str, Callable[[int, int], Model]] = {
 # --------------------------------------------------------------------------- #
 # Train / evaluate
 # --------------------------------------------------------------------------- #
-def train_eval(name: str, X, Y, split, epochs: int, batch: int,
-               label_smoothing: float = 0.0, lr_schedule: bool = False
-               ) -> Dict[str, float]:
+def train_eval(
+    name: str,
+    X,
+    Y,
+    split,
+    epochs: int,
+    batch: int,
+    label_smoothing: float = 0.0,
+    lr_schedule: bool = False,
+) -> Dict[str, float]:
     """Train one model and report train/val/test accuracy.
 
     Two accuracy levers beyond the legacy defaults:
@@ -445,18 +498,34 @@ def train_eval(name: str, X, Y, split, epochs: int, batch: int,
     print(f"  [{name}] training...", flush=True)
     maxlen, n_classes = X.shape[1], Y.shape[1]
     model = BUILDERS[name](maxlen, n_classes)
-    loss = (tf.keras.losses.CategoricalCrossentropy(label_smoothing=label_smoothing)
-            if label_smoothing > 0 else "categorical_crossentropy")
+    loss = (
+        tf.keras.losses.CategoricalCrossentropy(label_smoothing=label_smoothing)
+        if label_smoothing > 0
+        else "categorical_crossentropy"
+    )
     model.compile(optimizer="adam", loss=loss, metrics=["accuracy"])
 
-    callbacks = [EarlyStopping(monitor="val_accuracy", patience=8,
-                               restore_best_weights=True, mode="max")]
+    callbacks = [
+        EarlyStopping(
+            monitor="val_accuracy", patience=8, restore_best_weights=True, mode="max"
+        )
+    ]
     if lr_schedule:
-        callbacks.append(ReduceLROnPlateau(monitor="val_accuracy", factor=0.5,
-                                           patience=3, min_lr=1e-5, mode="max"))
+        callbacks.append(
+            ReduceLROnPlateau(
+                monitor="val_accuracy", factor=0.5, patience=3, min_lr=1e-5, mode="max"
+            )
+        )
     t0 = time.time()
-    model.fit(X[tr], Y[tr], validation_data=(X[va], Y[va]),
-              epochs=epochs, batch_size=batch, verbose=0, callbacks=callbacks)
+    model.fit(
+        X[tr],
+        Y[tr],
+        validation_data=(X[va], Y[va]),
+        epochs=epochs,
+        batch_size=batch,
+        verbose=0,
+        callbacks=callbacks,
+    )
     secs = time.time() - t0
 
     def acc(idx):
@@ -473,13 +542,17 @@ def train_eval(name: str, X, Y, split, epochs: int, batch: int,
         "test_pred": np.argmax(model.predict(X[te], verbose=0), 1),
         "test_true": np.argmax(Y[te], 1),
     }
-    print(f"  [{name}] done: test={result['test_acc']:.2f}% "
-          f"train={result['train_acc']:.2f}% ({secs:.0f}s)", flush=True)
+    print(
+        f"  [{name}] done: test={result['test_acc']:.2f}% "
+        f"train={result['train_acc']:.2f}% ({secs:.0f}s)",
+        flush=True,
+    )
     return result
 
 
-def error_analysis(pred: np.ndarray, true: np.ndarray,
-                   classes: List[str], top: int = 12) -> None:
+def error_analysis(
+    pred: np.ndarray, true: np.ndarray, classes: List[str], top: int = 12
+) -> None:
     """Report where the errors go, not just how many there are.
 
     On the 52-class OnHW-chars task the class set is 26 letters in two cases,
@@ -493,8 +566,10 @@ def error_analysis(pred: np.ndarray, true: np.ndarray,
     pred, true = np.asarray(pred), np.asarray(true)
     wrong = pred != true
     n_err = int(wrong.sum())
-    print(f"\n  Error analysis on {len(true)} test samples "
-          f"({n_err} wrong, {100 * n_err / len(true):.2f}% error)")
+    print(
+        f"\n  Error analysis on {len(true)} test samples "
+        f"({n_err} wrong, {100 * n_err / len(true):.2f}% error)"
+    )
     if not n_err:
         return
 
@@ -502,12 +577,17 @@ def error_analysis(pred: np.ndarray, true: np.ndarray,
     folded = {i: c.lower() for i, c in enumerate(classes)}
     ci_correct = sum(folded[int(p)] == folded[int(t)] for p, t in zip(pred, true))
     ci_acc = 100 * ci_correct / len(true)
-    case_only = sum(1 for p, t in zip(pred[wrong], true[wrong])
-                    if folded[int(p)] == folded[int(t)])
-    print(f"  case-insensitive accuracy : {ci_acc:.2f}%  "
-          f"(plain: {100 * (1 - n_err / len(true)):.2f}%)")
-    print(f"  errors that are case only : {case_only}/{n_err} "
-          f"({100 * case_only / n_err:.1f}% of all errors)")
+    case_only = sum(
+        1 for p, t in zip(pred[wrong], true[wrong]) if folded[int(p)] == folded[int(t)]
+    )
+    print(
+        f"  case-insensitive accuracy : {ci_acc:.2f}%  "
+        f"(plain: {100 * (1 - n_err / len(true)):.2f}%)"
+    )
+    print(
+        f"  errors that are case only : {case_only}/{n_err} "
+        f"({100 * case_only / n_err:.1f}% of all errors)"
+    )
 
     pairs: Dict[tuple, int] = {}
     for t, p in zip(true[wrong], pred[wrong]):
@@ -516,76 +596,149 @@ def error_analysis(pred: np.ndarray, true: np.ndarray,
     print(f"  top {len(ranked)} confusions (true -> predicted):")
     for (t, p), cnt in ranked:
         same = " [case pair]" if folded[t] == folded[p] else ""
-        print(f"    {classes[t]!r} -> {classes[p]!r}: {cnt}"
-              f" ({100 * cnt / n_err:.1f}% of errors){same}")
+        print(
+            f"    {classes[t]!r} -> {classes[p]!r}: {cnt}"
+            f" ({100 * cnt / n_err:.1f}% of errors){same}"
+        )
 
 
 def main() -> None:
+    """CLI: load a dataset, train the selected models, print the result table."""
     global RNN_UNITS, RNN_LAYERS, N_CHANNELS
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--models", nargs="+", default=list(BUILDERS),
-                    choices=list(BUILDERS), help="which architectures to run")
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument(
+        "--models",
+        nargs="+",
+        default=list(BUILDERS),
+        choices=list(BUILDERS),
+        help="which architectures to run",
+    )
     ap.add_argument("--epochs", type=int, default=50)
     ap.add_argument("--batch", type=int, default=64)
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--split", choices=["random", "writer"], default="writer",
-                    help="'writer' = writer-independent (unseen writers in test); "
-                         "'random' = stratified random (easier, leaks writer style)")
-    ap.add_argument("--max-len", type=int, default=100,
-                    help="cap padded sequence length (mean len ~46) to bound RNN cost")
-    ap.add_argument("--rnn-units", type=int, default=RNN_UNITS,
-                    help="(Bi)LSTM hidden units (paper ~100; lower is faster on CPU)")
-    ap.add_argument("--rnn-layers", type=int, default=RNN_LAYERS,
-                    help="number of stacked (Bi)LSTM layers (paper ~2)")
-    ap.add_argument("--augment", type=int, default=0,
-                    help="augmented copies per TRAIN sample (0 = off)")
-    ap.add_argument("--aug-policy", choices=sorted(AUG_POLICIES), default="legacy",
-                    help="'legacy' (default) = jitter/scale/mag-warp/time-warp, "
-                         "the policy behind the measured 71.6%% WI result; "
-                         "'extended' adds rotation/channel-dropout/crop, which "
-                         "are unmeasured on this subset")
-    ap.add_argument("--onhw-chars", default=None, metavar="DIR",
-                    help="use the official OnHW-chars .npy splits in DIR "
-                         "(e.g. data/onhw-chars_2021-06-30) instead of the "
-                         "pickle files and this script's own split")
-    ap.add_argument("--case", choices=("lower", "upper", "both"), default="both",
-                    help="--onhw-chars: character set (both = 52 classes)")
-    ap.add_argument("--dependency", choices=("dep", "indep"), default="indep",
-                    help="--onhw-chars: 'indep' is the writer-independent "
-                         "protocol the OnHW papers report")
-    ap.add_argument("--fold", type=int, default=0,
-                    help="--onhw-chars: official fold index 0-4")
-    ap.add_argument("--imu-file", default=IMU_FILE,
-                    help="pickle: list of (T, channels) float arrays")
-    ap.add_argument("--gt-file", default=GT_FILE,
-                    help="pickle: list of character labels")
-    ap.add_argument("--writers-file", default=None,
-                    help="pickle: list of writer codes (one per sample); "
-                         "if omitted, writer IDs are inferred from label cycles")
-    ap.add_argument("--channels", type=int, default=N_CHANNELS,
-                    help="sensor channels per timestep (13 = OnHW pen, 16 = Vahini pen)")
+    ap.add_argument(
+        "--split",
+        choices=["random", "writer"],
+        default="writer",
+        help="'writer' = writer-independent (unseen writers in test); "
+        "'random' = stratified random (easier, leaks writer style)",
+    )
+    ap.add_argument(
+        "--max-len",
+        type=int,
+        default=100,
+        help="cap padded sequence length (mean len ~46) to bound RNN cost",
+    )
+    ap.add_argument(
+        "--rnn-units",
+        type=int,
+        default=RNN_UNITS,
+        help="(Bi)LSTM hidden units (paper ~100; lower is faster on CPU)",
+    )
+    ap.add_argument(
+        "--rnn-layers",
+        type=int,
+        default=RNN_LAYERS,
+        help="number of stacked (Bi)LSTM layers (paper ~2)",
+    )
+    ap.add_argument(
+        "--augment",
+        type=int,
+        default=0,
+        help="augmented copies per TRAIN sample (0 = off)",
+    )
+    ap.add_argument(
+        "--aug-policy",
+        choices=sorted(AUG_POLICIES),
+        default="legacy",
+        help="'legacy' (default) = jitter/scale/mag-warp/time-warp, "
+        "the policy behind the measured 71.6%% WI result; "
+        "'extended' adds rotation/channel-dropout/crop, which "
+        "are unmeasured on this subset",
+    )
+    ap.add_argument(
+        "--onhw-chars",
+        default=None,
+        metavar="DIR",
+        help="use the official OnHW-chars .npy splits in DIR "
+        "(e.g. data/onhw-chars_2021-06-30) instead of the "
+        "pickle files and this script's own split",
+    )
+    ap.add_argument(
+        "--case",
+        choices=("lower", "upper", "both"),
+        default="both",
+        help="--onhw-chars: character set (both = 52 classes)",
+    )
+    ap.add_argument(
+        "--dependency",
+        choices=("dep", "indep"),
+        default="indep",
+        help="--onhw-chars: 'indep' is the writer-independent "
+        "protocol the OnHW papers report",
+    )
+    ap.add_argument(
+        "--fold", type=int, default=0, help="--onhw-chars: official fold index 0-4"
+    )
+    ap.add_argument(
+        "--imu-file",
+        default=IMU_FILE,
+        help="pickle: list of (T, channels) float arrays",
+    )
+    ap.add_argument(
+        "--gt-file", default=GT_FILE, help="pickle: list of character labels"
+    )
+    ap.add_argument(
+        "--writers-file",
+        default=None,
+        help="pickle: list of writer codes (one per sample); "
+        "if omitted, writer IDs are inferred from label cycles",
+    )
+    ap.add_argument(
+        "--channels",
+        type=int,
+        default=N_CHANNELS,
+        help="sensor channels per timestep (13 = OnHW pen, 16 = Vahini pen)",
+    )
     # ---- new accuracy levers ----
-    ap.add_argument("--norm", choices=("global", "per_sample", "per_writer"),
-                    default="global",
-                    help="input normalization: 'global' (default, leak-free, "
-                         "what the README numbers use); 'per_sample' (each "
-                         "sample by its own stats, leak-free); 'per_writer' "
-                         "(each writer by their own stats - TRANSDUCTIVE, "
-                         "needs several samples per test writer, so report "
-                         "any resulting number as transductive)")
-    ap.add_argument("--label-smoothing", type=float, default=0.0,
-                    help="label smoothing factor (0 = off; 0.1 is the standard pick)")
-    ap.add_argument("--lr-schedule", action="store_true",
-                    help="reduce LR on validation plateau (factor 0.5, patience 3)")
-    ap.add_argument("--error-analysis", action="store_true",
-                    help="after training, break the test errors down by "
-                         "confusion pair and report case-insensitive accuracy")
-    ap.add_argument("--deterministic", action="store_true",
-                    help="make a run bit-reproducible (op determinism + single "
-                         "thread). --seed alone does not: CPU thread scheduling "
-                         "still moves the result by several points. Slower, so "
-                         "use it when comparing configurations")
+    ap.add_argument(
+        "--norm",
+        choices=("global", "per_sample", "per_writer"),
+        default="global",
+        help="input normalization: 'global' (default, leak-free, "
+        "what the README numbers use); 'per_sample' (each "
+        "sample by its own stats, leak-free); 'per_writer' "
+        "(each writer by their own stats - TRANSDUCTIVE, "
+        "needs several samples per test writer, so report "
+        "any resulting number as transductive)",
+    )
+    ap.add_argument(
+        "--label-smoothing",
+        type=float,
+        default=0.0,
+        help="label smoothing factor (0 = off; 0.1 is the standard pick)",
+    )
+    ap.add_argument(
+        "--lr-schedule",
+        action="store_true",
+        help="reduce LR on validation plateau (factor 0.5, patience 3)",
+    )
+    ap.add_argument(
+        "--error-analysis",
+        action="store_true",
+        help="after training, break the test errors down by "
+        "confusion pair and report case-insensitive accuracy",
+    )
+    ap.add_argument(
+        "--deterministic",
+        action="store_true",
+        help="make a run bit-reproducible (op determinism + single "
+        "thread). --seed alone does not: CPU thread scheduling "
+        "still moves the result by several points. Slower, so "
+        "use it when comparing configurations",
+    )
     args = ap.parse_args()
 
     RNN_UNITS, RNN_LAYERS = args.rnn_units, args.rnn_layers
@@ -608,7 +761,8 @@ def main() -> None:
 
     if args.onhw_chars:
         x, y, classes, (tr, va, te) = load_official_split(
-            args.onhw_chars, args.case, args.dependency, args.fold, args.seed)
+            args.onhw_chars, args.case, args.dependency, args.fold, args.seed
+        )
         n, n_classes = len(x), len(classes)
         # No per-sample writer IDs ship with these archives; the split already
         # encodes the writer partition. -1 keeps per-writer normalization and
@@ -630,22 +784,31 @@ def main() -> None:
         tr, va, te = make_split(n, y, args.seed, mode=args.split, writers=writers)
         split_desc = args.split
     if x and x[0].shape[1] != N_CHANNELS:
-        raise SystemExit(f"data has {x[0].shape[1]} channels but --channels={N_CHANNELS}")
+        raise SystemExit(
+            f"data has {x[0].shape[1]} channels but --channels={N_CHANNELS}"
+        )
     if args.augment:
         aug_cfg = AUG_POLICIES[args.aug_policy]()
-        x, y, writers, tr = augment_training(x, y, writers, tr, args.augment,
-                                             args.seed, cfg=aug_cfg)
+        x, y, writers, tr = augment_training(
+            x, y, writers, tr, args.augment, args.seed, cfg=aug_cfg
+        )
     split = (tr, va, te)
-    maxlen = min(int(max(len(x[i]) for i in split[0])), args.max_len)  # TRAIN max, capped
+    maxlen = min(
+        int(max(len(x[i]) for i in split[0])), args.max_len
+    )  # TRAIN max, capped
     X = normalize_and_pad(x, split[0], maxlen, writers=writers, mode=args.norm)
     Y = to_categorical(y, num_classes=n_classes)
 
     extras = []
     if args.norm != "global":
-        extras.append(f"norm={args.norm}"
-                      + (" (TRANSDUCTIVE)" if args.norm == "per_writer" else ""))
-    if args.label_smoothing > 0: extras.append(f"label smoothing={args.label_smoothing}")
-    if args.lr_schedule:        extras.append("LR-on-plateau")
+        extras.append(
+            f"norm={args.norm}"
+            + (" (TRANSDUCTIVE)" if args.norm == "per_writer" else "")
+        )
+    if args.label_smoothing > 0:
+        extras.append(f"label smoothing={args.label_smoothing}")
+    if args.lr_schedule:
+        extras.append("LR-on-plateau")
     extras_str = (" | " + ", ".join(extras)) if extras else ""
 
     aug_desc = f"x{args.augment}" + (f" ({args.aug_policy})" if args.augment else "")
@@ -653,21 +816,42 @@ def main() -> None:
     # would report "1 writer", which reads as a real number and is not one.
     known_w = writers[:n][writers[:n] >= 0]
     w_desc = str(len(np.unique(known_w))) if len(known_w) else "not recorded"
-    print(f"Samples: {n} | classes: {n_classes} | writers: {w_desc} "
-          f"| split: {split_desc} | aug: {aug_desc} | maxlen: {maxlen} "
-          f"| tr/va/te: {len(split[0])}/{len(split[1])}/{len(split[2])}{extras_str}")
-    print(f"Majority-class baseline (test): "
-          f"{np.bincount(y[split[2]]).max() / len(split[2]) * 100:.2f}%\n")
+    print(
+        f"Samples: {n} | classes: {n_classes} | writers: {w_desc} "
+        f"| split: {split_desc} | aug: {aug_desc} | maxlen: {maxlen} "
+        f"| tr/va/te: {len(split[0])}/{len(split[1])}/{len(split[2])}{extras_str}"
+    )
+    print(
+        f"Majority-class baseline (test): "
+        f"{np.bincount(y[split[2]]).max() / len(split[2]) * 100:.2f}%\n"
+    )
 
-    rows = [train_eval(m, X, Y, split, args.epochs, args.batch,
-                       label_smoothing=args.label_smoothing,
-                       lr_schedule=args.lr_schedule)
-            for m in args.models]
+    rows = [
+        train_eval(
+            m,
+            X,
+            Y,
+            split,
+            args.epochs,
+            args.batch,
+            label_smoothing=args.label_smoothing,
+            lr_schedule=args.lr_schedule,
+        )
+        for m in args.models
+    ]
     rows.sort(key=lambda r: r["test_acc"], reverse=True)
 
-    table = [[r["model"], f"{r['params']:,}", f"{r['train_acc']:.2f}",
-              f"{r['val_acc']:.2f}", f"{r['test_acc']:.2f}", f"{r['secs']:.0f}s"]
-             for r in rows]
+    table = [
+        [
+            r["model"],
+            f"{r['params']:,}",
+            f"{r['train_acc']:.2f}",
+            f"{r['val_acc']:.2f}",
+            f"{r['test_acc']:.2f}",
+            f"{r['secs']:.0f}s",
+        ]
+        for r in rows
+    ]
     headers = ["Model", "Params", "Train %", "Val %", "Test % (held-out)", "Time"]
     if tabulate is not None:
         print(tabulate(table, headers=headers, tablefmt="github"))
@@ -677,8 +861,10 @@ def main() -> None:
             print("\t".join(map(str, row)))
     best = rows[0]
     label = "writer-independent" if args.split == "writer" else "random split"
-    print(f"\nBest held-out: {best['model']} @ {best['test_acc']:.2f}% "
-          f"({n_classes}-class, {label})")
+    print(
+        f"\nBest held-out: {best['model']} @ {best['test_acc']:.2f}% "
+        f"({n_classes}-class, {label})"
+    )
     if args.error_analysis:
         error_analysis(best["test_pred"], best["test_true"], classes)
 

@@ -5,6 +5,7 @@ When CI invokes bare `pytest`, the repo root is not on sys.path (unlike
 `python -m pytest`, which adds the CWD), so imports fail at collection.
 A root conftest.py fixes that for every invocation style.
 """
+
 import os
 import sys
 

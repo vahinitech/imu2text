@@ -3,12 +3,17 @@
 These cover the pure/deterministic parts (splitting, writer inference,
 augmentation, normalization) so CI catches regressions without a training run.
 """
+
 import numpy as np
 import pytest
 
 pytest.importorskip("tensorflow")  # onhw_models imports keras at module level
 
-import onhw_models as M
+# pylint: disable=wrong-import-position
+# The skip above has to run first: the module pulls in keras at import
+# time, so importing it earlier would fail the whole file rather than
+# skip it when TensorFlow is missing.
+import onhw_models as M  # noqa: E402
 
 
 def _fake_dataset(n_writers=6, alphabet="ABCD"):
@@ -51,7 +56,7 @@ def test_augmentation_appends_only_training_samples():
     writers = M.infer_writer_ids(chars)
     tr, va, te = M.make_split(len(x), y, seed=0, mode="writer", writers=writers)
     n_orig, n_tr = len(x), len(tr)
-    x2, y2, w2, tr2 = M.augment_training(x, y, writers, tr, n_aug=2, seed=0)
+    x2, y2, _, tr2 = M.augment_training(x, y, writers, tr, n_aug=2, seed=0)
     assert len(x2) == n_orig + 2 * n_tr
     assert len(tr2) == 3 * n_tr
     # augmented copies keep label and writer of their source
@@ -103,8 +108,11 @@ def _norm_fixture(n_writers=6, per_writer=6, maxlen=20):
     x, writers = [], []
     for w in range(n_writers):
         for _ in range(per_writer):
-            x.append((rng.normal(size=(maxlen, M.N_CHANNELS)) * (w + 1)
-                      + w * 10).astype(np.float32))
+            x.append(
+                (rng.normal(size=(maxlen, M.N_CHANNELS)) * (w + 1) + w * 10).astype(
+                    np.float32
+                )
+            )
             writers.append(w)
     return x, np.array(writers)
 
@@ -115,15 +123,14 @@ def test_global_norm_fits_on_train_only():
     tr = np.arange(18)
     a = M.normalize_and_pad(x, tr, 20, writers=writers, mode="global")
     x2 = list(x)
-    x2[30] = x2[30] * 50.0                     # perturb a non-train sample
+    x2[30] = x2[30] * 50.0  # perturb a non-train sample
     b = M.normalize_and_pad(x2, tr, 20, writers=writers, mode="global")
     assert np.allclose(a[0], b[0]), "train scaler moved when test data changed"
 
 
 def test_per_sample_norm_centres_every_sample():
     x, writers = _norm_fixture()
-    out = M.normalize_and_pad(x, np.arange(18), 20, writers=writers,
-                              mode="per_sample")
+    out = M.normalize_and_pad(x, np.arange(18), 20, writers=writers, mode="per_sample")
     assert np.allclose(out.mean(axis=1), 0.0, atol=1e-4)
     assert np.allclose(out.std(axis=1), 1.0, atol=1e-3)
 
@@ -131,8 +138,7 @@ def test_per_sample_norm_centres_every_sample():
 def test_per_sample_norm_needs_no_writer_ids():
     """It is the mode to reach for when writer IDs are unavailable."""
     x, _ = _norm_fixture()
-    out = M.normalize_and_pad(x, np.arange(18), 20, writers=None,
-                              mode="per_sample")
+    out = M.normalize_and_pad(x, np.arange(18), 20, writers=None, mode="per_sample")
     assert out.shape == (36, 20, M.N_CHANNELS)
 
 
@@ -145,12 +151,13 @@ def test_per_writer_norm_treats_train_and_test_writers_alike():
     come out centred whichever split they land in.
     """
     x, writers = _norm_fixture()
-    tr = np.flatnonzero(writers < 3)               # writers 3-5 are unseen
+    tr = np.flatnonzero(writers < 3)  # writers 3-5 are unseen
     out = M.normalize_and_pad(x, tr, 20, writers=writers, mode="per_writer")
     for w in np.unique(writers):
         rows = out[np.flatnonzero(writers == w)].reshape(-1, M.N_CHANNELS)
-        assert np.allclose(rows.mean(axis=0), 0.0, atol=1e-3), \
-            f"writer {w} not centred by its own statistics"
+        assert np.allclose(
+            rows.mean(axis=0), 0.0, atol=1e-3
+        ), f"writer {w} not centred by its own statistics"
 
 
 def test_per_writer_norm_requires_writer_ids():
@@ -163,9 +170,8 @@ def test_per_writer_norm_falls_back_for_a_thin_writer():
     """One sample gives a std of ~0 per channel; the global scaler is safer."""
     x, writers = _norm_fixture(n_writers=4, per_writer=8)
     x.append(np.ones((20, M.N_CHANNELS), dtype=np.float32))
-    writers = np.append(writers, 99)               # a writer with one sample
-    out = M.normalize_and_pad(x, np.arange(24), 20, writers=writers,
-                              mode="per_writer")
+    writers = np.append(writers, 99)  # a writer with one sample
+    out = M.normalize_and_pad(x, np.arange(24), 20, writers=writers, mode="per_writer")
     assert np.all(np.isfinite(out))
 
 
@@ -178,8 +184,10 @@ def test_unknown_norm_mode_raises():
 def test_every_norm_mode_produces_the_same_shape():
     x, writers = _norm_fixture()
     tr = np.arange(18)
-    shapes = {m: M.normalize_and_pad(x, tr, 20, writers=writers, mode=m).shape
-              for m in ("global", "per_sample", "per_writer")}
+    shapes = {
+        m: M.normalize_and_pad(x, tr, 20, writers=writers, mode=m).shape
+        for m in ("global", "per_sample", "per_writer")
+    }
     assert len(set(shapes.values())) == 1
 
 
@@ -288,8 +296,9 @@ def official_npy_dir(tmp_path):
 
 def test_official_split_decodes_string_labels(official_npy_dir):
     """Published y_*.npy are dtype '<U1' (['A','B',...]), not integers."""
-    x, y, classes, _ = M.load_official_split(official_npy_dir, "both", "indep",
-                                             0, seed=0)
+    _, y, classes, _ = M.load_official_split(
+        official_npy_dir, "both", "indep", 0, seed=0
+    )
     assert y.dtype.kind == "i"
     assert y.min() >= 0 and y.max() < len(classes)
 
@@ -298,18 +307,20 @@ def test_official_split_maps_labels_to_the_canonical_order(official_npy_dir):
     """Index 0 must mean 'A' and 26 must mean 'a', as everywhere else."""
     import onhw_chars as C
 
-    _, y, classes, _ = M.load_official_split(official_npy_dir, "both", "indep",
-                                             0, seed=0)
+    _, y, classes, _ = M.load_official_split(
+        official_npy_dir, "both", "indep", 0, seed=0
+    )
     assert "".join(classes) == C.CHARS_BOTH
     assert classes[y[0]] == "A"
 
 
 def test_official_split_keeps_the_published_test_half_intact(official_npy_dir):
     """The val set is carved from train only; test must stay untouched."""
-    x, _, _, (tr, va, te) = M.load_official_split(official_npy_dir, "both",
-                                                  "indep", 0, seed=0)
-    assert len(te) == 24                       # the whole published test half
-    assert len(tr) + len(va) == 60             # val comes out of train
+    _, _, _, (tr, va, te) = M.load_official_split(
+        official_npy_dir, "both", "indep", 0, seed=0
+    )
+    assert len(te) == 24  # the whole published test half
+    assert len(tr) + len(va) == 60  # val comes out of train
     assert set(tr).isdisjoint(set(te))
     assert set(va).isdisjoint(set(te))
     assert set(tr).isdisjoint(set(va))
@@ -324,16 +335,20 @@ def test_official_split_drops_zero_length_recordings(official_npy_dir, capsys):
     X[0] = np.zeros((0, 13), dtype=np.float32)
     np.save(os.path.join(folder, "X_train.npy"), X, allow_pickle=True)
 
-    x, _, _, (tr, va, te) = M.load_official_split(official_npy_dir, "both",
-                                                  "indep", 0, seed=0)
+    x, _, _, (tr, va, _) = M.load_official_split(
+        official_npy_dir, "both", "indep", 0, seed=0
+    )
     assert all(len(s) > 0 for s in x)
-    assert len(tr) + len(va) == 59             # one fewer than before
+    assert len(tr) + len(va) == 59  # one fewer than before
     assert "dropped 1 sample" in capsys.readouterr().out
 
 
 def test_normalize_and_pad_rejects_zero_length_samples():
     """A clear error beats a sklearn traceback from deep inside the scaler."""
-    x = [np.ones((10, M.N_CHANNELS), np.float32), np.zeros((0, M.N_CHANNELS), np.float32)]
+    x = [
+        np.ones((10, M.N_CHANNELS), np.float32),
+        np.zeros((0, M.N_CHANNELS), np.float32),
+    ]
     with pytest.raises(ValueError, match="zero timesteps"):
         M.normalize_and_pad(x, np.array([0]), 10, mode="global")
 
@@ -342,9 +357,12 @@ def test_official_split_rejects_the_pkl_release(tmp_path):
     """The official folds only exist in the .npy archive."""
     import pickle
 
-    for name, obj in (("all_x_dat_imu.pkl", [np.ones((5, 13), np.float32)]),
-                      ("all_gt.pkl", ["A"]), ("all_gt_enc.pkl", [0]),
-                      ("list_ids.pkl", [0])):
+    for name, obj in (
+        ("all_x_dat_imu.pkl", [np.ones((5, 13), np.float32)]),
+        ("all_gt.pkl", ["A"]),
+        ("all_gt_enc.pkl", [0]),
+        ("list_ids.pkl", [0]),
+    ):
         with open(tmp_path / name, "wb") as f:
             pickle.dump(obj, f)
     with pytest.raises(SystemExit, match="not the .npy OnHW-chars release"):
@@ -356,23 +374,24 @@ def test_per_writer_norm_rejects_unknown_writer_ids():
     x, _ = _norm_fixture()
     writers = np.full(len(x), -1)
     with pytest.raises(ValueError, match="unknown"):
-        M.normalize_and_pad(x, np.arange(18), 20, writers=writers,
-                            mode="per_writer")
+        M.normalize_and_pad(x, np.arange(18), 20, writers=writers, mode="per_writer")
 
 
 def test_per_sample_norm_works_without_writer_ids():
     """The mode to use with the .npy archives, which ship no writer IDs."""
     x, _ = _norm_fixture()
-    out = M.normalize_and_pad(x, np.arange(18), 20,
-                              writers=np.full(len(x), -1), mode="per_sample")
+    out = M.normalize_and_pad(
+        x, np.arange(18), 20, writers=np.full(len(x), -1), mode="per_sample"
+    )
     assert np.all(np.isfinite(out))
 
 
 # --------------------------------------------------------------------------- #
 # Model builders
 # --------------------------------------------------------------------------- #
-@pytest.mark.parametrize("name", ["cnn", "lstm", "bilstm", "cnn_bilstm",
-                                  "cnn_bilstm_attn"])
+@pytest.mark.parametrize(
+    "name", ["cnn", "lstm", "bilstm", "cnn_bilstm", "cnn_bilstm_attn"]
+)
 def test_every_builder_produces_a_class_distribution(name):
     model = M.BUILDERS[name](40, 12)
     assert model.output_shape == (None, 12)
@@ -400,8 +419,10 @@ def test_attention_weights_sum_to_one_over_time():
     model = M.BUILDERS["cnn_bilstm_attn"](40, 12)
     softmax = next(l for l in model.layers if isinstance(l, tf.keras.layers.Softmax))
     probe = tf.keras.Model(model.input, softmax.output)
-    w = probe.predict(np.random.default_rng(0).normal(
-        size=(2, 40, M.N_CHANNELS)).astype(np.float32), verbose=0)
+    w = probe.predict(
+        np.random.default_rng(0).normal(size=(2, 40, M.N_CHANNELS)).astype(np.float32),
+        verbose=0,
+    )
     assert np.allclose(w.sum(axis=1), 1.0, atol=1e-4)
 
 
@@ -437,7 +458,7 @@ def test_error_analysis_separates_genuine_confusions(capsys):
 
 def test_error_analysis_case_insensitive_accuracy_exceeds_plain(capsys):
     true = np.array([CHARS52.index(c) for c in "ABOS"])
-    pred = np.array([CHARS52.index(c) for c in "ABos"])   # half right, half case
+    pred = np.array([CHARS52.index(c) for c in "ABos"])  # half right, half case
     M.error_analysis(pred, true, CHARS52)
     out = capsys.readouterr().out
     assert "case-insensitive accuracy : 100.00%" in out
@@ -449,7 +470,7 @@ def test_error_analysis_handles_a_perfect_prediction(capsys):
     M.error_analysis(true.copy(), true, CHARS52)
     out = capsys.readouterr().out
     assert "0 wrong" in out
-    assert "top" not in out              # nothing to rank
+    assert "top" not in out  # nothing to rank
 
 
 def test_error_analysis_counts_every_error_once(capsys):

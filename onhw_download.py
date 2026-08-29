@@ -53,6 +53,7 @@ approximate size, and a short description. The names match the table in
 | icrow_dep                 | 103 MB  | ICROW comparison dataset, WD                      |
 | icrow_indep               | 103 MB  | ICROW comparison dataset, WI                      |
 """
+
 from __future__ import annotations
 
 import argparse
@@ -61,7 +62,6 @@ import sys
 import urllib.request
 import zipfile
 from typing import Dict, NamedTuple
-
 
 ONHW_BASE = "https://www2.iis.fraunhofer.de/LV-OnHW"
 
@@ -78,21 +78,21 @@ DATASETS: Dict[str, DatasetSpec] = {
         url=f"{ONHW_BASE}/onhw-chars_2021-06-30.zip",
         size="896 MB",
         description="OnHW-chars right-handed: 31,275 samples, 119 writers, 52 "
-                    "classes. .npy format with 30 official splits "
-                    "(lower/upper/both x dep/indep x 5 folds).",
+        "classes. .npy format with 30 official splits "
+        "(lower/upper/both x dep/indep x 5 folds).",
     ),
     "onhw_chars_L": DatasetSpec(
         url=f"{ONHW_BASE}/OnHW-chars_L.zip",
         size="3.5 MB",
         description="OnHW-chars left-handed: 2,270 samples, 9 writers, 52 "
-                    "classes. .pkl format, no splits (loaders infer writers).",
+        "classes. .pkl format, no splits (loaders infer writers).",
     ),
     # ---- OnHW-symbols (single symbol classification, 15 classes) ----
     "onhw_symbols_dep": DatasetSpec(
         url=f"{ONHW_BASE}/OnHW-symbols_equations_dep.zip",
         size="95 MB",
         description="OnHW-symbols writer-dependent: 2,326 single-symbol "
-                    "samples, 27 writers, 15 classes (digits 0-9 + +-:.:=).",
+        "samples, 27 writers, 15 classes (digits 0-9 + +-:.:=).",
     ),
     "onhw_symbols_indep": DatasetSpec(
         url=f"{ONHW_BASE}/OnHW-symbols_equations_indep.zip",
@@ -109,7 +109,7 @@ DATASETS: Dict[str, DatasetSpec] = {
         url=f"{ONHW_BASE}/OnHW-equations_dep.zip",
         size="1.1 GB",
         description="OnHW-equations writer-dependent: 10,713 equation samples, "
-                    "55 writers, 15-symbol charset. .pkl format, 5-fold CV.",
+        "55 writers, 15-symbol charset. .pkl format, 5-fold CV.",
     ),
     "onhw_equations_indep": DatasetSpec(
         url=f"{ONHW_BASE}/OnHW-equations_indep.zip",
@@ -120,7 +120,7 @@ DATASETS: Dict[str, DatasetSpec] = {
         url=f"{ONHW_BASE}/OnHW-equations_dep_split_ctc.zip",
         size="1.0 GB",
         description="OnHW-equations WD, per-symbol CTC split: 39,643 "
-                    "single-symbol slices for CTC training.",
+        "single-symbol slices for CTC training.",
     ),
     "onhw_equations_indep_ctc": DatasetSpec(
         url=f"{ONHW_BASE}/OnHW-equations_indep_split_ctc.zip",
@@ -132,8 +132,8 @@ DATASETS: Dict[str, DatasetSpec] = {
         url=f"{ONHW_BASE}/OnHW-Words500_dep.zip",
         size="849 MB",
         description="OnHW-words500 writer-dependent: 25,218 samples, ~50 "
-                    "writers, 500-word closed vocabulary, 57-char charset "
-                    "(A-Za-z + German umlauts).",
+        "writers, 500-word closed vocabulary, 57-char charset "
+        "(A-Za-z + German umlauts).",
     ),
     "onhw_words500_indep": DatasetSpec(
         url=f"{ONHW_BASE}/OnHW-Words500_indep.zip",
@@ -155,7 +155,7 @@ DATASETS: Dict[str, DatasetSpec] = {
         url=f"{ONHW_BASE}/OnHW-wordsTraj_person1.zip",
         size="1.0 GB",
         description="OnHW-wordsTraj person 1: 4 sources (Wacom 30 Hz, 4 cameras "
-                    "60 Hz, IMU 100 Hz, pixel labels). Trajectory regression.",
+        "60 Hz, IMU 100 Hz, pixel labels). Trajectory regression.",
     ),
     "onhw_wordsTraj_p2": DatasetSpec(
         url=f"{ONHW_BASE}/OnHW-wordsTraj_person2.zip",
@@ -198,7 +198,8 @@ def _safe_extract(zf: zipfile.ZipFile, out_dir: str) -> None:
         if dest != root and not dest.startswith(root + os.sep):
             raise ValueError(
                 f"refusing to extract {member.filename!r}: it would write to "
-                f"{dest}, outside {root}")
+                f"{dest}, outside {root}"
+            )
     zf.extractall(out_dir)
 
 
@@ -229,8 +230,9 @@ def _download_progress(block_num: int, block_size: int, total_size: int) -> None
         sys.stderr.write("\n")
 
 
-def download_one(key: str, out_dir: str, extract: bool = True,
-                 skip_existing: bool = True) -> str:
+def download_one(
+    key: str, out_dir: str, extract: bool = True, skip_existing: bool = True
+) -> str:
     """Download one dataset archive and (optionally) extract it.
 
     Returns the path to the extracted top-level folder.
@@ -260,35 +262,54 @@ def download_one(key: str, out_dir: str, extract: bool = True,
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("datasets", nargs="*", default=[],
-                    help="dataset keys to download (use 'all' for every dataset, "
-                         "or omit and pass --list to just print the catalog)")
-    ap.add_argument("--list", action="store_true",
-                    help="print the catalog of available datasets and exit")
-    ap.add_argument("--out", default="./data",
-                    help="output directory (default: ./data)")
-    ap.add_argument("--no-extract", action="store_true",
-                    help="download only, do not extract the ZIP archive")
-    ap.add_argument("--force", action="store_true",
-                    help="re-download even if the ZIP already exists locally")
+    """CLI: list the dataset catalog, or download and extract archives."""
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument(
+        "datasets",
+        nargs="*",
+        default=[],
+        help="dataset keys to download (use 'all' for every dataset, "
+        "or omit and pass --list to just print the catalog)",
+    )
+    ap.add_argument(
+        "--list",
+        action="store_true",
+        help="print the catalog of available datasets and exit",
+    )
+    ap.add_argument(
+        "--out", default="./data", help="output directory (default: ./data)"
+    )
+    ap.add_argument(
+        "--no-extract",
+        action="store_true",
+        help="download only, do not extract the ZIP archive",
+    )
+    ap.add_argument(
+        "--force",
+        action="store_true",
+        help="re-download even if the ZIP already exists locally",
+    )
     args = ap.parse_args()
 
     if args.list or not args.datasets:
         list_datasets()
         if not args.datasets:
             print("\nPass dataset keys (or 'all') to download. Examples:")
-            print("  python onhw_download.py onhw_chars_L --out ./data  # 3.5 MB smoke test")
+            print(
+                "  python onhw_download.py onhw_chars_L --out ./data  # 3.5 MB smoke test"
+            )
             print("  python onhw_download.py onhw_chars onhw_symbols_dep --out ./data")
         return
 
     keys = list(DATASETS.keys()) if "all" in args.datasets else args.datasets
     for key in keys:
         try:
-            download_one(key, args.out, extract=not args.no_extract,
-                         skip_existing=not args.force)
-        except Exception as e:                               # noqa: BLE001
+            download_one(
+                key, args.out, extract=not args.no_extract, skip_existing=not args.force
+            )
+        except Exception as e:  # noqa: BLE001
             print(f"[fail] {key}: {e}", file=sys.stderr)
 
 

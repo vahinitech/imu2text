@@ -14,6 +14,7 @@ directories are named ``0``..``4`` rather than ``fold_0``, and its labels are
 right-padded with the blank index. Both are asserted below against the actual
 files.
 """
+
 import os
 
 import numpy as np
@@ -23,7 +24,8 @@ DATA_DIR = os.environ.get("ONHW_DATA_DIR")
 
 pytestmark = pytest.mark.skipif(
     not DATA_DIR or not os.path.isdir(DATA_DIR),
-    reason="set ONHW_DATA_DIR to a directory of extracted OnHW archives")
+    reason="set ONHW_DATA_DIR to a directory of extracted OnHW archives",
+)
 
 
 def _require(*candidates):
@@ -32,7 +34,7 @@ def _require(*candidates):
         path = os.path.join(DATA_DIR, name)
         if os.path.isdir(path):
             return path
-    pytest.skip(f"none of {candidates} found under {DATA_DIR}")
+    return pytest.skip(f"none of {candidates} found under {DATA_DIR}")
 
 
 # --------------------------------------------------------------------------- #
@@ -43,8 +45,8 @@ def test_real_chars_L_loads_with_the_documented_shape():
 
     ds = C.load_onhw_chars(_require("OnHW-chars_L"))
     assert ds.format == "pkl"
-    assert ds.n_samples == 2270          # as published
-    assert ds.n_classes == 52            # A-Z + a-z
+    assert ds.n_samples == 2270  # as published
+    assert ds.n_classes == 52  # A-Z + a-z
     assert ds.n_writers == 9
     assert ds.has_writer_ids
 
@@ -79,8 +81,9 @@ def test_real_chars_L_supports_a_writer_independent_split():
     import onhw_models as M
 
     ds = C.load_onhw_chars(_require("OnHW-chars_L"))
-    tr, va, te = M.make_split(ds.n_samples, ds.y_all, seed=0, mode="writer",
-                              writers=ds.writers)
+    tr, va, te = M.make_split(
+        ds.n_samples, ds.y_all, seed=0, mode="writer", writers=ds.writers
+    )
     train_w = set(ds.writers[tr].tolist())
     assert train_w.isdisjoint(set(ds.writers[te].tolist()))
     assert len(tr) and len(va) and len(te)
@@ -115,7 +118,7 @@ def test_real_symbols_dep_uses_the_shipped_split():
     ds = S.load_onhw_symbols(_require("OnHW-symbols_equations_dep"))
     assert ds.has_official_split
     assert ds.n_train == 1853 and ds.n_val == 473
-    assert ds.n_train + ds.n_val == 2326        # as published
+    assert ds.n_train + ds.n_val == 2326  # as published
     assert ds.n_writers == 27
 
 

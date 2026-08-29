@@ -1,4 +1,5 @@
 """Tests for the OnHW-words500 loader and lexicon-constrained decoder."""
+
 import os
 import pickle
 import shutil
@@ -34,7 +35,7 @@ def test_decode_tokens_drops_invalid_indices():
     """Negative indices and out-of-range indices are dropped silently."""
     # 0 -> A, 1 -> B, 2 -> C; -1 / 99 / blank(=59) are dropped
     assert W.decode_tokens([-1, 0, 99, 1, -99, 2]) == "ABC"
-    assert W.decode_tokens([0, 59, 1]) == "AB"     # 59 = blank index, dropped
+    assert W.decode_tokens([0, 59, 1]) == "AB"  # 59 = blank index, dropped
 
 
 # --------------------------------------------------------------------------- #
@@ -48,8 +49,8 @@ def test_lexicon_decoder_prunes_invalid_prefixes():
     assert decoder._is_valid_prefix("HA")
     assert decoder._is_valid_prefix("HAL")
     assert decoder._is_valid_prefix("HALLO")
-    assert not decoder._is_valid_prefix("X")          # not a prefix of any word
-    assert not decoder._is_valid_prefix("HB")         # H yes, HB no
+    assert not decoder._is_valid_prefix("X")  # not a prefix of any word
+    assert not decoder._is_valid_prefix("HB")  # H yes, HB no
 
 
 def test_lexicon_decoder_full_word_check():
@@ -150,14 +151,16 @@ def words500_dataset_dir():
 
     # Train: 8 samples (2 per word), Val: 4 samples (1 per word)
     n_train, n_val = 8, 4
-    X_train = [rng.normal(0, 1, size=(50 + i, 13)).astype(np.float32)
-               for i in range(n_train)]
-    X_val = [rng.normal(0, 1, size=(50 + i, 13)).astype(np.float32)
-             for i in range(n_val)]
+    X_train = [
+        rng.normal(0, 1, size=(50 + i, 13)).astype(np.float32) for i in range(n_train)
+    ]
+    X_val = [
+        rng.normal(0, 1, size=(50 + i, 13)).astype(np.float32) for i in range(n_val)
+    ]
     # Train: each word twice; Val: each word once
     Y_train = [W.encode_word(lexicon[i % 4]) for i in range(n_train)]
     Y_val = [W.encode_word(lexicon[i % 4]) for i in range(n_val)]
-    train_ids = [i % 2 for i in range(n_train)]   # 2 writers
+    train_ids = [i % 2 for i in range(n_train)]  # 2 writers
     val_ids = [i % 2 for i in range(n_val)]
 
     for fname, obj in [
@@ -250,13 +253,17 @@ def _write_fold(fold_dir, label_seqs, pad_to=None):
     rng = np.random.default_rng(0)
     n = len(label_seqs)
     if pad_to is not None:
-        label_seqs = [list(s) + [W.WORDS500_BLANK_IDX] * (pad_to - len(s))
-                      for s in label_seqs]
+        label_seqs = [
+            list(s) + [W.WORDS500_BLANK_IDX] * (pad_to - len(s)) for s in label_seqs
+        ]
     x = [rng.normal(size=(30, 13)).astype(np.float32) for _ in range(n)]
     payload = {
-        "all_x_dat_train_imu.pkl": x, "all_x_dat_val_imu.pkl": x,
-        "all_train_gt.pkl": label_seqs, "all_val_gt.pkl": label_seqs,
-        "train_ids.pkl": [1052] * n, "val_ids.pkl": [4003] * n,
+        "all_x_dat_train_imu.pkl": x,
+        "all_x_dat_val_imu.pkl": x,
+        "all_train_gt.pkl": label_seqs,
+        "all_val_gt.pkl": label_seqs,
+        "train_ids.pkl": [1052] * n,
+        "val_ids.pkl": [4003] * n,
     }
     for fname, obj in payload.items():
         with open(os.path.join(fold_dir, fname), "wb") as f:
@@ -299,7 +306,7 @@ def test_label_padding_is_stripped(tmp_path):
 def test_blank_index_is_a_legal_token(tmp_path):
     """The range check must allow the blank, or every real archive is rejected."""
     _write_fold(str(tmp_path / "0"), [W.encode_word("Ich")], pad_to=19)
-    ds = W.load_onhw_words500(str(tmp_path), fold=0)          # must not raise
+    ds = W.load_onhw_words500(str(tmp_path), fold=0)  # must not raise
     assert ds.n_train == 1
 
 
@@ -349,8 +356,9 @@ def test_decoder_handles_a_doubled_letter():
     Collapsing each prefix to a single best alignment loses that path, so
     doubled letters silently become single ones.
     """
-    p = _posteriors([ALPHA.index("A"), BLANK, ALPHA.index("L"),
-                     BLANK, ALPHA.index("L"), BLANK])
+    p = _posteriors(
+        [ALPHA.index("A"), BLANK, ALPHA.index("L"), BLANK, ALPHA.index("L"), BLANK]
+    )
     assert W.LexiconDecoder(["ALL", "ALARM"], charset=ALPHA).decode_one(p) == "ALL"
 
 
@@ -373,8 +381,10 @@ def test_decoder_sums_over_alignments_rather_than_taking_the_best_one():
     p[0, ALPHA.index("B")] = 0.34
     p[2, ALPHA.index("B")] = 0.34
     p = p / p.sum(axis=1, keepdims=True)
-    assert W.LexiconDecoder(["AA", "BB"], charset=ALPHA,
-                            beam_width=16).decode_one(p) == "AA"
+    assert (
+        W.LexiconDecoder(["AA", "BB"], charset=ALPHA, beam_width=16).decode_one(p)
+        == "AA"
+    )
 
 
 def test_decoder_rejects_posteriors_of_the_wrong_width():
@@ -394,8 +404,17 @@ def test_decoder_picks_the_right_word_from_a_large_lexicon():
 
 
 def test_decoder_is_deterministic():
-    p = _posteriors([ALPHA.index("W"), BLANK, ALPHA.index("E"), BLANK,
-                     ALPHA.index("L"), BLANK, ALPHA.index("T")])
+    p = _posteriors(
+        [
+            ALPHA.index("W"),
+            BLANK,
+            ALPHA.index("E"),
+            BLANK,
+            ALPHA.index("L"),
+            BLANK,
+            ALPHA.index("T"),
+        ]
+    )
     dec = W.LexiconDecoder(["WELT", "WORD"], charset=ALPHA)
     assert len({dec.decode_one(p) for _ in range(5)}) == 1
 
@@ -413,12 +432,24 @@ def test_strict_reports_a_miss_rather_than_a_non_word():
 
 def test_non_strict_falls_back_to_the_best_prefix():
     p = _posteriors([ALPHA.index("B"), BLANK, ALPHA.index("E"), BLANK, BLANK])
-    out = W.LexiconDecoder(["BEAM"], charset=ALPHA, strict=False,
-                           beam_width=2).decode_one(p)
+    out = W.LexiconDecoder(
+        ["BEAM"], charset=ALPHA, strict=False, beam_width=2
+    ).decode_one(p)
     assert out == "" or "BEAM".startswith(out)
 
 
 def test_strict_still_returns_a_word_when_one_is_reachable():
-    p = _posteriors([ALPHA.index("B"), BLANK, ALPHA.index("E"), BLANK,
-                     ALPHA.index("A"), BLANK, ALPHA.index("M")])
-    assert W.LexiconDecoder(["BEAM"], charset=ALPHA, strict=True).decode_one(p) == "BEAM"
+    p = _posteriors(
+        [
+            ALPHA.index("B"),
+            BLANK,
+            ALPHA.index("E"),
+            BLANK,
+            ALPHA.index("A"),
+            BLANK,
+            ALPHA.index("M"),
+        ]
+    )
+    assert (
+        W.LexiconDecoder(["BEAM"], charset=ALPHA, strict=True).decode_one(p) == "BEAM"
+    )
