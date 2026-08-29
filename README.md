@@ -65,26 +65,6 @@ python scripts/plot_error_analysis.py \
 python scripts/plot_architecture.py
 ```
 
-## Layout
-
-```
-imu2text/   loaders, augmentation, models, seq2seq
-scripts/    benchmark table, figures, MATLAB projection
-legacy/     cnn_gnn.py, reference only
-tests/      run with pytest; tests/test_real_data.py needs ONHW_DATA_DIR
-docs/       benchmarks, dataset notes, research roadmap
-```
-
-## Docs
-
-- [docs/benchmarks.md](docs/benchmarks.md) - full results and error analysis
-- [docs/datasets.md](docs/datasets.md) - the OnHW archives and their loaders
-- [docs/onhw_enhancement_guide.md](docs/onhw_enhancement_guide.md) - roadmap
-- [docs/onhw_research_threads.md](docs/onhw_research_threads.md) - what the
-  side-datasets are for
-- [docs/impacx_onhw_analysis.md](docs/impacx_onhw_analysis.md) - DTW-kNN
-  pipeline analysis
-
 ## Contributing
 
 Contributions are welcome. Run `pytest`, `black` and `pylint` before opening a
