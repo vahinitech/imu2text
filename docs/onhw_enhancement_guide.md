@@ -125,7 +125,7 @@ OnHW-symbols is tiny (~1k samples), so the levers are different:
    mixing/concatenation (see `make_demo_data` in `imu2text/seq2seq.py`) or
    variational autoencoders per class.
 4. **Classical baseline.** At ~1k samples, ImpAcX-style DTW-kNN is competitive
-   and needs no training - run it as the honesty baseline next to the nets.
+   and needs no training - run it as the reference baseline next to the nets.
 
 ## 5. Methodology guardrails (apply to every task)
 

@@ -150,7 +150,7 @@ Evaluation of Time-Series Classification for Online Handwriting Recognition
 with Domain Shift*. Not read.
 
 **Why it exists, and why it fits this repo particularly well.** This repo's
-stated identity is honest evaluation. Accuracy is a single number that hides
+stated purpose is careful evaluation. Accuracy is a single number that hides
 whether a model is confidently wrong, and a 70%-accurate recogniser that knows
 which 30% it is unsure about is a far more useful product than one that does
 not - it can ask rather than guess. The title's "with domain shift" is the

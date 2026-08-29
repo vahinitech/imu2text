@@ -30,7 +30,7 @@
   language.
 - **Conventional commits** (`feat:`, `fix:`, `docs:`, `test:`); body says why.
 - **Build and test before every commit; CI green before merge.**
-- **Benchmarking has its own rules** - see the `honest-benchmarking` skill
+- **Benchmarking has its own rules** - see the `benchmarking` skill
   before running or reporting any accuracy number. The short version: seed
   through `keras.utils.set_random_seed`, use `--deterministic` for any
   before/after comparison, measure the noise floor on the dataset you are
@@ -60,7 +60,7 @@ Layout: `imu2text/` is the package (loaders, augmentation, models, seq2seq),
 is imported from the source tree rather than installed - `pytest.ini` puts the
 repo root on `sys.path`. Entry points are `python -m imu2text.<module>`.
 
-- `imu2text/models.py` — the honest benchmark suite: baselines + SOTA
+- `imu2text/models.py` — the benchmark suite: baselines + SOTA
   CNN+BiLSTM, writer-independent and random splits; class set inferred
   from labels (handles OnHW-chars and OnHW-symbols).
 - `imu2text/seq2seq.py` — CTC seq2seq (words/equations), CER/WER metrics.

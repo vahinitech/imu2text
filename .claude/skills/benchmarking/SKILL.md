@@ -1,11 +1,11 @@
 ---
-name: honest-benchmarking
+name: benchmarking
 description: Use when running, reporting, or reviewing any accuracy/CER/WER experiment in this repo - training runs, benchmark tables, README result updates, PR descriptions quoting a number, or adding a dataset loader. Use when asked to "improve accuracy", "benchmark", "compare configs", "why is accuracy low", or when about to write a number into a doc.
 ---
 
-# Honest benchmarking
+# Benchmarking
 
-This repo exists because `legacy/cnn_gnn.py` reported ~99% and the honest held-out
+This repo exists because `legacy/cnn_gnn.py` reported ~99% while the held-out
 figure was ~43-47%. Every rule here comes from a mistake actually made in this
 codebase, most of them in PR #8.
 
