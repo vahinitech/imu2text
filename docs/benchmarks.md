@@ -182,6 +182,23 @@ well are characters recognised from an unseen writer". Nothing in this repo
 does domain adaptation yet - that is issue #14 - so we have no number that
 belongs in Table 4 at all.
 
+Six official OnHW-chars splits, fold 0, 30 epochs, single seed. Published rows
+are Ott et al., ACM MM 2022, Table 3, right-handed writers.
+
+| Method | Lower WD | Lower WI | Upper WD | Upper WI | Comb WD | Comb WI |
+|---|--:|--:|--:|--:|--:|--:|
+| CNN+BiLSTM [60] | 88.85 | 79.48 | 92.15 | 85.60 | 78.17 | 68.06 |
+| InceptionTime [25] | 84.14 | 75.28 | 87.80 | 81.62 | 70.43 | 61.68 |
+| ResNet [86] | 83.01 | 71.93 | 86.41 | 78.03 | 68.56 | 58.74 |
+| LSTM-FCN [45] | 81.43 | 71.41 | 85.43 | 77.07 | 67.34 | 57.93 |
+| CNN+BiLSTM (this repo) | 85.35 | 80.24 | 88.29 | 82.98 | 75.79 | 67.32 |
+| **CNN+BiLSTM+attn, aug x2, LS, LR sched** | 88.25 | **82.45** | 91.43 | **86.78** | **80.07** | **72.46** |
+
+Our plain CNN+BiLSTM reproduces theirs to within 0.7-3.9 points across the six
+cells, above on lower WI. The tuned configuration is ahead on all three
+writer-independent cells (+2.97, +1.18, +4.40) and on combined WD (+1.90), and
+behind by 0.60 and 0.72 on the two writer-dependent single-case cells.
+
 Reproduce our side of Table 3 with:
 
 ```bash
