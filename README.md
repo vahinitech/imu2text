@@ -52,10 +52,20 @@ python onhw_models.py --channels 16 \
 
 Security & dependencies
 
-`requirements.txt` pins patched releases for all GitHub security advisories
-reported against this repo: `torch==2.7.1` (fixes the critical
-`torch.load`-with-`weights_only=True` RCE, CVE-2025-32434, plus the 2025
-memory-corruption/DoS advisories) and `scikit-learn==1.5.2` (CVE-2024-5206).
+`requirements.txt` pins patched releases for every GitHub security advisory
+open against this repo: `torch==2.13.0` and `scikit-learn==1.5.2`
+(CVE-2024-5206).
+
+The torch pin was `2.7.1`, and this section used to claim that covered the
+2025 memory-corruption advisories. It did not: Dependabot had four alerts open
+against it, needing 2.8.0, 2.9.1, 2.10.0 and 2.13.0 respectively, so 2.13.0 is
+the first release that clears all of them. 2.7.1 did fix the one that mattered
+most, CVE-2025-32434, the `torch.load` RCE that works even with
+`weights_only=True`.
+
+Only `cnn_gnn.py` imports torch. The rest of the pipeline is TensorFlow, so
+these advisories never reached the benchmark code - but the dependency is
+declared and installed, so the pin is worth keeping current.
 It also removes the duplicate/conflicting `torch` pins and the
 `tensorflow-macos` line that previously broke `pip install -r
 requirements.txt` on Linux, and adds the missing `torch-geometric` and
