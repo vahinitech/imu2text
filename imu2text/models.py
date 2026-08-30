@@ -811,6 +811,15 @@ def main() -> None:
         "are unmeasured on this subset",
     )
     ap.add_argument(
+        "--filter",
+        choices=("none", "lowpass", "orientation"),
+        default="none",
+        help="signal conditioning before normalization: 'lowpass' removes "
+        "high-frequency sensor noise, 'orientation' re-expresses both "
+        "accelerometer triads in a fixed earth frame with gravity removed, "
+        "which cancels the pen-grip rotation that varies between writers",
+    )
+    ap.add_argument(
         "--onhw-symbols",
         default=None,
         metavar="DIR",
@@ -1002,6 +1011,8 @@ def main() -> None:
     Y = to_categorical(y, num_classes=n_classes)
 
     extras = []
+    if args.filter != "none":
+        extras.append(f"filter={args.filter}")
     if args.norm != "global":
         extras.append(
             f"norm={args.norm}"

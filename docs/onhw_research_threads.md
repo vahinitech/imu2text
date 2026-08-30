@@ -205,7 +205,6 @@ filed:
 | [#9 average over all 30 folds](https://github.com/vahinitech/imu2text/issues/9) | Every current number is one seed on one fold; a few hours of CPU removes the caveat from the whole benchmark table |
 | [#11 word context for case](https://github.com/vahinitech/imu2text/issues/11) | The largest identified gain. Case is a property of word position, not glyph shape, and the lexicon decoder is already written |
 | [#10 factorise letter and case heads](https://github.com/vahinitech/imu2text/issues/10) | Matches the diagnosis directly, and may fail informatively |
-| [#14 domain adaptation across devices](https://github.com/vahinitech/imu2text/issues/14) | The thread that bears on locally collected data |
 | [#12 hybrid classical + deep](https://github.com/vahinitech/imu2text/issues/12) | Filed with a prediction of 0 to +2 points, so a null result closes the direction cheaply |
 | [#15 sequence truncation study](https://github.com/vahinitech/imu2text/issues/15) | Cheap, and may interact with the case ceiling since capitals run longer |
 | [#16 verify the .npy loader contents](https://github.com/vahinitech/imu2text/issues/16) | Four of four loaders disagreed with the published format once already |

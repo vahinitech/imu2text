@@ -178,7 +178,7 @@ writers, and scored on a small left-handed validation set. Its own baseline is
 So 85.09 (kMMD, OnHW-symbols) or 100.00 (OnHW-chars lower) answer "how well
 does supervised adaptation close a left/right-handed domain gap", not "how
 well are characters recognised from an unseen writer". Nothing in this repo
-does domain adaptation yet - that is issue #14 - so we have no number that
+does domain adaptation yet, so we have no number that
 belongs in Table 4 at all.
 
 ### Coverage and results at a glance

@@ -185,9 +185,6 @@ the case decision be calibrated or deferred separately. It may also fail
 informatively: if the two heads are independent, the joint accuracy could come
 out below the current model.
 
-**Adapt across pens and writers.** ([#14](https://github.com/vahinitech/imu2text/issues/14))
-The most relevant thread for deploying on different hardware.
-
 **Hybrid classical + deep.** ([#12](https://github.com/vahinitech/imu2text/issues/12))
 Filed with a prediction of 0 to +2 points, because it works on the 57% of
 errors that are not case. A null result closes the direction cheaply.
