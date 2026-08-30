@@ -390,7 +390,7 @@ def test_per_sample_norm_works_without_writer_ids():
 # Model builders
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize(
-    "name", ["cnn", "lstm", "bilstm", "cnn_bilstm", "cnn_bilstm_attn"]
+    "name", ["cnn", "lstm", "bilstm", "cnn_bilstm", "cnn_bilstm_attn", "transformer"]
 )
 def test_every_builder_produces_a_class_distribution(name):
     model = M.BUILDERS[name](40, 12)

@@ -206,7 +206,8 @@ and 3, right-handed writers.
 | OnHW-symbols | classification | 15 | 2,326 | same | official WI | 72.83 | 79.51 |
 | OnHW-equations, split | classification | 15 | 39,643 | CNN+BiLSTM+attn | official WD | 95.33 | 95.70 |
 | OnHW-equations, split | classification | 15 | 39,643 | CNN+BiLSTM+attn | official WI | **87.04** | 83.88 |
-| OnHW-words500 | seq2seq, CTC | 59 charset | 25,218 | CNN+BiLSTM+CTC | official WI | see below | not in these tables |
+| OnHW-words500 | seq2seq, CTC | 59 charset | 25,207 | CNN+BiLSTM+CTC, greedy | official WI | CER 38.08 / WER 73.17 | not in these tables |
+| OnHW-words500 | seq2seq, CTC | 59 charset | 25,207 | same, lexicon-constrained | official WI | **CER 32.65 / WER 40.23** | not in these tables |
 | OnHW-wordsRandom | seq2seq, CTC | 59 charset | 14,641 | none | - | - | - |
 | OnHW-wordsTraj | seq2seq + trajectory | 59 charset | 16,752 | none | - | - | - |
 
@@ -261,6 +262,33 @@ implements lexicon-constrained CTC decoding, but no model has been trained on
 it. OnHW-wordsTraj has no loader at all. These are issues
 [#11](https://github.com/vahinitech/imu2text/issues/11) and the trajectory
 thread in [onhw_research_threads.md](onhw_research_threads.md).
+
+### OnHW-words500
+
+25,207 samples, 53 writers, the archive's own writer-disjoint split (42 train
+writers, 11 val). CNN+BiLSTM encoder with a CTC head, 30 epochs, `--max-len
+400`, single seed.
+
+| Decoding | CER | WER |
+|---|--:|--:|
+| Greedy | 38.08 | 73.17 |
+| Lexicon-constrained beam search | **32.65** | **40.23** |
+
+The vocabulary is closed: all 500 val words appear in train, so a decode can
+be restricted to them. Doing so cuts WER by 32.9 points, from 73.17 to 40.23,
+which is a 45% relative reduction for no change to the model. The greedy
+errors are mostly one or two edits from a real word (`ging` read as `sing`,
+`wir` as `nir`), and that is precisely what the constraint repairs.
+
+This is the first measurement of `LexiconDecoder` against a trained model
+rather than synthetic posteriors.
+
+Two things it does not settle. The constraint only helps when the vocabulary
+really is closed: on the synthetic open-vocabulary demo it made CER worse,
+69.81 against 0.00, because it forces an answer into a vocabulary the target
+is not in. And no published words500 figure is available here for comparison,
+since the IJDAR 2022 benchmark paper is not among the PDFs in
+`/home/vishnu/datasets/papers`.
 
 ### OnHW-symbols
 
@@ -421,7 +449,17 @@ Running the 26-class splits, where the ambiguity does not exist, confirms it
 
 The three ways of removing case all land near 80%, and 81.8% sits alongside the
 published uppercase WI state of the art (~83%) from an un-augmented baseline
-model. So the 52-class ceiling is a property of the label set and the sensor,
+model.
+
+Wehbi et al., "Towards an IMU-based Pen Online Handwriting Recognizer" (FAU
+Erlangen, on their own word dataset rather than OnHW) report the same pattern
+from a CTC word model: 26% of their errors were substitutions "between
+characters that look similar in both uppercase and lowercase, such as 'P-p',
+'K-k', and 'S-s'". Three of those are in the same-shape set measured above.
+Their remaining 68% were missing characters from cursive writing, which is a
+segmentation problem rather than this one.
+
+So the 52-class ceiling is a property of the label set and the sensor,
 not of the architecture - which is why capacity bought +0.4 and regularisation,
 which works on the 61.6% of errors that are not case, bought rather more.
 

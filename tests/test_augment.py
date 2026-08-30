@@ -233,7 +233,7 @@ def test_augment_training_honours_the_policy():
 # --------------------------------------------------------------------------- #
 # Channel-count robustness
 #
-# The Vahini pen has 16 channels and downstream slices can be narrower than 13.
+# Other pens have more than 13 channels, and downstream slices can be narrower.
 # The triad-aware transforms index fixed columns, so they need explicit bounds.
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("n_channels", [3, 6, 9, 12, 13, 16])
@@ -261,7 +261,7 @@ def test_channel_dropout_does_not_index_past_a_narrow_input():
 
 
 def test_rotation_leaves_extra_channels_alone():
-    """A 16-channel Vahini sample keeps columns 12..15 untouched."""
+    """A 16-channel sample keeps columns 12..15 untouched."""
     seq = np.random.default_rng(0).normal(size=(20, 16)).astype(np.float32)
     out = A.random_rotation(seq, np.random.default_rng(1), max_angle_deg=20.0)
     assert np.allclose(out[:, 12:], seq[:, 12:])

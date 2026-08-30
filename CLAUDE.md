@@ -80,12 +80,9 @@ repo root on `sys.path`. Entry points are `python -m imu2text.<module>`.
 
 ## Cross-repo contract
 
-- Training data comes from **vahinitech/datasets** (`build_dataset.py` →
-  `all_x_dat_imu.pkl`, `all_gt.pkl`, `writers.pkl`, codes in the same
-  order). Writer-independent splits depend on that ordering — schema
-  changes must be coordinated there, and the collection kit itself lives
-  there, not here.
-- `writers.pkl` holds pseudonymous student codes only. Nothing in this
-  repo may introduce or log real identities; results and figures are
-  reported in aggregate (see datasets repo issue #6 for the
-  identity-separation rules).
+- Locally collected training data is supplied as `all_x_dat_imu.pkl`,
+  `all_gt.pkl` and `writers.pkl`, with the three in matching order.
+  Writer-independent splits depend on that ordering.
+- `writers.pkl` holds pseudonymous codes only. Nothing in this repo may
+  introduce or log real identities; results and figures are reported in
+  aggregate.

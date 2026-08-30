@@ -473,6 +473,14 @@ def build_cnn(maxlen: int, n_classes: int) -> Model:
 RNN_UNITS = 64
 RNN_LAYERS = 1
 
+# Transformer knobs, sized so the parameter count lands near the recurrent
+# models rather than dwarfing them - a fair comparison needs comparable
+# capacity, not a bigger model wearing a different name.
+TRANSFORMER_PATCH = 4
+TRANSFORMER_DIM = 64
+TRANSFORMER_HEADS = 4
+TRANSFORMER_BLOCKS = 2
+
 
 def _stack_rnn(x, bidirectional: bool):
     """Stack RNN_LAYERS (Bi)LSTM layers; only the last returns a vector."""
@@ -545,12 +553,71 @@ def build_cnn_bilstm_attn(maxlen: int, n_classes: int) -> Model:
     return Model(inp, out, name="cnn_bilstm_attn")
 
 
+def build_transformer(maxlen: int, n_classes: int) -> Model:
+    """Patch-and-attend classifier: no convolution trunk, no recurrence.
+
+    The signal is cut into fixed-length patches, each projected to a token,
+    given a learned position embedding, and passed through transformer encoder
+    blocks. Classification reads a mean over the tokens.
+
+    Included because the two architectures already here share a family, so
+    neither tells you whether the CNN+BiLSTM inductive bias is what matters.
+    A transformer has a different one: no locality prior, global attention from
+    the first layer. The published TST row (Table 3 of Ott et al., ACM MM 2022)
+    puts a time-series transformer at 57.56 combined WI against CNN+BiLSTM's
+    68.06, so the prior here is that it loses; measuring it says by how much on
+    our pipeline.
+
+    The design follows Alemayoh et al., "Deep-Learning-Based Character
+    Recognition from Handwriting Motion Data Captured Using IMU and Force
+    Sensors" (Sensors 2022), which reports a ViT outperforming LSTM, CNN and
+    DNN on its own pen data. Their paper gives the shape - patches, linear
+    projection, positional embedding, encoder, feed-forward head - and not the
+    hyperparameters; this is written from that description, not from their
+    code, and their 99.05% is a validation figure on six writers with a
+    different pen, so it is not comparable to anything here.
+    """
+    patch = TRANSFORMER_PATCH
+    d_model = TRANSFORMER_DIM
+    n_heads = TRANSFORMER_HEADS
+    n_blocks = TRANSFORMER_BLOCKS
+
+    inp = layers.Input(shape=(maxlen, N_CHANNELS))
+    # Patching is a strided Conv1D: kernel == stride == patch length, which is
+    # exactly a per-patch linear projection and keeps the graph simple.
+    x = layers.Conv1D(d_model, patch, strides=patch, padding="same")(inp)
+    n_tokens = x.shape[1]
+
+    positions = tf.range(start=0, limit=n_tokens, delta=1)
+    pos_embedding = layers.Embedding(input_dim=n_tokens, output_dim=d_model)(positions)
+    x = x + pos_embedding
+
+    for _ in range(n_blocks):
+        h = layers.LayerNormalization(epsilon=1e-6)(x)
+        h = layers.MultiHeadAttention(
+            num_heads=n_heads, key_dim=d_model // n_heads, dropout=0.1
+        )(h, h)
+        x = x + h
+        h = layers.LayerNormalization(epsilon=1e-6)(x)
+        h = layers.Dense(d_model * 2, activation="gelu")(h)
+        h = layers.Dropout(0.1)(h)
+        h = layers.Dense(d_model)(h)
+        x = x + h
+
+    x = layers.LayerNormalization(epsilon=1e-6)(x)
+    x = layers.GlobalAveragePooling1D()(x)
+    x = layers.Dropout(0.3)(x)
+    out = layers.Dense(n_classes, activation="softmax")(x)
+    return Model(inp, out, name="transformer")
+
+
 BUILDERS: Dict[str, Callable[[int, int], Model]] = {
     "cnn": build_cnn,
     "lstm": build_lstm,
     "bilstm": build_bilstm,
     "cnn_bilstm": build_cnn_bilstm,
     "cnn_bilstm_attn": build_cnn_bilstm_attn,
+    "transformer": build_transformer,
 }
 
 
@@ -808,7 +875,7 @@ def main() -> None:
         "--channels",
         type=int,
         default=N_CHANNELS,
-        help="sensor channels per timestep (13 = OnHW pen, 16 = Vahini pen)",
+        help="sensor channels per timestep (13 = OnHW pen)",
     )
     # ---- new accuracy levers ----
     ap.add_argument(

@@ -54,10 +54,9 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-# Channel layout of the OnHW DigiPen (and the Vahini pen, which extends it
-# with 3 extra channels at the end). All transforms operate on the first 13
-# channels; extra channels at the end (e.g. Vahini's 16-channel variant) are
-# passed through untouched by the triad-aware transforms.
+# Channel layout of the OnHW DigiPen. All transforms operate on the first 13
+# channels; any extra channels at the end are passed through untouched by the
+# triad-aware transforms.
 SENSOR_GROUPS: Dict[str, List[int]] = {
     "acc1": [0, 1, 2],
     "acc2": [3, 4, 5],

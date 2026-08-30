@@ -229,6 +229,7 @@ def run(
     rnn_layers: int,
     seed: int,
     n_train: int = None,
+    lexicon: bool = False,
 ) -> Tuple[float, float]:
     """Train the CTC model on one dataset and return its test (CER, WER).
 
@@ -279,6 +280,24 @@ def run(
     hyps = ctc_greedy_decode(infer_model, X[test], down_len, charset)
     refs = [labels[i] for i in test]
     c, w = cer(refs, hyps), wer(refs, hyps)
+
+    if lexicon:
+        # Closed vocabulary: constrain the decode to words that exist. The
+        # lexicon is built from the training half only - taking it from the
+        # test labels too would leak which words are about to be scored.
+        from .words import LexiconDecoder  # noqa: PLC0415
+
+        decoder = LexiconDecoder(
+            sorted(set(labels[i] for i in train)),
+            charset="".join(charset.symbols),
+            beam_width=8,
+        )
+        lex_hyps = decoder.decode(infer_model, X[test], down_len)
+        lc, lw = cer(refs, lex_hyps), wer(refs, lex_hyps)
+        print(
+            f"\nLexicon-constrained: CER {lc * 100:.2f}%  WER {lw * 100:.2f}%  "
+            f"(vocabulary of {len(set(labels[i] for i in train))} words from train)"
+        )
     print(
         f"\nTest CER: {c * 100:.2f}%   Test WER: {w * 100:.2f}%   "
         f"(n={len(test)}, charset={charset.size} symbols)"
@@ -302,6 +321,12 @@ def main() -> None:
         "writer-disjoint train/val split for the given --fold",
     )
     ap.add_argument("--fold", type=int, default=0, help="--onhw-words500: fold 0-4")
+    ap.add_argument(
+        "--lexicon",
+        action="store_true",
+        help="also decode constrained to the training vocabulary and report "
+        "both, for closed-vocabulary datasets like OnHW-words500",
+    )
     ap.add_argument("--imu-file", help="pickle: list of (T,13) float arrays")
     ap.add_argument("--labels-file", help="pickle: list of label strings")
     ap.add_argument(
@@ -323,7 +348,7 @@ def main() -> None:
         "--channels",
         type=int,
         default=N_CHANNELS,
-        help="sensor channels per timestep (13 = OnHW pen, 16 = Vahini pen)",
+        help="sensor channels per timestep (13 = OnHW pen)",
     )
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
@@ -372,6 +397,7 @@ def main() -> None:
         args.rnn_layers,
         args.seed,
         n_train=words_split,
+        lexicon=args.lexicon,
     )
 
 

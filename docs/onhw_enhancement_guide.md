@@ -29,8 +29,7 @@ official 5-fold **writer-dependent (WD)** and **writer-independent (WI)**
 splits. Sizes below: OnHW-chars is confirmed against the IMWUT 2020 paper;
 the other five come from published summaries of the IJDAR 2022 benchmark
 paper, whose PDF this repo does not hold - see
-`vahinitech/datasets` `docs/onhw_vs_vahini_methodology.md` section 2 for
-the verification status of each row.
+the internal methodology notes for the verification status of each row.
 
 | Dataset | Task | Content | Scale |
 |---|---|---|---|

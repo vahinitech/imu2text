@@ -134,9 +134,9 @@ embedding similarity to select which transformation to apply at inference time.
 **Why this generalises thread 3.** Tablet-versus-paper is one covariate shift;
 this is the method for any of them - a different pen, a different writer
 population, a different paper. It is the thread most directly relevant to this
-repo's own data, because the Vahini pen has 16 channels against OnHW's 13 and
-is a different device: any model trained on OnHW and deployed on Vahini
-hardware is exactly the covariate-shift case this paper addresses.
+repo's own data: a locally collected set uses a different device with a
+different channel count, so any model trained on OnHW and deployed on it is
+exactly the covariate-shift case this paper addresses.
 
 **Cheapest useful experiment.** Correlation alignment (CORAL) is a handful of
 lines over the existing features - no optimal-transport solver needed - and the
@@ -172,8 +172,8 @@ Ordered by value per unit of work, not by the order the papers appeared:
    reliability diagram to `imu2text/models.py`'s reporting, and MC-dropout at
    predict time. Directly extends what the repo already claims to care about.
 2. **CORAL domain adaptation** on the existing OnHW-chars WD/WI folds. Small,
-   self-contained, and it answers a question we actually have about the Vahini
-   pen's 16-channel data.
+   self-contained, and it answers a question we actually have about locally
+   collected data from a different device.
 3. **ICROW loader + tablet/paper adaptation.** 103 MB, and the catalog entry
    already exists. Blocked on nothing.
 4. **wordsTraj loader + trajectory regression head.** 2 GB and a new metric.
@@ -205,7 +205,7 @@ filed:
 | [#9 average over all 30 folds](https://github.com/vahinitech/imu2text/issues/9) | Every current number is one seed on one fold; a few hours of CPU removes the caveat from the whole benchmark table |
 | [#11 word context for case](https://github.com/vahinitech/imu2text/issues/11) | The largest identified gain. Case is a property of word position, not glyph shape, and the lexicon decoder is already written |
 | [#10 factorise letter and case heads](https://github.com/vahinitech/imu2text/issues/10) | Matches the diagnosis directly, and may fail informatively |
-| [#14 domain adaptation to the Vahini pen](https://github.com/vahinitech/imu2text/issues/14) | The thread that bears on our own 16-channel hardware |
+| [#14 domain adaptation across devices](https://github.com/vahinitech/imu2text/issues/14) | The thread that bears on locally collected data |
 | [#12 hybrid classical + deep](https://github.com/vahinitech/imu2text/issues/12) | Filed with a prediction of 0 to +2 points, so a null result closes the direction cheaply |
 | [#15 sequence truncation study](https://github.com/vahinitech/imu2text/issues/15) | Cheap, and may interact with the case ceiling since capitals run longer |
 | [#16 verify the .npy loader contents](https://github.com/vahinitech/imu2text/issues/16) | Four of four loaders disagreed with the published format once already |

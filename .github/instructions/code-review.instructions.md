@@ -125,10 +125,10 @@ accuracy is not a held-out figure.
 
 ## Cross-repo Contract
 
-- Training data comes from `vahinitech/datasets` (`all_x_dat_imu.pkl`,
-  `all_gt.pkl`, `writers.pkl`, codes in matching order). A PR changing
-  how these are consumed should confirm compatibility with that repo's
-  `build_dataset.py` output, not assume a schema.
+- Locally collected training data arrives as `all_x_dat_imu.pkl`,
+  `all_gt.pkl` and `writers.pkl` with the three in matching order. A PR
+  changing how these are consumed should confirm the schema rather than
+  assume it.
 - `writers.pkl` holds pseudonymous codes only — no PR here should log,
   print, or persist anything that could re-associate a code with a real
   identity.

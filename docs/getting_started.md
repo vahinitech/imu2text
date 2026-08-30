@@ -222,11 +222,21 @@ it assumes anything about the alphabet.
   toward the sequence model rather than single-character classification, which
   is the direction the case-ambiguity work points anyway.
 
-**What is needed first: data.** There is no public IMU handwriting dataset for
-Indic scripts comparable to OnHW. A new script means a collection effort of
-its own, with the writer-independent protocol designed in from the start: at
-least a few dozen writers, and writer identity recorded so whole writers can be
-held out.
+**Data exists, at smaller scale than OnHW.** Two relevant datasets:
+
+- Sharma et al., "Dataset of inertial measurements for writing Punjabi
+  characters using IMU sensors" (Data in Brief, 2024, Akal University
+  Bathinda). Gurmukhi script, IMU-captured, built around writing-style
+  diversity across Punjabi writers.
+- Gupta and Mishra, "A Dataset of Inertial Measurement Units for Handwritten
+  English Alphabets" (IIT BHU Varanasi). Collected in India, but English
+  alphabets rather than an Indic script.
+
+Neither is at OnHW's scale of 119 writers, and for a writer-independent
+protocol the writer count matters more than the sample count. For a script
+neither covers, a collection effort needs the protocol designed in from the
+start: at least a few dozen writers, and writer identity recorded so whole
+writers can be held out.
 
 The realistic sequence is: get word-level recognition working on the existing
 Latin data, then collect, then transfer.
