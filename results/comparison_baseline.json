@@ -1,0 +1,16 @@
+{
+  "config": "baseline",
+  "label": "CNN+BiLSTM (this repo)",
+  "epochs": 30,
+  "fold": 0,
+  "seed": 0,
+  "deterministic": false,
+  "results": {
+    "lower_dep": 85.35,
+    "lower_indep": 80.24,
+    "upper_dep": 88.29,
+    "upper_indep": 82.98,
+    "both_dep": 75.79,
+    "both_indep": 67.32
+  }
+}

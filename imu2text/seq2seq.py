@@ -1,6 +1,6 @@
 """OnHW sequence-to-sequence recognition (words / equations / split-words) with CTC.
 
-While ``onhw_models.py`` classifies a whole recording into ONE character class,
+While ``imu2text/models.py`` classifies a whole recording into ONE character class,
 the sequence OnHW datasets (OnHW-words500, OnHW-wordsRandom, OnHW-equations,
 OnHW-wordsTraj) label a recording with a STRING (a word or an equation). That
 is a sequence-to-sequence problem: the model must emit a variable-length symbol
@@ -23,14 +23,15 @@ Data format
 Same convention as the character pipeline: two pickles, one with a list of
 (T_i, 13) float arrays and one with a list of label STRINGS, e.g.
 
-    python onhw_seq2seq.py --imu-file data/words_x.pkl --labels-file data/words_gt.pkl
+    python -m imu2text.seq2seq --imu-file data/words_x.pkl --labels-file data/words_gt.pkl
 
 No sequence dataset is bundled with this repo (download the OnHW words /
 equations datasets from the Fraunhofer IIS OnHW page). To verify the pipeline
 end-to-end without a download, run the built-in synthetic demo:
 
-    python onhw_seq2seq.py --demo
+    python -m imu2text.seq2seq --demo
 """
+
 from __future__ import annotations
 
 import argparse
@@ -79,9 +80,13 @@ def edit_distance(a: Sequence, b: Sequence) -> int:
     for i, ca in enumerate(a, 1):
         cur = [i]
         for j, cb in enumerate(b, 1):
-            cur.append(min(prev[j] + 1,            # deletion
-                           cur[j - 1] + 1,         # insertion
-                           prev[j - 1] + (ca != cb)))  # substitution
+            cur.append(
+                min(
+                    prev[j] + 1,  # deletion
+                    cur[j - 1] + 1,  # insertion
+                    prev[j - 1] + (ca != cb),
+                )
+            )  # substitution
         prev = cur
     return prev[-1]
 
@@ -103,8 +108,9 @@ def wer(refs: List[str], hyps: List[str]) -> float:
 # --------------------------------------------------------------------------- #
 # Model
 # --------------------------------------------------------------------------- #
-def build_ctc_models(maxlen: int, n_symbols: int, rnn_units: int = 64,
-                     rnn_layers: int = 2) -> Tuple[Model, Model, int]:
+def build_ctc_models(
+    maxlen: int, n_symbols: int, rnn_units: int = 64, rnn_layers: int = 2
+) -> Tuple[Model, Model, int]:
     """Build the CNN+BiLSTM CTC network.
 
     Returns (train_model, inference_model, downsampled_len). The inference
@@ -137,22 +143,24 @@ def build_ctc_models(maxlen: int, n_symbols: int, rnn_units: int = 64,
         return K.ctc_batch_cost(lab, yp, il, ll)
 
     loss_out = layers.Lambda(ctc_lambda, output_shape=(1,), name="ctc")(
-        [y_pred, labels, input_len, label_len])
+        [y_pred, labels, input_len, label_len]
+    )
     train_model = Model([inp, labels, input_len, label_len], loss_out)
-    train_model.compile(optimizer="adam",
-                        loss={"ctc": lambda y_true, y_out: y_out})
+    train_model.compile(optimizer="adam", loss={"ctc": lambda y_true, y_out: y_out})
     return train_model, infer_model, down_len
 
 
-def ctc_greedy_decode(infer_model: Model, X: np.ndarray, down_len: int,
-                      charset: Charset, batch: int = 64) -> List[str]:
+def ctc_greedy_decode(
+    infer_model: Model, X: np.ndarray, down_len: int, charset: Charset, batch: int = 64
+) -> List[str]:
     """Greedy CTC decoding (collapse repeats, drop blanks) -> strings."""
     out: List[str] = []
     for i in range(0, len(X), batch):
-        chunk = X[i:i + batch]
+        chunk = X[i : i + batch]
         preds = infer_model.predict(chunk, verbose=0)
-        decoded, _ = K.ctc_decode(preds, input_length=np.full(len(chunk), down_len),
-                                  greedy=True)
+        decoded, _ = K.ctc_decode(
+            preds, input_length=np.full(len(chunk), down_len), greedy=True
+        )
         seqs = K.get_value(decoded[0])
         out.extend(charset.decode([s for s in seq if s >= 0]) for seq in seqs)
     return out
@@ -162,6 +170,7 @@ def ctc_greedy_decode(infer_model: Model, X: np.ndarray, down_len: int,
 # Data
 # --------------------------------------------------------------------------- #
 def load_sequences(imu_file: str, labels_file: str):
+    """Load IMU sequences and their transcriptions from a pair of pickles."""
     with open(imu_file, "rb") as f:
         x = [np.asarray(s, dtype=np.float32) for s in pickle.load(f)]
     with open(labels_file, "rb") as f:
@@ -177,14 +186,16 @@ def make_demo_data(n: int = 240, seed: int = 0):
     downloading the real OnHW sequence datasets."""
     rng = np.random.default_rng(seed)
     symbols = list("0123456789+-=")
-    motifs = {s: rng.normal(0, 1, size=(18, N_CHANNELS)).astype(np.float32)
-              for s in symbols}
+    motifs = {
+        s: rng.normal(0, 1, size=(18, N_CHANNELS)).astype(np.float32) for s in symbols
+    }
     x, labels = [], []
     for _ in range(n):
         length = rng.integers(3, 7)
         lab = "".join(rng.choice(symbols, size=length))
-        seq = np.concatenate([motifs[s] + rng.normal(0, 0.3, motifs[s].shape)
-                              for s in lab]).astype(np.float32)
+        seq = np.concatenate(
+            [motifs[s] + rng.normal(0, 0.3, motifs[s].shape) for s in lab]
+        ).astype(np.float32)
         x.append(seq)
         labels.append(lab)
     return x, labels
@@ -195,12 +206,12 @@ def prepare(x, labels, charset: Charset, maxlen: int, train_idx):
     scaler = StandardScaler()
     scaler.fit(np.vstack([x[i] for i in train_idx]))
     x_norm = [scaler.transform(s).astype(np.float32) for s in x]
-    X = pad_sequences(x_norm, maxlen=maxlen, padding="post",
-                      truncating="post", dtype="float32")
+    X = pad_sequences(
+        x_norm, maxlen=maxlen, padding="post", truncating="post", dtype="float32"
+    )
     encoded = [charset.encode(lab) for lab in labels]
     max_lab = max(len(e) for e in encoded)
-    Y = pad_sequences(encoded, maxlen=max_lab, padding="post", value=0,
-                      dtype="int32")
+    Y = pad_sequences(encoded, maxlen=max_lab, padding="post", value=0, dtype="int32")
     label_len = np.array([[len(e)] for e in encoded], dtype=np.int32)
     return X, Y, label_len
 
@@ -208,24 +219,48 @@ def prepare(x, labels, charset: Charset, maxlen: int, train_idx):
 # --------------------------------------------------------------------------- #
 # Train / evaluate
 # --------------------------------------------------------------------------- #
-def run(x, labels, epochs: int, batch: int, maxlen: int, rnn_units: int,
-        rnn_layers: int, seed: int) -> Tuple[float, float]:
+def run(
+    x,
+    labels,
+    epochs: int,
+    batch: int,
+    maxlen: int,
+    rnn_units: int,
+    rnn_layers: int,
+    seed: int,
+    n_train: int = None,
+    lexicon: bool = False,
+) -> Tuple[float, float]:
+    """Train the CTC model on one dataset and return its test (CER, WER).
+
+    ``n_train`` marks a pre-defined split: the first ``n_train`` samples are
+    the shipped training half and everything after is the shipped test half.
+    Pass it for archives whose split is writer-disjoint, otherwise a random
+    re-split here would put the same writer on both sides and the number
+    would no longer be writer-independent.
+    """
     charset = Charset(labels)
     n = len(x)
     idx = np.arange(n)
-    train, tmp = train_test_split(idx, test_size=0.4, random_state=seed)
-    val, test = train_test_split(tmp, test_size=0.5, random_state=seed)
+    if n_train is None:
+        train, tmp = train_test_split(idx, test_size=0.4, random_state=seed)
+        val, test = train_test_split(tmp, test_size=0.5, random_state=seed)
+    else:
+        test = idx[n_train:]
+        train, val = train_test_split(idx[:n_train], test_size=0.15, random_state=seed)
 
     maxlen = min(int(max(len(x[i]) for i in train)), maxlen)
     X, Y, label_len = prepare(x, labels, charset, maxlen, train)
 
     train_model, infer_model, down_len = build_ctc_models(
-        maxlen, charset.size, rnn_units, rnn_layers)
+        maxlen, charset.size, rnn_units, rnn_layers
+    )
     # CTC requires input_length >= label_length for every sample
     if down_len < label_len.max():
         raise ValueError(
             f"Downsampled length {down_len} < longest label {label_len.max()}; "
-            f"raise --max-len")
+            f"raise --max-len"
+        )
     input_len = np.full((n, 1), down_len, dtype=np.int32)
     dummy = np.zeros((n, 1), dtype=np.float32)
 
@@ -233,44 +268,114 @@ def run(x, labels, epochs: int, batch: int, maxlen: int, rnn_units: int,
         return [X[ids], Y[ids], input_len[ids], label_len[ids]], dummy[ids]
 
     es = EarlyStopping(monitor="val_loss", patience=8, restore_best_weights=True)
-    train_model.fit(*feed(train), validation_data=feed(val),
-                    epochs=epochs, batch_size=batch, verbose=2, callbacks=[es])
+    train_model.fit(
+        *feed(train),
+        validation_data=feed(val),
+        epochs=epochs,
+        batch_size=batch,
+        verbose=2,
+        callbacks=[es],
+    )
 
     hyps = ctc_greedy_decode(infer_model, X[test], down_len, charset)
     refs = [labels[i] for i in test]
     c, w = cer(refs, hyps), wer(refs, hyps)
-    print(f"\nTest CER: {c * 100:.2f}%   Test WER: {w * 100:.2f}%   "
-          f"(n={len(test)}, charset={charset.size} symbols)")
+
+    if lexicon:
+        # Closed vocabulary: constrain the decode to words that exist. The
+        # lexicon is built from the training half only - taking it from the
+        # test labels too would leak which words are about to be scored.
+        from .words import LexiconDecoder  # noqa: PLC0415
+
+        decoder = LexiconDecoder(
+            sorted(set(labels[i] for i in train)),
+            charset="".join(charset.symbols),
+            beam_width=8,
+        )
+        lex_hyps = decoder.decode(infer_model, X[test], down_len)
+        lc, lw = cer(refs, lex_hyps), wer(refs, lex_hyps)
+        print(
+            f"\nLexicon-constrained: CER {lc * 100:.2f}%  WER {lw * 100:.2f}%  "
+            f"(vocabulary of {len(set(labels[i] for i in train))} words from train)"
+        )
+    print(
+        f"\nTest CER: {c * 100:.2f}%   Test WER: {w * 100:.2f}%   "
+        f"(n={len(test)}, charset={charset.size} symbols)"
+    )
     for r, h in list(zip(refs, hyps))[:10]:
         print(f"  ref: {r!r:20s} hyp: {h!r}")
     return c, w
 
 
 def main() -> None:
+    """CLI: run the synthetic demo, or train the CTC model on real data."""
     global N_CHANNELS
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument(
+        "--onhw-words500",
+        default=None,
+        metavar="DIR",
+        help="extracted OnHW-Words500 folder; uses the archive's own "
+        "writer-disjoint train/val split for the given --fold",
+    )
+    ap.add_argument("--fold", type=int, default=0, help="--onhw-words500: fold 0-4")
+    ap.add_argument(
+        "--lexicon",
+        action="store_true",
+        help="also decode constrained to the training vocabulary and report "
+        "both, for closed-vocabulary datasets like OnHW-words500",
+    )
     ap.add_argument("--imu-file", help="pickle: list of (T,13) float arrays")
     ap.add_argument("--labels-file", help="pickle: list of label strings")
-    ap.add_argument("--demo", action="store_true",
-                    help="run on synthetic data to verify the CTC pipeline")
+    ap.add_argument(
+        "--demo",
+        action="store_true",
+        help="run on synthetic data to verify the CTC pipeline",
+    )
     ap.add_argument("--epochs", type=int, default=60)
     ap.add_argument("--batch", type=int, default=32)
-    ap.add_argument("--max-len", type=int, default=800,
-                    help="cap padded IMU length (words are much longer than chars)")
+    ap.add_argument(
+        "--max-len",
+        type=int,
+        default=800,
+        help="cap padded IMU length (words are much longer than chars)",
+    )
     ap.add_argument("--rnn-units", type=int, default=64)
     ap.add_argument("--rnn-layers", type=int, default=2)
-    ap.add_argument("--channels", type=int, default=N_CHANNELS,
-                    help="sensor channels per timestep (13 = OnHW pen, 16 = Vahini pen)")
+    ap.add_argument(
+        "--channels",
+        type=int,
+        default=N_CHANNELS,
+        help="sensor channels per timestep (13 = OnHW pen)",
+    )
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
     N_CHANNELS = args.channels
 
+    # set_random_seed covers python's `random`, numpy and TF in one call.
+    # tf.random.set_seed alone does NOT reach the Keras layer initialisers, so
+    # the demo started from different weights every run and could fail
+    # outright (100% CER) on an unlucky init. Same fix as imu2text/models.py.
+    tf.keras.utils.set_random_seed(args.seed)
     np.random.seed(args.seed)
-    tf.random.set_seed(args.seed)
 
+    words_split = None
     if args.demo:
         x, labels = make_demo_data(seed=args.seed)
+    elif args.onhw_words500:
+        from .words import load_onhw_words500  # noqa: PLC0415
+
+        ds = load_onhw_words500(args.onhw_words500, fold=args.fold)
+        # The archive's split is the evaluation; run() must not re-split it.
+        x = list(ds.X_train) + list(ds.X_val)
+        labels = list(ds.train_words) + list(ds.val_words)
+        words_split = len(ds.X_train)
+        print(
+            f"OnHW-Words500 fold {args.fold}: train={ds.n_train} val={ds.n_val} "
+            f"writers={ds.n_writers} lexicon={len(ds.lexicon)}"
+        )
     elif args.imu_file and args.labels_file:
         x, labels = load_sequences(args.imu_file, args.labels_file)
         if x and x[0].shape[1] != N_CHANNELS:
@@ -278,10 +383,22 @@ def main() -> None:
     else:
         ap.error("provide --imu-file and --labels-file, or use --demo")
 
-    print(f"Samples: {len(x)} | charset: {len(set(ch for l in labels for ch in l))} "
-          f"symbols | mean IMU len: {np.mean([len(s) for s in x]):.0f}")
-    run(x, labels, args.epochs, args.batch, args.max_len,
-        args.rnn_units, args.rnn_layers, args.seed)
+    print(
+        f"Samples: {len(x)} | charset: {len(set(ch for l in labels for ch in l))} "
+        f"symbols | mean IMU len: {np.mean([len(s) for s in x]):.0f}"
+    )
+    run(
+        x,
+        labels,
+        args.epochs,
+        args.batch,
+        args.max_len,
+        args.rnn_units,
+        args.rnn_layers,
+        args.seed,
+        n_train=words_split,
+        lexicon=args.lexicon,
+    )
 
 
 if __name__ == "__main__":
