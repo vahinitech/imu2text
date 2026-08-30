@@ -3,11 +3,10 @@
 Full results, error analysis and the accuracy ceiling for the OnHW-chars
 task. The short version lives in the README.
 
-`legacy/cnn_gnn.py` reports ~99% accuracy, but it trains and evaluates on the *same*
-array - that figure is train-set memorization, not recognition skill. On a
-held-out split the same model scores ~43–47%. `imu2text/models.py` fixes the
-methodology (real train/val/test split, train-only normalization, early
-stopping) and implements the OnHW baselines plus the SOTA CNN+BiLSTM.
+`imu2text/models.py` implements the OnHW baselines and the CNN+BiLSTM: a real
+train/val/test split, normalization fitted on train only, and early stopping
+with best-weight restore. `legacy/cnn_gnn.py` is kept for reference and its
+self-reported accuracy is not a held-out figure.
 
 Two evaluation protocols are supported:
 
@@ -182,7 +181,57 @@ well are characters recognised from an unseen writer". Nothing in this repo
 does domain adaptation yet - that is issue #14 - so we have no number that
 belongs in Table 4 at all.
 
-### Coverage
+### Coverage and results at a glance
+
+Every OnHW dataset, what was trained on it, and where the number came from.
+CRR is character recognition rate; CER/WER are error rates, so lower is
+better. "Published" is the CNN+BiLSTM row of Ott et al., ACM MM 2022, Tables 2
+and 3, right-handed writers.
+
+| Dataset | Task | Classes | Samples | Model trained | Split | Ours | Published |
+|---|---|--:|--:|---|---|--:|--:|
+| OnHW-chars, right | classification | 52 | 31,275 | CNN+BiLSTM+attn, aug, LS, LR sched | official WD | 80.07 | 78.17 |
+| OnHW-chars, right | classification | 52 | 31,275 | same | official WI | **72.46** | 68.06 |
+| OnHW-chars, right | classification | 26 lower | 15,625 | same | official WD | 88.25 | 88.85 |
+| OnHW-chars, right | classification | 26 lower | 15,625 | same | official WI | 82.45 | 79.48 |
+| OnHW-chars, right | classification | 26 upper | 15,650 | same | official WD | 91.43 | 92.15 |
+| OnHW-chars, right | classification | 26 upper | 15,650 | same | official WI | 86.78 | 85.60 |
+| OnHW-chars, left | classification | 52 | 2,270 | same | constructed random | 72.91 | 82.80 |
+| OnHW-chars, left | classification | 52 | 2,270 | same | constructed WI | 26.86 | 32.00 |
+| OnHW-chars, left | classification | 26 lower | ~1,135 | same | constructed random | 77.78 | 94.70 |
+| OnHW-chars, left | classification | 26 lower | ~1,135 | same | constructed WI | 25.96 | 43.60 |
+| OnHW-chars, left | classification | 26 upper | ~1,135 | same | constructed random | 77.39 | 91.90 |
+| OnHW-chars, left | classification | 26 upper | ~1,135 | same | constructed WI | 34.93 | 43.62 |
+| OnHW-symbols | classification | 15 | 2,326 | same | official WD | 95.77 | 96.20 |
+| OnHW-symbols | classification | 15 | 2,326 | same | official WI | 72.83 | 79.51 |
+| OnHW-equations, split | classification | 15 | 39,643 | CNN+BiLSTM+attn | official WD | 95.33 | 95.70 |
+| OnHW-equations, split | classification | 15 | 39,643 | CNN+BiLSTM+attn | official WI | **87.04** | 83.88 |
+| OnHW-words500 | seq2seq, CTC | 59 charset | 25,218 | CNN+BiLSTM+CTC | official WI | see below | not in these tables |
+| OnHW-wordsRandom | seq2seq, CTC | 59 charset | 14,641 | none | - | - | - |
+| OnHW-wordsTraj | seq2seq + trajectory | 59 charset | 16,752 | none | - | - | - |
+
+Reading the table:
+
+- **Right-handed chars.** Ahead on all three writer-independent cells and on
+  combined WD; behind by 0.6-0.7 on the two writer-dependent single-case
+  cells.
+- **Left-handed chars.** Behind everywhere, by a lot. The archive ships no
+  official splits, so ours are constructed and the writers land differently
+  from theirs; the published column is included for scale, not as a like-for-
+  like comparison. The run-to-run spread here is about 5 points against 0.2 on
+  the right-handed archive, and the WD column is a random split rather than a
+  writer-dependent one, which is not the same thing. Treat this block as
+  indicative only.
+- **Symbols.** Close on WD, 6.7 behind on WI. 1,575 training samples across 15
+  classes is too little for the regularisation in this branch to pay: it adds
+  1.3 points on WI against 5.3 on WD.
+- **Equations.** Ahead on WI by 3.2. Largest training set here, and the only
+  split where the plain configuration beats the tuned one.
+- **wordsRandom and wordsTraj.** No loader written. wordsTraj also needs a
+  trajectory error metric rather than accuracy, and has 2 writers, so no
+  writer-independent split exists for it.
+
+### Coverage details
 
 The table below is **OnHW-chars only**, and only the right-handed archive.
 What each dataset has here today:

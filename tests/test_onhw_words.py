@@ -453,3 +453,36 @@ def test_strict_still_returns_a_word_when_one_is_reachable():
     assert (
         W.LexiconDecoder(["BEAM"], charset=ALPHA, strict=True).decode_one(p) == "BEAM"
     )
+
+
+def test_zero_length_recordings_are_dropped(tmp_path, capsys):
+    """The published archives contain a few; they crash the scaler."""
+    words = ["Juni", "Ich", "immer"]
+    _write_fold(str(tmp_path / "0"), [W.encode_word(w) for w in words], pad_to=19)
+    path = os.path.join(str(tmp_path / "0"), "all_x_dat_train_imu.pkl")
+    with open(path, "rb") as f:
+        x = pickle.load(f)
+    x[0] = np.zeros((0, 13), dtype=np.float32)
+    with open(path, "wb") as f:
+        pickle.dump(x, f)
+
+    ds = W.load_onhw_words500(str(tmp_path), fold=0)
+    assert ds.n_train == len(words) - 1
+    assert all(len(s) > 0 for s in ds.X_train)
+    assert "dropped recordings" in capsys.readouterr().out
+
+
+def test_dropping_keeps_labels_and_writer_ids_aligned(tmp_path):
+    """Filtering X without filtering Y would silently mislabel everything."""
+    words = ["Juni", "Ich", "immer", "gerade"]
+    _write_fold(str(tmp_path / "0"), [W.encode_word(w) for w in words], pad_to=19)
+    path = os.path.join(str(tmp_path / "0"), "all_x_dat_train_imu.pkl")
+    with open(path, "rb") as f:
+        x = pickle.load(f)
+    x[1] = np.zeros((0, 13), dtype=np.float32)
+    with open(path, "wb") as f:
+        pickle.dump(x, f)
+
+    ds = W.load_onhw_words500(str(tmp_path), fold=0)
+    assert ds.train_words == ["Juni", "immer", "gerade"]
+    assert len(ds.train_ids) == len(ds.X_train) == len(ds.Y_train)

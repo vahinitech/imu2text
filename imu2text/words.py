@@ -213,7 +213,9 @@ def _strip_padding(seq: Sequence[int]) -> List[int]:
     return out
 
 
-def load_onhw_words500(base_dir: str, fold: int = 0) -> OnHWWordsDataset:
+def load_onhw_words500(
+    base_dir: str, fold: int = 0, min_len: int = 1
+) -> OnHWWordsDataset:
     """Load one fold of the OnHW-words500 dataset.
 
     Parameters
@@ -280,6 +282,28 @@ def load_onhw_words500(base_dir: str, fold: int = 0) -> OnHWWordsDataset:
                 f"{len(WORDS500_VOCAB)} symbols (+ blank at {WORDS500_BLANK_IDX}) "
                 "- the data may be encoded with a different charset"
             )
+
+    # A handful of recordings in the published archives have zero timesteps
+    # (3 of 19,918 train and 8 of 5,300 val in indep fold 0). They carry no
+    # signal and cannot be normalized, so they are dropped - loudly, and with
+    # per-split counts, because dropping val samples changes the denominator
+    # of any error rate computed from them.
+    keep_tr = [i for i, s_ in enumerate(X_train) if len(s_) >= min_len]
+    keep_va = [i for i, s_ in enumerate(X_val) if len(s_) >= min_len]
+    if len(keep_tr) < len(X_train) or len(keep_va) < len(X_val):
+        print(
+            f"  dropped recordings shorter than {min_len} timestep(s): "
+            f"{len(X_train) - len(keep_tr)} of {len(X_train)} train, "
+            f"{len(X_val) - len(keep_va)} of {len(X_val)} val"
+        )
+        X_train = [X_train[i] for i in keep_tr]
+        Y_train = [Y_train[i] for i in keep_tr]
+        train_words = [train_words[i] for i in keep_tr]
+        train_ids = train_ids[keep_tr]
+        X_val = [X_val[i] for i in keep_va]
+        Y_val = [Y_val[i] for i in keep_va]
+        val_words = [val_words[i] for i in keep_va]
+        val_ids = val_ids[keep_va]
 
     return OnHWWordsDataset(
         X_train=X_train,

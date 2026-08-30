@@ -5,9 +5,8 @@ description: Use when running, reporting, or reviewing any accuracy/CER/WER expe
 
 # Benchmarking
 
-This repo exists because `legacy/cnn_gnn.py` reported ~99% while the held-out
-figure was ~43-47%. Every rule here comes from a mistake actually made in this
-codebase, most of them in PR #8.
+Every rule here comes from a mistake actually made in this codebase, most of
+them in PR #8.
 
 ## Before you run anything
 

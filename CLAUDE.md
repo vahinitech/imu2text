@@ -3,8 +3,9 @@
 ## Working rules (apply to every change)
 
 - **Evaluation rigour is this repo's identity.** Its own README documents
-  the lesson: `legacy/cnn_gnn.py`'s "~99%" was train-set memorization; the real
-  held-out figure was ~43–47%. Never report a number without stating the
+  the lesson: `legacy/cnn_gnn.py` evaluates on its training array, so its
+  self-reported accuracy is not a held-out figure. Never report a number
+  without stating the
   split (writer-independent vs random), and never let train data leak into
   normalization or evaluation. Publicly quoted accuracy is ~65–80% on new
   writers — don't inflate it anywhere.

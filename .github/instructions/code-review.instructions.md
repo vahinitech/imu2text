@@ -6,8 +6,8 @@ applyTo: "**"
 
 IMU handwriting-recognition model training code (CNN/GNN/CTC seq2seq).
 This repo's own history is the standing lesson for what to watch for:
-`legacy/cnn_gnn.py`'s "~99% accuracy" was train-set memorization; the held-out
-figure was ~43–47%.
+`legacy/cnn_gnn.py` evaluates on its own training array, so its self-reported
+accuracy is not a held-out figure.
 
 ## Provenance: Never Copied Research Code
 

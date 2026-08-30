@@ -228,13 +228,25 @@ def run(
     rnn_units: int,
     rnn_layers: int,
     seed: int,
+    n_train: int = None,
 ) -> Tuple[float, float]:
-    """Train the CTC model on one dataset and return its test (CER, WER)."""
+    """Train the CTC model on one dataset and return its test (CER, WER).
+
+    ``n_train`` marks a pre-defined split: the first ``n_train`` samples are
+    the shipped training half and everything after is the shipped test half.
+    Pass it for archives whose split is writer-disjoint, otherwise a random
+    re-split here would put the same writer on both sides and the number
+    would no longer be writer-independent.
+    """
     charset = Charset(labels)
     n = len(x)
     idx = np.arange(n)
-    train, tmp = train_test_split(idx, test_size=0.4, random_state=seed)
-    val, test = train_test_split(tmp, test_size=0.5, random_state=seed)
+    if n_train is None:
+        train, tmp = train_test_split(idx, test_size=0.4, random_state=seed)
+        val, test = train_test_split(tmp, test_size=0.5, random_state=seed)
+    else:
+        test = idx[n_train:]
+        train, val = train_test_split(idx[:n_train], test_size=0.15, random_state=seed)
 
     maxlen = min(int(max(len(x[i]) for i in train)), maxlen)
     X, Y, label_len = prepare(x, labels, charset, maxlen, train)
@@ -282,6 +294,14 @@ def main() -> None:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
+    ap.add_argument(
+        "--onhw-words500",
+        default=None,
+        metavar="DIR",
+        help="extracted OnHW-Words500 folder; uses the archive's own "
+        "writer-disjoint train/val split for the given --fold",
+    )
+    ap.add_argument("--fold", type=int, default=0, help="--onhw-words500: fold 0-4")
     ap.add_argument("--imu-file", help="pickle: list of (T,13) float arrays")
     ap.add_argument("--labels-file", help="pickle: list of label strings")
     ap.add_argument(
@@ -316,8 +336,21 @@ def main() -> None:
     tf.keras.utils.set_random_seed(args.seed)
     np.random.seed(args.seed)
 
+    words_split = None
     if args.demo:
         x, labels = make_demo_data(seed=args.seed)
+    elif args.onhw_words500:
+        from .words import load_onhw_words500  # noqa: PLC0415
+
+        ds = load_onhw_words500(args.onhw_words500, fold=args.fold)
+        # The archive's split is the evaluation; run() must not re-split it.
+        x = list(ds.X_train) + list(ds.X_val)
+        labels = list(ds.train_words) + list(ds.val_words)
+        words_split = len(ds.X_train)
+        print(
+            f"OnHW-Words500 fold {args.fold}: train={ds.n_train} val={ds.n_val} "
+            f"writers={ds.n_writers} lexicon={len(ds.lexicon)}"
+        )
     elif args.imu_file and args.labels_file:
         x, labels = load_sequences(args.imu_file, args.labels_file)
         if x and x[0].shape[1] != N_CHANNELS:
@@ -338,6 +371,7 @@ def main() -> None:
         args.rnn_units,
         args.rnn_layers,
         args.seed,
+        n_train=words_split,
     )
 
 

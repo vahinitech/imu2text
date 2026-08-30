@@ -13,7 +13,7 @@ Models implemented
 
 Why this exists
 ---------------
-``legacy/cnn_gnn.py`` reports ~99% accuracy, but it trains and evaluates on the *same*
+``legacy/cnn_gnn.py`` trains and evaluates on the *same*
 array, so that number is train-set memorization (held-out accuracy is ~43%).
 This script fixes the methodology:
 
@@ -290,6 +290,46 @@ def make_split(
         return sel(train_w), sel(val_w), sel(test_w)
 
     raise ValueError(f"unknown split mode: {mode}")
+
+
+def load_chars_l_split(base_dir: str, case: str, dependency: str, seed: int):
+    """Load the left-handed OnHW-chars archive and build a split for it.
+
+    Returns ``(x, y, classes, (train_idx, val_idx, test_idx))``.
+
+    This archive ships **no official splits**: 2,270 samples from 9 writers as
+    flat pickles. The partition here is constructed, so a number from it is
+    not cell-for-cell comparable to a published left-handed figure even when
+    the protocol matches - the writers land differently. It does have real
+    writer IDs, so the writer-independent protocol itself is sound.
+
+    With 9 writers the split is coarse and the run-to-run spread is around 5
+    points, against 0.2 on the right-handed archive. Treat single runs here as
+    indicative.
+    """
+    from .chars import CHARS_LOWER, CHARS_UPPER, load_onhw_chars
+
+    ds = load_onhw_chars(base_dir)
+    if ds.format != "pkl":
+        raise SystemExit(f"{base_dir} is not the left-handed .pkl release")
+
+    keep_chars = {
+        "lower": set(CHARS_LOWER),
+        "upper": set(CHARS_UPPER),
+        "both": set(ds.classes),
+    }[case]
+    keep = np.array([ds.classes[label] in keep_chars for label in ds.y_all])
+    idx = np.flatnonzero(keep)
+
+    x = [np.asarray(ds.X_all[i], dtype=np.float32) for i in idx]
+    classes = sorted(keep_chars)
+    remap = {c: i for i, c in enumerate(classes)}
+    y = np.array([remap[ds.classes[label]] for label in ds.y_all[idx]], dtype=np.int64)
+    writers = ds.writers[idx]
+
+    mode = "writer" if dependency == "indep" else "random"
+    tr, va, te = make_split(len(x), y, seed, mode=mode, writers=writers)
+    return x, y, classes, (tr, va, te)
 
 
 def normalize_and_pad(
@@ -719,6 +759,14 @@ def main() -> None:
         "(per-symbol slices of equations)",
     )
     ap.add_argument(
+        "--onhw-chars-l",
+        default=None,
+        metavar="DIR",
+        help="left-handed OnHW-chars archive (data/OnHW-chars_L). It ships no "
+        "official splits, so one is constructed here; --dependency picks "
+        "writer-independent or random",
+    )
+    ap.add_argument(
         "--onhw-chars",
         default=None,
         metavar="DIR",
@@ -827,7 +875,15 @@ def main() -> None:
         tf.config.threading.set_inter_op_parallelism_threads(1)
         tf.config.threading.set_intra_op_parallelism_threads(1)
 
-    if args.onhw_symbols:
+    if args.onhw_chars_l:
+        x, y, classes, (tr, va, te) = load_chars_l_split(
+            args.onhw_chars_l, args.case, args.dependency, args.seed
+        )
+        n, n_classes = len(x), len(classes)
+        writers = np.full(n, -1, dtype=np.int64)
+        protocol = "writer-independent" if args.dependency == "indep" else "random"
+        split_desc = f"constructed {args.case}/{protocol} (left-handed)"
+    elif args.onhw_symbols:
         x, y, classes, (tr, va, te), ds_protocol = load_symbols_split(
             args.onhw_symbols, args.symbols_kind, args.seed
         )
@@ -942,7 +998,7 @@ def main() -> None:
     # The protocol is a property of the split that was used, not of --split,
     # which the official-archive paths ignore. Saying "writer-independent"
     # under a writer-dependent archive would mislabel the number.
-    if args.onhw_symbols or args.onhw_chars:
+    if args.onhw_symbols or args.onhw_chars or args.onhw_chars_l:
         label = split_desc
     else:
         label = "writer-independent" if args.split == "writer" else "random split"
