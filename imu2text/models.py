@@ -332,6 +332,52 @@ def load_chars_l_split(base_dir: str, case: str, dependency: str, seed: int):
     return x, y, classes, (tr, va, te)
 
 
+def load_chars_both_hands(
+    right_dir: str, left_dir: str, case: str, dependency: str, fold: int, seed: int
+):
+    """Pool the right- and left-handed OnHW-chars archives into one dataset.
+
+    Returns ``(x, y, classes, (train, val, test), handedness)`` where
+    ``handedness`` is 0 for right and 1 for left, aligned with ``x``.
+
+    The two archives split differently: the right-handed one ships official
+    folds, the left-handed one ships none. Both halves keep their own
+    protocol - the official test half for the right, a constructed
+    writer-independent split for the left - and the training halves are
+    concatenated. So the model sees both populations while each is still
+    scored the way that archive allows.
+
+    The imbalance is the point of the exercise and is not corrected here:
+    31,275 right-handed samples against 2,270 left-handed. Any per-population
+    accuracy has to be reported separately, since a pooled figure is dominated
+    by the right-handed half.
+    """
+    xr, yr, classes_r, (tr_r, va_r, te_r) = load_official_split(
+        right_dir, case, dependency, fold, seed
+    )
+    xl, yl, classes_l, (tr_l, va_l, te_l) = load_chars_l_split(
+        left_dir, case, dependency, seed
+    )
+    if classes_r != classes_l:
+        raise SystemExit(
+            "the two archives disagree on the class set: "
+            f"{len(classes_r)} against {len(classes_l)}"
+        )
+
+    offset = len(xr)
+    x = list(xr) + list(xl)
+    y = np.concatenate([yr, yl])
+    handedness = np.concatenate(
+        [np.zeros(len(xr), dtype=np.int64), np.ones(len(xl), dtype=np.int64)]
+    )
+    split = (
+        np.concatenate([tr_r, tr_l + offset]),
+        np.concatenate([va_r, va_l + offset]),
+        np.concatenate([te_r, te_l + offset]),
+    )
+    return x, y, classes_r, split, handedness
+
+
 def normalize_and_pad(
     x: List[np.ndarray],
     train_idx: np.ndarray,
@@ -481,6 +527,9 @@ TRANSFORMER_DIM = 64
 TRANSFORMER_HEADS = 4
 TRANSFORMER_BLOCKS = 2
 
+#: Experts in the mixture-of-experts read-out (--models moe).
+MOE_EXPERTS = 2
+
 
 def _stack_rnn(x, bidirectional: bool):
     """Stack RNN_LAYERS (Bi)LSTM layers; only the last returns a vector."""
@@ -611,6 +660,56 @@ def build_transformer(maxlen: int, n_classes: int) -> Model:
     return Model(inp, out, name="transformer")
 
 
+def build_moe(maxlen: int, n_classes: int) -> Model:
+    """Mixture of experts over a shared CNN trunk, with a learned gate.
+
+    Motivated by handedness. A left-handed writer holds the pen at a different
+    angle and moves it differently against gravity, and the OnHW papers show
+    the two populations are far enough apart that a right-handed model scores
+    19.18% on left-handed symbols. That is a real, observable partition, which
+    is what a gate needs - unlike a single character, which has no internal
+    segments to route between.
+
+    The trunk is shared so both populations contribute to the convolutional
+    features, which matters because the left-handed archive is 2,270 samples
+    against 31,275. Only the recurrent read-out is duplicated per expert, and
+    a small gate network scores the experts from the pooled trunk features and
+    mixes their outputs.
+
+    The gate is learned rather than given the handedness label, so it can be
+    inspected afterwards: if it does not separate the two populations, the
+    partition was not the useful one and this reduces to an ensemble.
+    """
+    inp = layers.Input(shape=(maxlen, N_CHANNELS))
+    trunk = _cnn_trunk(inp)
+
+    expert_outputs = []
+    for i in range(MOE_EXPERTS):
+        h = trunk
+        for _ in range(RNN_LAYERS):
+            h = layers.Bidirectional(
+                layers.LSTM(RNN_UNITS, return_sequences=False),
+                name=f"expert{i}_bilstm",
+            )(h)
+        h = layers.Dense(100, activation="relu", name=f"expert{i}_dense")(h)
+        h = layers.Dropout(0.3)(h)
+        expert_outputs.append(
+            layers.Dense(n_classes, activation="softmax", name=f"expert{i}_out")(h)
+        )
+
+    pooled = layers.GlobalAveragePooling1D(name="gate_pool")(trunk)
+    gate = layers.Dense(MOE_EXPERTS, activation="softmax", name="gate")(pooled)
+
+    # Weight each expert's class distribution by its gate score and sum. The
+    # result is still a distribution, so the usual cross-entropy applies.
+    stacked = layers.Concatenate(axis=1)(
+        [layers.Reshape((1, n_classes))(e) for e in expert_outputs]
+    )
+    out = layers.Dot(axes=1, name="mixture")([gate, stacked])
+    out = layers.Reshape((n_classes,))(out)
+    return Model(inp, out, name="moe")
+
+
 BUILDERS: Dict[str, Callable[[int, int], Model]] = {
     "cnn": build_cnn,
     "lstm": build_lstm,
@@ -618,6 +717,7 @@ BUILDERS: Dict[str, Callable[[int, int], Model]] = {
     "cnn_bilstm": build_cnn_bilstm,
     "cnn_bilstm_attn": build_cnn_bilstm_attn,
     "transformer": build_transformer,
+    "moe": build_moe,
 }
 
 
@@ -815,9 +915,18 @@ def main() -> None:
         choices=("none", "lowpass", "orientation"),
         default="none",
         help="signal conditioning before normalization: 'lowpass' removes "
-        "high-frequency sensor noise, 'orientation' re-expresses both "
-        "accelerometer triads in a fixed earth frame with gravity removed, "
-        "which cancels the pen-grip rotation that varies between writers",
+        "high-frequency content, 'orientation' re-expresses both accelerometer "
+        "triads in a fixed earth frame with gravity removed. Both measured "
+        "lower than 'none' on OnHW-chars; see docs/rca_filters.md",
+    )
+    ap.add_argument(
+        "--gyro-scale",
+        type=float,
+        default=None,
+        metavar="UNITS_PER_DPS",
+        help="gyroscope sensor units per degree per second, for --filter "
+        "orientation. The archives ship raw counts with no datasheet; the "
+        "default assumes a 16-bit MEMS part at +/-2000 dps",
     )
     ap.add_argument(
         "--onhw-symbols",
@@ -833,6 +942,12 @@ def main() -> None:
         default="symbols",
         help="--onhw-symbols: the _s files (single symbols) or the _e files "
         "(per-symbol slices of equations)",
+    )
+    ap.add_argument(
+        "--both-hands",
+        action="store_true",
+        help="pool the right- and left-handed chars archives (needs both "
+        "--onhw-chars and --onhw-chars-l) and report accuracy per population",
     )
     ap.add_argument(
         "--onhw-chars-l",
@@ -951,7 +1066,22 @@ def main() -> None:
         tf.config.threading.set_inter_op_parallelism_threads(1)
         tf.config.threading.set_intra_op_parallelism_threads(1)
 
-    if args.onhw_chars_l:
+    handedness = None
+    if args.both_hands:
+        if not (args.onhw_chars and args.onhw_chars_l):
+            raise SystemExit("--both-hands needs --onhw-chars and --onhw-chars-l")
+        x, y, classes, (tr, va, te), handedness = load_chars_both_hands(
+            args.onhw_chars,
+            args.onhw_chars_l,
+            args.case,
+            args.dependency,
+            args.fold,
+            args.seed,
+        )
+        n, n_classes = len(x), len(classes)
+        writers = np.full(n, -1, dtype=np.int64)
+        split_desc = f"pooled {args.case}/{args.dependency}, right + left"
+    elif args.onhw_chars_l:
         x, y, classes, (tr, va, te) = load_chars_l_split(
             args.onhw_chars_l, args.case, args.dependency, args.seed
         )
@@ -998,6 +1128,15 @@ def main() -> None:
         raise SystemExit(
             f"data has {x[0].shape[1]} channels but --channels={N_CHANNELS}"
         )
+    if args.filter != "none":
+        # Condition the raw signal before anything is fitted to it, so the
+        # scaler and the augmentation both see the filtered version.
+        from . import filters as _filters  # noqa: PLC0415
+
+        if args.gyro_scale is not None:
+            _filters.GYRO_UNITS_PER_DPS = args.gyro_scale
+        x = _filters.apply_filter(x, args.filter)
+
     if args.augment:
         aug_cfg = AUG_POLICIES[args.aug_policy]()
         x, y, writers, tr = augment_training(
@@ -1076,7 +1215,7 @@ def main() -> None:
     # The protocol is a property of the split that was used, not of --split,
     # which the official-archive paths ignore. Saying "writer-independent"
     # under a writer-dependent archive would mislabel the number.
-    if args.onhw_symbols or args.onhw_chars or args.onhw_chars_l:
+    if args.onhw_symbols or args.onhw_chars or args.onhw_chars_l or args.both_hands:
         label = split_desc
     else:
         label = "writer-independent" if args.split == "writer" else "random split"
@@ -1084,6 +1223,18 @@ def main() -> None:
         f"\nBest held-out: {best['model']} @ {best['test_acc']:.2f}% "
         f"({n_classes}-class, {label})"
     )
+    if handedness is not None:
+        # A pooled figure is 93% right-handed by count, so it says almost
+        # nothing about the left-handed half. Score each separately.
+        te_idx = split[2]
+        true = best["test_true"]
+        pred = best["test_pred"]
+        for code, name in ((0, "right-handed"), (1, "left-handed")):
+            mask = handedness[te_idx] == code
+            if mask.sum():
+                acc = 100 * (true[mask] == pred[mask]).mean()
+                print(f"  {name}: {acc:.2f}% on {int(mask.sum())} test samples")
+
     if args.save_predictions:
         os.makedirs(os.path.dirname(args.save_predictions) or ".", exist_ok=True)
         np.savez(

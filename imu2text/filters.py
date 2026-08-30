@@ -42,6 +42,29 @@ GYRO = [6, 7, 8]
 
 SAMPLE_RATE_HZ = 100.0
 
+#: Accelerometer sensor units per g. Derived from the data rather than
+#: assumed: the median magnitude of the front accelerometer over the OnHW-chars
+#: archive is 16,550 counts, and a pen at rest reads 1 g, which matches the
+#: LSM6DSL's +/-2g full scale at 16,384 LSB/g to within 1%.
+ACCEL_UNITS_PER_G = 16384.0
+
+#: Gyroscope sensor units per degree per second.
+#:
+#: The archive's own readme states "The OnHW-chars dataset does not contain or
+#: consider any sensor calibration", so these are raw counts. The pen is a
+#: STABILO DigiPen whose front accelerometer and gyroscope are an STM LSM6DSL
+#: (Ott et al., IMWUT 2020), but neither the paper nor the readme records the
+#: configured full-scale range.
+#:
+#: 14.3 LSB/dps is the LSM6DSL's +/-2000 dps sensitivity, inferred as follows.
+#: The gyroscope never approaches the int16 limit (max 18,987 of 32,767), so
+#: it is not saturating and the range cannot be read off a clipped signal.
+#: Integrating each candidate range over a character gives a total angular
+#: swing of 4.4, 8.7, 17.4 or 34.9 degrees for +/-250, 500, 1000 and 2000 dps.
+#: Only the last is a plausible amount of pen rotation while forming a letter.
+#: Override with ``--gyro-scale`` if the true setting becomes known.
+GYRO_UNITS_PER_DPS = 14.3
+
 
 def lowpass(
     seq: np.ndarray, cutoff_hz: float = 15.0, sample_rate: float = SAMPLE_RATE_HZ
@@ -76,9 +99,10 @@ def _normalise(v: np.ndarray) -> np.ndarray:
 
 def madgwick_orientation(
     acc: np.ndarray,
-    gyro_dps: np.ndarray,
+    gyro_raw: np.ndarray,
     beta: float = 0.1,
     sample_rate: float = SAMPLE_RATE_HZ,
+    units_per_dps: float = GYRO_UNITS_PER_DPS,
 ) -> np.ndarray:
     """Per-timestep orientation quaternion from accelerometer and gyroscope.
 
@@ -94,7 +118,10 @@ def madgwick_orientation(
     q = np.array([1.0, 0.0, 0.0, 0.0])
     out = np.empty((n, 4))
     dt = 1.0 / sample_rate
-    gyro = np.deg2rad(np.asarray(gyro_dps, dtype=np.float64))
+    # The archives store raw counts. Treating them as deg/s makes the
+    # integrator see hundreds of radians per second and the quaternion never
+    # settles, which is what happened the first time this was measured.
+    gyro = np.deg2rad(np.asarray(gyro_raw, dtype=np.float64) / units_per_dps)
 
     for t in range(n):
         gx, gy, gz = gyro[t]
@@ -161,7 +188,10 @@ def _rotate_by_quaternion(v: np.ndarray, q: np.ndarray) -> np.ndarray:
 
 
 def orientation_normalise(
-    seq: np.ndarray, beta: float = 0.1, sample_rate: float = SAMPLE_RATE_HZ
+    seq: np.ndarray,
+    beta: float = 0.1,
+    sample_rate: float = SAMPLE_RATE_HZ,
+    units_per_dps: float = GYRO_UNITS_PER_DPS,
 ) -> np.ndarray:
     """Express both accelerometer triads in a fixed earth frame, gravity removed.
 
@@ -178,7 +208,13 @@ def orientation_normalise(
     gyro = seq[:, GYRO]
     for cols in (ACC1, ACC2):
         acc = seq[:, cols]
-        q = madgwick_orientation(acc, gyro, beta=beta, sample_rate=sample_rate)
+        q = madgwick_orientation(
+            acc,
+            gyro,
+            beta=beta,
+            sample_rate=sample_rate,
+            units_per_dps=units_per_dps,
+        )
         earth = _rotate_by_quaternion(np.asarray(acc, dtype=np.float64), q)
         # In the earth frame gravity sits on one axis; subtracting the median
         # leaves linear acceleration without assuming the units of g.

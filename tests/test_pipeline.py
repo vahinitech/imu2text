@@ -564,3 +564,140 @@ def test_transfer_figure_reads_real_trainable_flags():
     flags = [l.trainable for l in transfer.layers[1:]]
     assert flags[-1] is True  # the new head trains
     assert not any(flags[:-1])  # everything before it is frozen
+
+
+# --------------------------------------------------------------------------- #
+# Signal filters
+#
+# A filter that silently does nothing looks exactly like a filter that does not
+# help, so the first thing to pin is that it changes the data at all.
+# --------------------------------------------------------------------------- #
+def test_lowpass_changes_the_signal_and_keeps_the_shape():
+    from imu2text.filters import lowpass
+
+    seq = np.random.default_rng(0).normal(size=(80, 13)).astype(np.float32)
+    out = lowpass(seq)
+    assert out.shape == seq.shape
+    assert not np.allclose(out, seq)
+
+
+def test_lowpass_reduces_high_frequency_content():
+    """Sample-to-sample variation is what a low-pass is meant to remove."""
+    from imu2text.filters import lowpass
+
+    seq = np.random.default_rng(0).normal(size=(200, 13)).astype(np.float32)
+    rough_before = np.std(np.diff(seq, axis=0))
+    rough_after = np.std(np.diff(lowpass(seq), axis=0))
+    assert rough_after < rough_before * 0.5
+
+
+def test_orientation_filter_leaves_gyro_and_force_alone():
+    """Only the two accelerometer triads are re-expressed."""
+    from imu2text.filters import orientation_normalise
+
+    seq = np.random.default_rng(0).normal(size=(60, 13)).astype(np.float32)
+    out = orientation_normalise(seq)
+    assert np.allclose(out[:, 6:9], seq[:, 6:9])  # gyro
+    assert np.allclose(out[:, 9:], seq[:, 9:])  # magnetometer, force
+
+
+def test_orientation_filter_changes_the_accelerometers():
+    from imu2text.filters import orientation_normalise
+
+    seq = np.random.default_rng(0).normal(size=(60, 13)).astype(np.float32)
+    out = orientation_normalise(seq)
+    assert not np.allclose(out[:, 0:3], seq[:, 0:3])
+    assert not np.allclose(out[:, 3:6], seq[:, 3:6])
+
+
+def test_madgwick_returns_unit_quaternions():
+    """A non-unit quaternion is not a rotation; the filter must renormalise."""
+    from imu2text.filters import madgwick_orientation
+
+    rng = np.random.default_rng(0)
+    q = madgwick_orientation(rng.normal(size=(50, 3)), rng.normal(size=(50, 3)))
+    assert q.shape == (50, 4)
+    assert np.allclose(np.linalg.norm(q, axis=1), 1.0, atol=1e-6)
+
+
+def test_apply_filter_is_a_no_op_for_none():
+    from imu2text.filters import apply_filter
+
+    x = [np.ones((10, 13), np.float32)]
+    assert apply_filter(x, "none") is x
+
+
+def test_apply_filter_rejects_an_unknown_name():
+    from imu2text.filters import apply_filter
+
+    with pytest.raises(ValueError, match="unknown filter"):
+        apply_filter([np.ones((10, 13), np.float32)], "kalman")
+
+
+def test_filters_survive_a_very_short_sequence():
+    from imu2text.filters import apply_filter
+
+    x = [np.ones((2, 13), np.float32), np.ones((1, 13), np.float32)]
+    for name in ("lowpass", "orientation"):
+        assert [s.shape for s in apply_filter(x, name)] == [(2, 13), (1, 13)]
+
+
+# --------------------------------------------------------------------------- #
+# Mixture of experts
+# --------------------------------------------------------------------------- #
+def test_moe_output_is_a_distribution():
+    """The gate mixes softmax outputs, so the result must still normalise."""
+    model = M.BUILDERS["moe"](40, 12)
+    probs = model.predict(np.zeros((3, 40, M.N_CHANNELS), np.float32), verbose=0)
+    assert probs.shape == (3, 12)
+    assert np.allclose(probs.sum(axis=1), 1.0, atol=1e-4)
+
+
+def test_moe_has_one_read_out_per_expert():
+    """Experts must be separate branches, not one branch counted twice."""
+    model = M.BUILDERS["moe"](40, 12)
+    names = [l.name for l in model.layers]
+    for i in range(M.MOE_EXPERTS):
+        assert f"expert{i}_bilstm" in names
+        assert f"expert{i}_out" in names
+
+
+def test_moe_gate_scores_every_expert():
+    import tensorflow as tf
+
+    model = M.BUILDERS["moe"](40, 12)
+    gate = model.get_layer("gate")
+    probe = tf.keras.Model(model.input, gate.output)
+    w = probe.predict(
+        np.random.default_rng(0).normal(size=(4, 40, M.N_CHANNELS)).astype(np.float32),
+        verbose=0,
+    )
+    assert w.shape == (4, M.MOE_EXPERTS)
+    assert np.allclose(w.sum(axis=1), 1.0, atol=1e-4)
+
+
+def test_moe_shares_the_cnn_trunk():
+    """The trunk is shared so the smaller population still trains it."""
+    model = M.BUILDERS["moe"](40, 12)
+    convs = [l for l in model.layers if type(l).__name__ == "Conv1D"]
+    assert len(convs) == 2  # one trunk, not one per expert
+
+
+def test_madgwick_converges_with_the_right_gyro_scale():
+    """Treating raw counts as deg/s makes the quaternion spin, never settle.
+
+    That defect produced a -3.56 accuracy result that looked like a finding
+    about orientation normalisation and was really a units bug. See
+    docs/rca_filters.md.
+    """
+    from imu2text.filters import madgwick_orientation
+
+    rng = np.random.default_rng(0)
+    acc = rng.normal(0, 500, size=(120, 3)) + np.array([0.0, 0.0, 16000.0])
+    gyro_counts = rng.normal(0, 300, size=(120, 3))
+
+    def drift(units_per_dps):
+        q = madgwick_orientation(acc, gyro_counts, units_per_dps=units_per_dps)
+        return np.linalg.norm(np.diff(q, axis=0), axis=1).mean()
+
+    assert drift(16.4) < drift(1.0) / 5
