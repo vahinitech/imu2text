@@ -154,7 +154,7 @@ Place your preprocessed pickles under `data/`: `data/all_x_dat_imu.pkl` and `dat
 
 License and contact
 
-This project is provided by Vahini Technologies. See `LICENSE` for details.
+This project is released under the MIT License by Vahini Technologies (info@vahinitech.com). See `LICENSE`.
 
 Contact: info@vahintech.com
 
