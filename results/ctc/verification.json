@@ -1,0 +1,16 @@
+{
+  "pytest": {
+    "passed": 226,
+    "skipped": 9,
+    "real_data_enabled": true,
+    "skip_reason": "left-handed symbols and words archives are absent"
+  },
+  "black_checked_python_files": 35,
+  "py_compile": "passed",
+  "pylint_source": 9.76,
+  "pylint_tests": 9.95,
+  "synthetic_ctc_cli": "two-epoch deterministic demo passed",
+  "artifact_source_and_selection_checksums": "passed",
+  "weights_reload": "passed",
+  "normalization": "13 finite channel means and positive scales"
+}

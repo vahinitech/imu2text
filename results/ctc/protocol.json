@@ -1,0 +1,74 @@
+{
+  "dataset": "OnHW-Words500 right-handed, Words500_indep_02",
+  "fold": 0,
+  "protocol": "official writer-independent",
+  "seed": 0,
+  "epochs": 15,
+  "batch": 32,
+  "rnn_units": 32,
+  "rnn_layers": 1,
+  "maxlen": 800,
+  "fixed_minlen": 80,
+  "deterministic": true,
+  "archive_train_nonempty": 19915,
+  "official_test_nonempty": 5292,
+  "original_archive_train": 19918,
+  "original_archive_test": 5300,
+  "writers": 53,
+  "test_writers": 11,
+  "symbols": 59,
+  "planned_runs": [
+    "parent_seed0_run1",
+    "fixed_seed0_run1",
+    "parent_seed0_run2",
+    "fixed_seed0_run2",
+    "fixed_random_seed0_run1"
+  ],
+  "archive_sha256": "2a1f1989cb56ea519b431913f15f36df1e776b3393c6d70cbb56ecd46fd8bff4",
+  "fold_file_sha256": {
+    "all_x_dat_train_imu.pkl": "dd12cafa888026f4dfc3b8507364f31bcaac29ecc6bc01ebc5dce9446ca09405",
+    "all_x_dat_val_imu.pkl": "9aa8281b5022c3ceeda7165b099c3441f54b8875c79794dd4b63044c7da3f666",
+    "all_train_gt.pkl": "d71c4a72c8d0d6a82ec63639483e33ac1768e6b33123b0d00dc483366d3e0f70",
+    "all_val_gt.pkl": "5a982455c64d18efda03954c75bd23831dc28146a6ddf9859012f55cd73fdccd",
+    "train_ids.pkl": "2276e5510cc6630e08eab48ddce49db3de94ebcda4f93ae84edc2b4b58c4a742",
+    "val_ids.pkl": "8b2e3cce879818c69910b830f5b318052d056411e910577b1da3eb94c8982353"
+  },
+  "implementation_commit": "6817a27",
+  "parent_commit": "03d1c8f",
+  "excluded_runs": [
+    {
+      "description": "one-epoch timing pilot",
+      "reason": "runtime sizing, not an accuracy comparison"
+    },
+    {
+      "description": "initial 15-epoch parent run stopped during epoch 8",
+      "reason": "process killed with exit 137 during concurrent real-data tests; no final metrics produced"
+    }
+  ],
+  "additional_experiments": {
+    "refit_all_training": {
+      "selection": "fixed_seed0_run1.json",
+      "epoch_policy": "argmin writer-validation loss from the selection run",
+      "training_partition": "all 42 official training writers",
+      "expected_cer_reduction_pp": 2,
+      "reason": "initial parent-versus-grouped-validation comparison showed no meaningful greedy improvement; test validation-selected final refitting on all training writers",
+      "status": "completed"
+    },
+    "character_checkpoint_check": {
+      "dataset": "OnHW-chars right-handed",
+      "split": "official both/indep/fold0",
+      "classes": 52,
+      "raw_recordings": 31275,
+      "epochs": 30,
+      "seed": 0,
+      "deterministic": true,
+      "model": "cnn_bilstm_attn",
+      "augment": 2,
+      "aug_policy": "extended",
+      "label_smoothing": 0.1,
+      "lr_schedule": true,
+      "status": "completed"
+    }
+  },
+  "source_audit": "run-time file hashes retained; syntax hashes ignore prose, and the seq2seq library hash omits only its bypassed CLI main"
+}

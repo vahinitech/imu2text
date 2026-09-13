@@ -3,6 +3,105 @@
 Full results, error analysis and the accuracy ceiling for the OnHW-chars
 task. The short version lives in the README.
 
+## CTC sequence benchmark: alignment and writer validation
+
+This experiment uses the downloaded right-handed **OnHW-Words500** archive
+`Words500_indep_02`, its **published writer-independent fold 0**, and **59
+character symbols** plus the CTC blank. It contains 25,218 raw recordings from
+53 writers. After the loader drops three empty training recordings and eight
+empty test recordings, the official halves contain 19,915 and 5,292 recordings.
+The 11 test writers are absent from every fitting partition below.
+
+All word runs use seed 0, deterministic TensorFlow operations, single-threaded
+execution, 15 epochs, batch 32, and a CNN with one 32-unit bidirectional LSTM.
+This is a limited CPU experiment, not the larger CLI default or a converged
+five-fold result. CER and WER are error rates; exact word accuracy measures
+complete matches and is not character-classification accuracy.
+
+| Pipeline | Fitting / validation recordings | CER ↓ | WER ↓ | Exact word accuracy ↑ |
+|---|---:|---:|---:|---:|
+| Parent `03d1c8f`, random inner validation | 16,927 / 2,988 | 59.30% | 94.46% | 5.54% |
+| Corrected, same random inner validation | 16,927 / 2,988 | 55.70% | 92.23% | 7.77% |
+| Corrected, writer-disjoint inner validation | 16,416 / 3,499 | 59.31% | 94.50% | 5.50% |
+| Same writer-validation model, training-only lexicon | 16,416 / 3,499 | 65.35% | 77.23% | 22.77% |
+| Final refit on all official training writers, greedy | 19,915 / — | 53.95% | 91.10% | 8.90% |
+| Same final refit, training-only lexicon | 19,915 / — | 56.85% | 67.27% | 32.73% |
+
+The same-split comparison reduces CER by **3.60 percentage points**. Holding out
+seven complete training writers for validation leaves 35 fitting writers and
+removes that aggregate gain at this budget. The initial parent-versus-grouped
+comparison therefore does **not** support a greedy-accuracy improvement claim.
+The lexicon recovers more complete words but increases character edits when it
+chooses the wrong word or abstains; its lower WER must not be described as lower
+CER. The strict decoder returned 1,817 empty outputs, versus 243 for greedy.
+
+Both the parent and the grouped-validation configuration were run twice at the
+same seed. Each pair had identical loss histories and **zero changed test
+predictions**, giving a measured repeat spread of 0.00 percentage points in CER
+on this archive and environment. This does not measure variation across seeds,
+folds, or hardware. The same-split ablation has one run.
+A paired bootstrap over the 11 test writers gives a 95% interval of 1.52–5.67
+CER percentage points of reduction for the same-split comparison; the grouped
+comparison spans −1.40–1.40 points.
+
+The final refit uses the grouped-validation minimum at epoch 15 and starts a
+fresh model on all 42 official training writers. It reduces greedy CER by
+**5.35 percentage points** against the parent (paired writer-bootstrap 95%
+interval **2.77–7.76 points**). This combines the pipeline changes with more
+training examples, writer coverage, and optimizer updates. It is one additional
+run, planned after the initial grouped result; it is not a repeated or isolated
+test of masking. Training CER is 23.70% and training exact word accuracy is
+32.57%, leaving a substantial gap to unseen writers. The final lexicon uses 501
+training strings and returns 1,348 empty results. It raises exact accuracy to
+32.73% but increases CER relative to greedy decoding.
+
+The runs used an AMD EPYC 9354P host with four available logical CPUs, 7.75 GiB
+RAM, Python 3.10.21, TensorFlow 2.15.1, and NumPy 1.26.4. The final refit and
+evaluation took 1,627 seconds. See [environment.json](../results/ctc/environment.json).
+
+The [root-cause analysis](rca_ctc_lengths.md) explains the alignment defects,
+validation changes, and remaining limits. Machine-readable configurations,
+histories, and paired predictions are in [results/ctc](../results/ctc/), including
+the [protocol and archive checksums](../results/ctc/protocol.json).
+
+To reproduce the word study, run from the repository root with the right-handed
+archive extracted under `data/Words500_indep_02`. The benchmark runner sets seed
+0, deterministic operations, and one TensorFlow thread itself. Run these jobs
+sequentially: full padded CTC arrays and a concurrent real-data test run exceeded
+this machine's memory in an excluded attempt.
+
+```bash
+python -m scripts.benchmark_ctc --data data/Words500_indep_02 --implementation parent --output results/ctc/parent_seed0_run1.json
+python -m scripts.benchmark_ctc --data data/Words500_indep_02 --implementation fixed --lexicon --output results/ctc/fixed_seed0_run1.json
+python -m scripts.benchmark_ctc --data data/Words500_indep_02 --implementation parent --output results/ctc/parent_seed0_run2.json
+python -m scripts.benchmark_ctc --data data/Words500_indep_02 --implementation fixed --output results/ctc/fixed_seed0_run2.json
+python -m scripts.benchmark_ctc --data data/Words500_indep_02 --implementation fixed-random --output results/ctc/fixed_random_seed0_run1.json
+python -m scripts.summarize_ctc --data data/Words500_indep_02
+python -m scripts.refit_ctc --data data/Words500_indep_02 --selection results/ctc/fixed_seed0_run1.json --output results/ctc/refit_seed0.json
+python -m scripts.summarize_ctc --data data/Words500_indep_02
+```
+
+The final command audits metrics against saved predictions and reports paired
+writer-bootstrap intervals. The refit command selects its epoch count from
+writer-validation loss, trains a fresh model on the whole official training
+partition, and exports weights and normalization statistics locally. Those
+binary model files are ignored by Git; the report records their filenames and
+the weight checksum. Weight reload is checked before a successful result is
+written. The published alphabet and duration bounds are stored in the report.
+
+## Character-classification benchmarks
+
+The new checkpoint regression reran `cnn_bilstm_attn` before and after the fix on
+the published right-handed OnHW-chars `both/indep/fold0` partition: 31,275 raw
+recordings, 23,316 nonempty official training recordings, 7,956 test recordings,
+and 52 classes. Inner fitting/validation sizes are 19,819/3,497; two augmented
+copies expand fitting to 59,457 examples. Both seed-0 deterministic runs score
+**72.26%**, with **zero changed test predictions**. Train/validation accuracy is
+91.24%/81.41% in both. This checks the evaluation fix; it does not improve this
+character configuration. [Run metadata](../results/ctc/character_runs.json) and
+[error breakdowns](../results/ctc/chars_fixed_seed0.txt) preserve the evidence.
+The historical experiments below remain separate from this deterministic pair.
+
 `imu2text/models.py` implements the OnHW baselines and the CNN+BiLSTM: a real
 train/val/test split, normalization fitted on train only, and early stopping
 with best-weight restore. `legacy/cnn_gnn.py` is kept for reference and its
@@ -643,4 +742,3 @@ Fitted from the bundled subset (un-augmented learning curve): ceiling
 rises 64.8 → 71.6%), so the augmented projection ceiling is correspondingly
 higher (~80%). This is the expected accuracy envelope for the regular-paper IMU
 ballpoint pen as writer enrollment grows.
-

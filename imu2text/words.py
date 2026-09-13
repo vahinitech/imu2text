@@ -2,11 +2,11 @@
 
 OnHW-words500 is the closed-vocabulary sequence-to-sequence OnHW dataset:
 ~50 writers each wrote the *same* 500 German words, for a total of 25,218
-samples. The 500-word vocabulary is the key lever - any decent CTC model
-produces a posterior distribution over characters, and constraining the
-final decode to the 500-word lexicon rules out every output that is not one
-of the 500 words. How much that is worth on this data has not been measured
-here - run it before quoting a WER.
+samples. A CTC model produces a posterior distribution over characters;
+constraining decoding to a training-derived lexicon can recover complete words.
+It can also increase character edits when the chosen word is wrong. The
+measured tradeoff is documented in ``docs/benchmarks.md``. The downloaded
+right-handed fold 0 has 501 distinct training strings, including ``Stabilo``.
 
 This module provides:
 
@@ -68,12 +68,15 @@ Usage
 
     ds = load_onhw_words500("./data/Words500_dep_R", fold=0)
     X_train, Y_train = ds.X_train, ds.Y_train
-    lexicon = list(set(ds.train_words + ds.val_words))   # 500 unique words
+    # For a final model fitted on the whole official training partition:
+    lexicon = sorted(set(ds.train_words))  # Never include held-out labels.
+    # During inner validation, restrict the lexicon to fitting indices instead.
 
-    # train a CTC model (use onhw_seq2seq.build_ctc_models), then decode:
+    # Train with imu2text.seq2seq; normalize using fitting data only.
+    # X_test is preprocessed/padded; output_lengths are processed lengths // 4.
     from imu2text.words import LexiconDecoder
     decoder = LexiconDecoder(lexicon, charset=WORDS500_VOCAB)
-    hyps = decoder.decode(infer_model, X_test, down_len)
+    hyps = decoder.decode(infer_model, X_test, output_lengths)
 """
 
 from __future__ import annotations

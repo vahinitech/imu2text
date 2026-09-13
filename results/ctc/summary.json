@@ -1,0 +1,170 @@
+{
+  "runs": {
+    "parent_seed0_run1": {
+      "cer": 0.5929978875922014,
+      "wer": 0.9446334089191232,
+      "word_accuracy": 0.0553665910808768
+    },
+    "parent_seed0_run2": {
+      "cer": 0.5929978875922014,
+      "wer": 0.9446334089191232,
+      "word_accuracy": 0.0553665910808768
+    },
+    "fixed_seed0_run1": {
+      "cer": 0.5931364061363715,
+      "wer": 0.9450113378684807,
+      "word_accuracy": 0.054988662131519275,
+      "lexicon": {
+        "cer": 0.6535304913945355,
+        "wer": 0.7722978080120937,
+        "word_accuracy": 0.22770219198790628
+      }
+    },
+    "fixed_seed0_run2": {
+      "cer": 0.5931364061363715,
+      "wer": 0.9450113378684807,
+      "word_accuracy": 0.054988662131519275
+    },
+    "fixed_random_seed0_run1": {
+      "cer": 0.5570176957440177,
+      "wer": 0.9223356009070295,
+      "word_accuracy": 0.07766439909297052
+    },
+    "refit_seed0": {
+      "cer": 0.5395297295425425,
+      "wer": 0.9109977324263039,
+      "word_accuracy": 0.08900226757369614,
+      "lexicon": {
+        "cer": 0.568514734910136,
+        "wer": 0.672713529856387,
+        "word_accuracy": 0.327286470143613
+      }
+    }
+  },
+  "repeat_checks": {
+    "parent": {
+      "identical_histories": true,
+      "different_predictions": 0,
+      "cer_difference_pp": 0.0
+    },
+    "fixed": {
+      "identical_histories": true,
+      "different_predictions": 0,
+      "cer_difference_pp": 0.0
+    }
+  },
+  "input_length_strata": {
+    "short_at_most_80": {
+      "recordings": 380,
+      "parent_seed0_run1": {
+        "cer": 0.679144385026738,
+        "wer": 0.8921052631578947,
+        "word_accuracy": 0.10789473684210527
+      },
+      "fixed_seed0_run1": {
+        "cer": 0.6705882352941176,
+        "wer": 0.9052631578947369,
+        "word_accuracy": 0.09473684210526316
+      },
+      "refit_seed0": {
+        "cer": 0.6160427807486631,
+        "wer": 0.8473684210526315,
+        "word_accuracy": 0.15263157894736842
+      }
+    },
+    "native_81_to_800": {
+      "recordings": 4908,
+      "parent_seed0_run1": {
+        "cer": 0.5896065703116594,
+        "wer": 0.9486552567237164,
+        "word_accuracy": 0.05134474327628362
+      },
+      "fixed_seed0_run1": {
+        "cer": 0.590036940071011,
+        "wer": 0.9480440097799511,
+        "word_accuracy": 0.0519559902200489
+      },
+      "refit_seed0": {
+        "cer": 0.5363483125919019,
+        "wer": 0.9158516707416463,
+        "word_accuracy": 0.08414832925835371
+      }
+    },
+    "long_over_800": {
+      "recordings": 4,
+      "parent_seed0_run1": {
+        "cer": 0.8305084745762712,
+        "wer": 1.0,
+        "word_accuracy": 0.0
+      },
+      "fixed_seed0_run1": {
+        "cer": 0.8305084745762712,
+        "wer": 1.0,
+        "word_accuracy": 0.0
+      },
+      "refit_seed0": {
+        "cer": 0.8305084745762712,
+        "wer": 1.0,
+        "word_accuracy": 0.0
+      }
+    }
+  },
+  "decoder_tradeoffs": {
+    "fixed_seed0_run1": {
+      "gained_exact_words": 914,
+      "lost_exact_words": 0,
+      "greedy_empty_decodes": 243,
+      "lexicon_empty_decodes": 1817,
+      "new_empty_decodes": 1599,
+      "character_edit_change": 1744
+    },
+    "refit_seed0": {
+      "gained_exact_words": 1261,
+      "lost_exact_words": 0,
+      "greedy_empty_decodes": 124,
+      "lexicon_empty_decodes": 1348,
+      "new_empty_decodes": 1240,
+      "character_edit_change": 837
+    }
+  },
+  "paired_writer_bootstrap": {
+    "test_writers": 11,
+    "resamples": 5000,
+    "seed": 0,
+    "cer_reduction_pp_95_interval": [
+      -1.4012086879745835,
+      1.4025493279414283
+    ]
+  },
+  "same_split_paired_writer_bootstrap": {
+    "test_writers": 11,
+    "resamples": 5000,
+    "seed": 0,
+    "cer_reduction_pp_95_interval": [
+      1.5208561720057563,
+      5.672962934848674
+    ]
+  },
+  "refit_paired_writer_bootstrap": {
+    "test_writers": 11,
+    "resamples": 5000,
+    "seed": 0,
+    "cer_reduction_pp_95_interval": [
+      2.7708444860712085,
+      7.759118531835158
+    ]
+  },
+  "character_checkpoint_check": {
+    "chars_parent_seed0": {
+      "accuracy_percent": 72.25992961287079,
+      "test": 7956,
+      "classes": 52
+    },
+    "chars_fixed_seed0": {
+      "accuracy_percent": 72.25992961287079,
+      "test": 7956,
+      "classes": 52
+    },
+    "changed_predictions": 0
+  }
+}

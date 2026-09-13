@@ -1,5 +1,7 @@
 """Tests for the CTC sequence-to-sequence pipeline (onhw_seq2seq)."""
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 
@@ -70,6 +72,20 @@ def test_padding_does_not_change_recurrent_outputs():
     np.testing.assert_allclose(output[0, :4], output[1, :4], atol=1e-6)
 
 
+def test_batch_trimming_preserves_last_valid_convolution_context():
+    """Trimming must retain the partial pool and both convolutions' right context."""
+    _, model, _ = S.build_ctc_models(80, 2, rnn_units=4, rnn_layers=1)
+    X = np.zeros((1, 80, 13), dtype=np.float32)
+    X[0, :31] = np.random.default_rng(5).normal(size=(31, 13))
+    X[0, 30] = 20
+    lengths = np.array([[7]], dtype=np.int32)
+    arrays = [X, np.array([[0]]), lengths, np.array([[1]])]
+    inputs, _ = S.CTCBatches(arrays, [0], 1)[0]
+    full = model.predict([X, lengths], verbose=0)
+    trimmed = model.predict([inputs[0], lengths], verbose=0)
+    np.testing.assert_allclose(full[:, :7], trimmed[:, :7], atol=1e-6, rtol=1e-6)
+
+
 def test_greedy_decode_ignores_predictions_after_actual_length():
     class Predictor:
         def predict(self, inputs, verbose=0):
@@ -110,3 +126,32 @@ def test_sequence_scaler_does_not_fit_held_out_recordings():
     small, _, _ = S.prepare([train, train], ["a", "a"], S.Charset(["a"]), 8, [0])
     large, _, _ = S.prepare([train, train * 1e6], ["a", "a"], S.Charset(["a"]), 8, [0])
     np.testing.assert_array_equal(small[0], large[0])
+
+
+@pytest.mark.parametrize("test_writer", [1, 3])
+def test_words_cli_preserves_the_archives_writer_protocol(monkeypatch, test_writer):
+    from imu2text import words
+
+    sample = np.ones((80, 13), dtype=np.float32)
+    ds = SimpleNamespace(
+        X_train=[sample, sample],
+        X_val=[sample],
+        train_words=["a", "a"],
+        val_words=["a"],
+        train_ids=np.array([1, 2]),
+        val_ids=np.array([test_writer]),
+        n_train=2,
+        n_val=1,
+        n_writers=len({1, 2, test_writer}),
+        lexicon=["a"],
+    )
+    captured = {}
+    monkeypatch.setattr(words, "load_onhw_words500", lambda *a, **k: ds)
+    monkeypatch.setattr(S, "run", lambda *a, **k: captured.update(k))
+    monkeypatch.setattr("sys.argv", ["seq2seq", "--onhw-words500", "unused"])
+    S.main()
+    assert captured["n_train"] == 2
+    if test_writer == 1:
+        assert captured["writers"] is None
+    else:
+        np.testing.assert_array_equal(captured["writers"], [1, 2, 3])

@@ -17,6 +17,10 @@ __pycache__/
 results/logs/
 *.log
 
+# Final refit artifacts are regenerated from the recorded validation selection.
+results/ctc/*.weights.h5
+results/ctc/*.normalization.npz
+
 # Input patch files are applied, not tracked: their content lands in the
 # source tree proper, so committing them would duplicate it.
 patches/

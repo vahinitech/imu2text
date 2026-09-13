@@ -177,6 +177,7 @@ def ctc_greedy_decode(
     for i in range(0, len(X), batch):
         chunk = X[i : i + batch]
         chunk_lengths = lengths[i : i + batch]
+        # Both convolutions need up to three input frames of right context.
         chunk = chunk[:, : int(chunk_lengths.max()) * 4 + 3]
         preds = infer_model.predict([chunk, chunk_lengths[:, None]], verbose=0)
         if np.any(chunk_lengths > preds.shape[1]):
@@ -258,6 +259,7 @@ class CTCBatches(KerasSequence):
     def __getitem__(self, index):
         ids = self.indices[index * self.batch : (index + 1) * self.batch]
         inputs = [array[ids] for array in self.arrays]
+        # Keep the partial pool and right context for the last valid output.
         inputs[0] = inputs[0][:, : int(inputs[2].max()) * 4 + 3]
         return inputs, np.zeros((len(ids), 1), np.float32)
 
@@ -482,7 +484,13 @@ def main() -> None:
         x = list(ds.X_train) + list(ds.X_val)
         labels = list(ds.train_words) + list(ds.val_words)
         words_split = len(ds.X_train)
-        writers = np.concatenate([ds.train_ids, ds.val_ids])
+        if set(ds.train_ids).isdisjoint(ds.val_ids):
+            writers = np.concatenate([ds.train_ids, ds.val_ids])
+        else:
+            print(
+                "Writer-dependent archive: preserving the published test split "
+                "and using random inner validation."
+            )
         symbols = WORDS500_VOCAB
         print(
             f"OnHW-Words500 fold {args.fold}: train={ds.n_train} val={ds.n_val} "
