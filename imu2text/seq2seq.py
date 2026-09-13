@@ -35,18 +35,27 @@ end-to-end without a download, run the built-in synthetic demo:
 from __future__ import annotations
 
 import argparse
+import json
 import pickle
+from pathlib import Path
+import time
 from typing import Dict, List, Sequence, Tuple
 
 import numpy as np
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 import tensorflow as tf
 from tensorflow.keras import backend as K
 from tensorflow.keras import layers, Model
-from tensorflow.keras.callbacks import EarlyStopping
-from tensorflow.keras.utils import pad_sequences
+from tensorflow.keras.utils import pad_sequences, Sequence as KerasSequence
+
+from .callbacks import RestoreBest
+from .sequence_data import (
+    decoder_lengths,
+    resample_bounds,
+    sequence_split,
+    validate_ctc_lengths,
+)
 
 N_CHANNELS = 13
 
@@ -114,10 +123,12 @@ def build_ctc_models(
     """Build the CNN+BiLSTM CTC network.
 
     Returns (train_model, inference_model, downsampled_len). The inference
-    model maps IMU input to per-frame softmax posteriors; the train model wraps
-    it with the CTC loss (Keras-2 pattern: loss computed in a Lambda layer).
+    model takes [padded_imu, output_lengths] and returns per-frame posteriors.
+    Lengths have shape (batch, 1), measured after the two pooling stages.
+    The train model wraps it with CTC loss computed in a Lambda layer.
     """
-    inp = layers.Input(shape=(maxlen, N_CHANNELS), name="imu")
+    inp = layers.Input(shape=(None, N_CHANNELS), name="imu")
+    input_len = layers.Input(name="input_len", shape=(1,), dtype="int32")
     x = layers.Conv1D(64, 3, padding="same", activation="relu")(inp)
     x = layers.BatchNormalization()(x)
     x = layers.MaxPooling1D(2)(x)
@@ -125,17 +136,24 @@ def build_ctc_models(
     x = layers.BatchNormalization()(x)
     x = layers.MaxPooling1D(2)(x)
     x = layers.Dropout(0.3)(x)
+    mask = layers.Lambda(
+        lambda inputs: tf.sequence_mask(
+            tf.squeeze(inputs[0], -1), tf.shape(inputs[1])[1]
+        ),
+        name="valid_frames",
+    )([input_len, x])
     for _ in range(rnn_layers):
-        x = layers.Bidirectional(layers.LSTM(rnn_units, return_sequences=True))(x)
+        x = layers.Bidirectional(layers.LSTM(rnn_units, return_sequences=True))(
+            x, mask=mask
+        )
     x = layers.Dropout(0.3)(x)
     # +1 output for the CTC blank symbol (Keras CTC puts blank at the LAST index)
     y_pred = layers.Dense(n_symbols + 1, activation="softmax", name="posteriors")(x)
-    infer_model = Model(inp, y_pred, name="ctc_cnn_bilstm")
+    infer_model = Model([inp, input_len], y_pred, name="ctc_cnn_bilstm")
 
     down_len = maxlen // 4  # two MaxPooling1D(2) stages
 
     labels = layers.Input(name="labels", shape=(None,), dtype="int32")
-    input_len = layers.Input(name="input_len", shape=(1,), dtype="int32")
     label_len = layers.Input(name="label_len", shape=(1,), dtype="int32")
 
     def ctc_lambda(args):
@@ -153,14 +171,17 @@ def build_ctc_models(
 def ctc_greedy_decode(
     infer_model: Model, X: np.ndarray, down_len: int, charset: Charset, batch: int = 64
 ) -> List[str]:
-    """Greedy CTC decoding (collapse repeats, drop blanks) -> strings."""
+    """Decode up to each recording's output length, excluding padded frames."""
     out: List[str] = []
+    lengths = decoder_lengths(down_len, len(X))
     for i in range(0, len(X), batch):
         chunk = X[i : i + batch]
-        preds = infer_model.predict(chunk, verbose=0)
-        decoded, _ = K.ctc_decode(
-            preds, input_length=np.full(len(chunk), down_len), greedy=True
-        )
+        chunk_lengths = lengths[i : i + batch]
+        chunk = chunk[:, : int(chunk_lengths.max()) * 4 + 3]
+        preds = infer_model.predict([chunk, chunk_lengths[:, None]], verbose=0)
+        if np.any(chunk_lengths > preds.shape[1]):
+            raise ValueError("decode length exceeds model output")
+        decoded, _ = K.ctc_decode(preds, input_length=chunk_lengths, greedy=True)
         seqs = K.get_value(decoded[0])
         out.extend(charset.decode([s for s in seq if s >= 0]) for seq in seqs)
     return out
@@ -204,11 +225,13 @@ def make_demo_data(n: int = 240, seed: int = 0):
 def prepare(x, labels, charset: Charset, maxlen: int, train_idx):
     """Standardize per channel (train-fit only), pad IMU and label tensors."""
     scaler = StandardScaler()
-    scaler.fit(np.vstack([x[i] for i in train_idx]))
-    x_norm = [scaler.transform(s).astype(np.float32) for s in x]
-    X = pad_sequences(
-        x_norm, maxlen=maxlen, padding="post", truncating="post", dtype="float32"
-    )
+    # Incremental fitting avoids a second copy of the full training archive.
+    for i in train_idx:
+        scaler.partial_fit(x[i])
+    X = np.zeros((len(x), maxlen, N_CHANNELS), dtype=np.float32)
+    for i, sample in enumerate(x):
+        size = min(len(sample), maxlen)
+        X[i, :size] = scaler.transform(sample[:size])
     encoded = [charset.encode(lab) for lab in labels]
     max_lab = max(len(e) for e in encoded)
     Y = pad_sequences(encoded, maxlen=max_lab, padding="post", value=0, dtype="int32")
@@ -219,6 +242,30 @@ def prepare(x, labels, charset: Charset, maxlen: int, train_idx):
 # --------------------------------------------------------------------------- #
 # Train / evaluate
 # --------------------------------------------------------------------------- #
+class CTCBatches(KerasSequence):
+    """Copy one minibatch at a time instead of duplicating full padded partitions."""
+
+    def __init__(self, arrays, indices, batch, seed=None):
+        self.arrays = arrays
+        self.indices = np.array(indices, copy=True)
+        self.batch = batch
+        self.rng = np.random.default_rng(seed) if seed is not None else None
+        self.on_epoch_end()
+
+    def __len__(self):
+        return (len(self.indices) + self.batch - 1) // self.batch
+
+    def __getitem__(self, index):
+        ids = self.indices[index * self.batch : (index + 1) * self.batch]
+        inputs = [array[ids] for array in self.arrays]
+        inputs[0] = inputs[0][:, : int(inputs[2].max()) * 4 + 3]
+        return inputs, np.zeros((len(ids), 1), np.float32)
+
+    def on_epoch_end(self):
+        if self.rng is not None:
+            self.rng.shuffle(self.indices)
+
+
 def run(
     x,
     labels,
@@ -230,6 +277,11 @@ def run(
     seed: int,
     n_train: int = None,
     lexicon: bool = False,
+    *,
+    writers=None,
+    minlen: int = 80,
+    results_path=None,
+    symbols=None,
 ) -> Tuple[float, float]:
     """Train the CTC model on one dataset and return its test (CER, WER).
 
@@ -238,49 +290,50 @@ def run(
     Pass it for archives whose split is writer-disjoint, otherwise a random
     re-split here would put the same writer on both sides and the number
     would no longer be writer-independent.
+
+    ``writers`` enables writer-disjoint validation within the training half.
+    ``symbols`` can supply a published alphabet; otherwise it is fitted on train.
+    Duration bounds are fixed before examining labels, including held-out labels.
     """
-    charset = Charset(labels)
+    started = time.monotonic()
     n = len(x)
-    idx = np.arange(n)
-    if n_train is None:
-        train, tmp = train_test_split(idx, test_size=0.4, random_state=seed)
-        val, test = train_test_split(tmp, test_size=0.5, random_state=seed)
-    else:
-        test = idx[n_train:]
-        train, val = train_test_split(idx[:n_train], test_size=0.15, random_state=seed)
-
-    maxlen = min(int(max(len(x[i]) for i in train)), maxlen)
+    if len(labels) != n:
+        raise ValueError("one target string is required for each recording")
+    if results_path:
+        Path(results_path).parent.mkdir(parents=True, exist_ok=True)
+    train, val, test = sequence_split(n, seed, n_train, writers)
+    charset = Charset([symbols] if symbols is not None else [labels[i] for i in train])
+    unknown = set("".join(labels)) - set(charset.symbols)
+    if unknown:
+        raise ValueError(
+            f"held-out labels contain {len(unknown)} symbols absent from train"
+        )
+    original_lengths = np.array([len(sample) for sample in x])
+    x = resample_bounds(x, minlen, maxlen)
     X, Y, label_len = prepare(x, labels, charset, maxlen, train)
+    input_len = np.array([[len(sample) // 4] for sample in x], dtype=np.int32)
+    validate_ctc_lengths(labels, input_len)
 
-    train_model, infer_model, down_len = build_ctc_models(
+    train_model, infer_model, _ = build_ctc_models(
         maxlen, charset.size, rnn_units, rnn_layers
     )
-    # CTC requires input_length >= label_length for every sample
-    if down_len < label_len.max():
-        raise ValueError(
-            f"Downsampled length {down_len} < longest label {label_len.max()}; "
-            f"raise --max-len"
-        )
-    input_len = np.full((n, 1), down_len, dtype=np.int32)
-    dummy = np.zeros((n, 1), dtype=np.float32)
-
-    def feed(ids):
-        return [X[ids], Y[ids], input_len[ids], label_len[ids]], dummy[ids]
-
-    es = EarlyStopping(monitor="val_loss", patience=8, restore_best_weights=True)
-    train_model.fit(
-        *feed(train),
-        validation_data=feed(val),
+    arrays = [X, Y, input_len, label_len]
+    es = RestoreBest(monitor="val_loss", patience=8, restore_best_weights=True)
+    history = train_model.fit(
+        CTCBatches(arrays, train, batch, seed=seed),
+        validation_data=CTCBatches(arrays, val, batch),
         epochs=epochs,
-        batch_size=batch,
+        shuffle=False,
         verbose=2,
         callbacks=[es],
     )
 
-    hyps = ctc_greedy_decode(infer_model, X[test], down_len, charset)
+    hyps = ctc_greedy_decode(infer_model, X[test], input_len[test], charset)
     refs = [labels[i] for i in test]
     c, w = cer(refs, hyps), wer(refs, hyps)
 
+    lex_metrics = None
+    lex_hyps = []
     if lexicon:
         # Closed vocabulary: constrain the decode to words that exist. The
         # lexicon is built from the training half only - taking it from the
@@ -292,8 +345,13 @@ def run(
             charset="".join(charset.symbols),
             beam_width=8,
         )
-        lex_hyps = decoder.decode(infer_model, X[test], down_len)
+        lex_hyps = decoder.decode(infer_model, X[test], input_len[test])
         lc, lw = cer(refs, lex_hyps), wer(refs, lex_hyps)
+        lex_metrics = {
+            "cer": lc,
+            "wer": lw,
+            "word_accuracy": float(np.mean(np.array(refs) == np.array(lex_hyps))),
+        }
         print(
             f"\nLexicon-constrained: CER {lc * 100:.2f}%  WER {lw * 100:.2f}%  "
             f"(vocabulary of {len(set(labels[i] for i in train))} words from train)"
@@ -304,6 +362,44 @@ def run(
     )
     for r, h in list(zip(refs, hyps))[:10]:
         print(f"  ref: {r!r:20s} hyp: {h!r}")
+    if results_path:
+        report = {
+            "cer": c,
+            "wer": w,
+            "word_accuracy": float(np.mean(np.array(refs) == np.array(hyps))),
+            "lexicon": lex_metrics,
+            "train": len(train),
+            "validation": len(val),
+            "test": len(test),
+            "charset": charset.symbols,
+            "seed": seed,
+            "validation_split": "writer" if writers is not None else "random",
+            "official_partition": n_train is not None,
+            "epochs_requested": epochs,
+            "epochs_run": len(history.history["loss"]),
+            "selected_epoch": int(np.argmin(history.history["val_loss"])) + 1,
+            "history": history.history,
+            "seconds": time.monotonic() - started,
+            "rnn_units": rnn_units,
+            "rnn_layers": rnn_layers,
+            "batch": batch,
+            "minlen": minlen,
+            "maxlen": maxlen,
+            "resampled_short": int((original_lengths < minlen).sum()),
+            "resampled_long": int((original_lengths > maxlen).sum()),
+        }
+        Path(results_path).write_text(
+            json.dumps(report, indent=2) + "\n", encoding="utf-8"
+        )
+        np.savez_compressed(
+            str(results_path) + ".predictions.npz",
+            refs=refs,
+            hyps=hyps,
+            lexicon_hyps=lex_hyps,
+            train_indices=train,
+            validation_indices=val,
+            test_indices=test,
+        )
     return c, w
 
 
@@ -340,7 +436,7 @@ def main() -> None:
         "--max-len",
         type=int,
         default=800,
-        help="cap padded IMU length (words are much longer than chars)",
+        help="resample longer recordings to this length, retaining the whole signal",
     )
     ap.add_argument("--rnn-units", type=int, default=64)
     ap.add_argument("--rnn-layers", type=int, default=2)
@@ -351,6 +447,14 @@ def main() -> None:
         help="sensor channels per timestep (13 = OnHW pen)",
     )
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument(
+        "--min-len",
+        type=int,
+        default=80,
+        help="resample shorter recordings to this fixed length",
+    )
+    ap.add_argument("--deterministic", action="store_true")
+    ap.add_argument("--results", help="write metrics JSON and prediction/split NPZ")
     args = ap.parse_args()
     N_CHANNELS = args.channels
 
@@ -360,18 +464,26 @@ def main() -> None:
     # outright (100% CER) on an unlucky init. Same fix as imu2text/models.py.
     tf.keras.utils.set_random_seed(args.seed)
     np.random.seed(args.seed)
+    if args.deterministic:
+        tf.config.experimental.enable_op_determinism()
+        tf.config.threading.set_inter_op_parallelism_threads(1)
+        tf.config.threading.set_intra_op_parallelism_threads(1)
 
     words_split = None
+    writers = None
+    symbols = None
     if args.demo:
         x, labels = make_demo_data(seed=args.seed)
     elif args.onhw_words500:
-        from .words import load_onhw_words500  # noqa: PLC0415
+        from .words import load_onhw_words500, WORDS500_VOCAB  # noqa: PLC0415
 
         ds = load_onhw_words500(args.onhw_words500, fold=args.fold)
         # The archive's split is the evaluation; run() must not re-split it.
         x = list(ds.X_train) + list(ds.X_val)
         labels = list(ds.train_words) + list(ds.val_words)
         words_split = len(ds.X_train)
+        writers = np.concatenate([ds.train_ids, ds.val_ids])
+        symbols = WORDS500_VOCAB
         print(
             f"OnHW-Words500 fold {args.fold}: train={ds.n_train} val={ds.n_val} "
             f"writers={ds.n_writers} lexicon={len(ds.lexicon)}"
@@ -398,6 +510,10 @@ def main() -> None:
         args.seed,
         n_train=words_split,
         lexicon=args.lexicon,
+        writers=writers,
+        minlen=args.min_len,
+        results_path=args.results,
+        symbols=symbols,
     )
 
 

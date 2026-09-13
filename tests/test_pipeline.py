@@ -701,3 +701,13 @@ def test_madgwick_converges_with_the_right_gyro_scale():
         return np.linalg.norm(np.diff(q, axis=0), axis=1).mean()
 
     assert drift(16.4) < drift(1.0) / 5
+
+
+def test_model_selection_ignores_test_ranking():
+    from imu2text.models import select_by_validation
+
+    candidates = [
+        {"model": "overfit", "val_acc": 60, "test_acc": 99},
+        {"model": "selected", "val_acc": 70, "test_acc": 65},
+    ]
+    assert select_by_validation(candidates)[0]["model"] == "selected"

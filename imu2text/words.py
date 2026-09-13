@@ -496,18 +496,31 @@ class LexiconDecoder:
             The CTC inference model (input IMU -> output per-frame softmax).
         X : np.ndarray
             Padded IMU input tensor, shape (N, T, C).
-        down_len : int
-            Number of frames in the model's output (after CNN downsampling).
-            Must match what the model was trained with.
+        down_len : int or array
+            Actual CNN output length per recording. A scalar is accepted for
+            older models whose inputs all have the same length.
         batch : int, default 32
             Mini-batch size for the forward pass.
         """
+        from .sequence_data import decoder_lengths
+
         out: List[str] = []
+        lengths = decoder_lengths(down_len, len(X))
         for i in range(0, len(X), batch):
             chunk = X[i : i + batch]
-            preds = infer_model.predict(chunk, verbose=0)
+            chunk_lengths = lengths[i : i + batch]
+            if len(getattr(infer_model, "inputs", [])) == 2:
+                chunk = chunk[:, : int(chunk_lengths.max()) * 4 + 3]
+            inputs = (
+                [chunk, chunk_lengths[:, None]]
+                if len(getattr(infer_model, "inputs", [])) == 2
+                else chunk
+            )
+            preds = infer_model.predict(inputs, verbose=0)
+            if np.any(chunk_lengths > preds.shape[1]):
+                raise ValueError("decode length exceeds model output")
             for j in range(len(chunk)):
-                out.append(self.decode_one(preds[j][:down_len]))
+                out.append(self.decode_one(preds[j][: chunk_lengths[j]]))
         return out
 
 

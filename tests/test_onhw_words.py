@@ -486,3 +486,16 @@ def test_dropping_keeps_labels_and_writer_ids_aligned(tmp_path):
     ds = W.load_onhw_words500(str(tmp_path), fold=0)
     assert ds.train_words == ["Juni", "immer", "gerade"]
     assert len(ds.train_ids) == len(ds.X_train) == len(ds.Y_train)
+
+
+def test_lexicon_decode_uses_each_recordings_actual_length():
+    class Predictor:
+        inputs = [None, None]
+
+        def predict(self, inputs, verbose=0):
+            del verbose
+            assert np.array_equal(inputs[1], [[1], [2]])
+            return np.array([[[0.99, 0.005, 0.005], [0.005, 0.99, 0.005]]] * 2)
+
+    decoder = W.LexiconDecoder(["a", "ab"], charset="ab")
+    assert decoder.decode(Predictor(), np.zeros((2, 8, 13)), [1, 2]) == ["a", "ab"]

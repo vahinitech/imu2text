@@ -59,3 +59,54 @@ def test_ctc_model_trains_and_decodes():
     assert len(hyps) == 4
     assert all(isinstance(h, str) for h in hyps)
     assert all(all(ch in charset.symbols for ch in h) for h in hyps)
+
+
+def test_padding_does_not_change_recurrent_outputs():
+    """Frames beyond the receptive field of valid input cannot affect the BiLSTM."""
+    _, model, _ = S.build_ctc_models(80, 2, rnn_units=4, rnn_layers=1)
+    X = np.ones((2, 80, 13), dtype=np.float32)
+    X[1, 40:] = 100
+    output = model.predict([X, np.array([[4], [4]])], verbose=0)
+    np.testing.assert_allclose(output[0, :4], output[1, :4], atol=1e-6)
+
+
+def test_greedy_decode_ignores_predictions_after_actual_length():
+    class Predictor:
+        def predict(self, inputs, verbose=0):
+            del verbose
+            assert np.array_equal(inputs[1], [[1], [2]])
+            return np.array([[[0.99, 0.005, 0.005], [0.005, 0.99, 0.005]]] * 2)
+
+    hyps = S.ctc_greedy_decode(
+        Predictor(), np.zeros((2, 8, 13)), [1, 2], S.Charset(["ab"])
+    )
+    assert hyps == ["a", "ab"]
+
+
+def test_minibatches_preserve_every_sample_and_are_repeatable():
+    arrays = [
+        np.arange(7).reshape(-1, 1, 1),
+        np.arange(7).reshape(-1, 1) + 100,
+        np.ones((7, 1), dtype=np.int32),
+        np.ones((7, 1), dtype=np.int32),
+    ]
+    first = S.CTCBatches(arrays, np.arange(7), 3, seed=8)
+    second = S.CTCBatches(arrays, np.arange(7), 3, seed=8)
+    for _ in range(2):
+        seen = []
+        for index in range(len(first)):
+            inputs, dummy = first[index]
+            np.testing.assert_array_equal(inputs[0], second[index][0][0])
+            np.testing.assert_array_equal(inputs[1], inputs[0][:, :, 0] + 100)
+            assert dummy.shape == inputs[1].shape
+            seen.extend(inputs[0].ravel())
+        assert sorted(seen) == list(range(7))
+        first.on_epoch_end()
+        second.on_epoch_end()
+
+
+def test_sequence_scaler_does_not_fit_held_out_recordings():
+    train = np.arange(104, dtype=np.float32).reshape(8, 13)
+    small, _, _ = S.prepare([train, train], ["a", "a"], S.Charset(["a"]), 8, [0])
+    large, _, _ = S.prepare([train, train * 1e6], ["a", "a"], S.Charset(["a"]), 8, [0])
+    np.testing.assert_array_equal(small[0], large[0])

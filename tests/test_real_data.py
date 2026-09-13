@@ -211,3 +211,24 @@ def test_real_words500_lexicon_decoder_recovers_a_known_word():
     post /= post.sum(axis=1, keepdims=True)
 
     assert decoder.decode_one(post) == target
+
+
+def test_real_right_words500_alignment_and_writer_split():
+    """Exercise the downloaded right-handed archive, including its short outliers."""
+    from imu2text import words as W
+    from imu2text.sequence_data import (
+        resample_bounds,
+        sequence_split,
+        validate_ctc_lengths,
+    )
+
+    ds = W.load_onhw_words500(_require("Words500_indep_02"), fold=0)
+    assert (ds.n_train, ds.n_val, ds.n_writers) == (19915, 5292, 53)
+    assert len(ds.lexicon) == 501
+    writers = np.concatenate([ds.train_ids, ds.val_ids])
+    train, val, test = sequence_split(len(writers), 0, ds.n_train, writers)
+    assert set(writers[train]).isdisjoint(writers[val])
+    assert set(writers[train]).isdisjoint(writers[test])
+    samples = resample_bounds(list(ds.X_train) + list(ds.X_val), 80, 800)
+    validate_ctc_lengths(ds.train_words + ds.val_words, [len(s) // 4 for s in samples])
+    assert all(s.shape[1] == 13 and np.isfinite(s).all() for s in samples)
