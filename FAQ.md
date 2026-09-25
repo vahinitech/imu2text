@@ -1,6 +1,6 @@
 # FAQ - imu2text (beginner-friendly)
 
-This document collects common questions and short, practical answers for new users of the imu2text repository. It focuses on how the example model (`cnn_gnn.py`) works, how it relates to sequence vs. character datasets, which models are suitable for sensor pens, how to load data, and recommended hardware.
+This document collects common questions and short, practical answers for new users of the imu2text repository. It focuses on how the example model (`legacy/cnn_gnn.py`) works, how it relates to sequence vs. character datasets, which models are suitable for sensor pens, how to load data, and recommended hardware.
 
 ---
 
@@ -20,7 +20,7 @@ Table of contents
 
 Q: If I write with a sensor pen, will this model detect all characters I write?
 
-A: Short answer: not automatically. The model in `cnn_gnn.py` is a character-level, multi-task example: it expects one recorded IMU sample per character (an isolated character stroke sequence) and predicts one character label per sample. It will only recognize characters that were present in the training data and that the model was trained to output (for example, A–Z). If you write continuous text (multiple characters) without segmentation, you need either:
+A: Short answer: not automatically. The model in `legacy/cnn_gnn.py` is a character-level, multi-task example: it expects one recorded IMU sample per character (an isolated character stroke sequence) and predicts one character label per sample. It will only recognize characters that were present in the training data and that the model was trained to output (for example, A–Z). If you write continuous text (multiple characters) without segmentation, you need either:
 
 - a segmentation step that splits the continuous IMU stream into character-level samples (then feed each to the character model), or
 - a sequence model (sequence-to-sequence, CTC, or Transformer) trained to take a long IMU stream and produce a sequence of characters directly.
@@ -44,7 +44,7 @@ Q: Can I use this model for offline character recognition (images) or for offlin
 
 A: Two different meanings of "offline" arise; both are possible but distinct:
 
-- Offline images (scanned handwriting): This is an image-based OCR problem. `cnn_gnn.py` is not built for images; use image-based CNN/CRNN/OCR models for scanned handwriting. Cross-modal methods (triplet/contrastive losses) can later help align image and IMU embeddings if you have paired data.
+- Offline images (scanned handwriting): This is an image-based OCR problem. `legacy/cnn_gnn.py` is not built for images; use image-based CNN/CRNN/OCR models for scanned handwriting. Cross-modal methods (triplet/contrastive losses) can later help align image and IMU embeddings if you have paired data.
 
 - Offline sensor-fed recognition (record then process): Yes - you can record IMU data from the pen, save it, and run recognition later (batch/offline inference). In this case you still use time-series models (CNN/RNN/Transformer/GCN) but run them as post-processing instead of streaming in real time. Offline processing has advantages: you can run heavier models, perform more robust segmentation, and apply offline post-processing (language models, beam search) to improve accuracy.
 
@@ -181,7 +181,7 @@ Q: Which model architecture is best suited for sensor pens?
 
 A: There is no single best model; choice depends on the task and data:
 
-- Character-level classification (isolated strokes): 1D-CNNs, small RNNs (LSTM/GRU), or a hybrid CNN+GNN that captures local temporal features and node/temporal relationships. `cnn_gnn.py` is an example of this hybrid idea.
+- Character-level classification (isolated strokes): 1D-CNNs, small RNNs (LSTM/GRU), or a hybrid CNN+GNN that captures local temporal features and node/temporal relationships. `legacy/cnn_gnn.py` is an example of this hybrid idea.
 - Sequence recognition (words/equations): sequence-to-sequence encoder-decoder with attention, CTC-based models (Conv + LSTM + CTC), or Transformer-based encoder-decoders. Transformers perform very well with enough data.
 - If you have multichannel sensors (13 channels as in OnHW), use an initial CNN trunk or 1D conv layers to learn local features per time step, then a temporal model (RNN/Transformer) or GNN to model relationships.
 - If you need confidence estimates or robustness to domain shift, consider deep ensembles or SWAG (uncertainty-aware methods).
@@ -197,11 +197,11 @@ Q: How about datasets and how to load them? What format does this repo expect?
 
 A: Dataset notes for this repo:
 
-- `cnn_gnn.py` expects two pickle files in `data/`:
+- `legacy/cnn_gnn.py` expects two pickle files in `data/`:
   - `data/all_x_dat_imu.pkl` - list (or array) of N samples where each sample is a 2D numpy array shaped (T_i, C) with T_i time steps and C channels (typically 13 channels for OnHW). Each sample is one character recording.
   - `data/all_gt.pkl` - list of N ground-truth labels (character strings or sequences) aligned with the IMU samples.
 
-Loading example (same approach used in `cnn_gnn.py`):
+Loading example (same approach used in `legacy/cnn_gnn.py`):
 
 ```python
 import pickle

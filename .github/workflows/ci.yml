@@ -1,5 +1,11 @@
 name: CI
 
+# Least privilege: this workflow only checks out code and runs tests. Without
+# an explicit block it inherits the repository default, which can include
+# write access to contents, packages and more.
+permissions:
+  contents: read
+
 on:
   # Docs-only changes (README/CLAUDE.md/docs/**) skip this whole pipeline --
   # nothing here builds or tests markdown. A push/PR that touches even one
@@ -49,6 +55,17 @@ jobs:
           set -e
           py_files=$(git ls-files '*.py' || true)
           if [ -n "$py_files" ]; then python -m py_compile $py_files; else echo "No python files to check."; fi
+
+      - name: Lint (black + pylint)
+        run: |
+          python -m pip install black pylint >/dev/null
+          py_files=$(git ls-files '*.py')
+          black --check --diff $py_files
+          # Source and tests are scored separately: tests/.pylintrc relaxes the
+          # pytest conventions pylint reads as defects (fixture shadowing,
+          # private-helper access) without lowering the bar for the source tree.
+          pylint --fail-under=9.0 $(git ls-files '*.py' ':!tests/*')
+          pylint --fail-under=9.0 --rcfile=tests/.pylintrc tests/
 
       - name: Run pytest (if present)
         run: |

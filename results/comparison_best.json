@@ -1,0 +1,16 @@
+{
+  "config": "best",
+  "label": "CNN+BiLSTM+attn, aug x2, LS, LR sched (this repo)",
+  "epochs": 30,
+  "fold": 0,
+  "seed": 0,
+  "deterministic": false,
+  "results": {
+    "lower_dep": 88.25,
+    "lower_indep": 82.45,
+    "upper_dep": 91.43,
+    "upper_indep": 86.78,
+    "both_dep": 80.07,
+    "both_indep": 72.46
+  }
+}

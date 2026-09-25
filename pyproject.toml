@@ -1,0 +1,59 @@
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+
+[tool.pylint.main]
+# tensorflow.keras is re-exported lazily, so pylint cannot resolve it by static
+# analysis and reports import-error / no-name-in-module / no-member against
+# every keras symbol. The imports work at runtime; CI proves it by running the
+# tests.
+ignored-modules = ["tensorflow", "tensorflow.keras", "torch", "torch_geometric"]
+jobs = 0
+
+# scripts/ and legacy/ import the package from the source tree, so pylint
+# needs the repo root on sys.path the same way pytest.ini arranges it.
+init-hook = 'import sys; sys.path.insert(0, ".")'
+
+[tool.pylint."messages control"]
+disable = [
+    # The lazy imports are deliberate. onhw_symbols and onhw_models import
+    # TensorFlow inside functions so the loaders stay usable, and importable,
+    # on a machine that has only numpy. Moving them to module scope would
+    # undo that.
+    "import-outside-toplevel",
+    # RNN_UNITS / RNN_LAYERS are module-level knobs the CLI writes once at
+    # startup and every builder reads. Threading them through every signature
+    # would be worse than the global.
+    "global-statement",
+    # The four model builders share a trunk and a head by design; the report
+    # is that they look alike, which is the point.
+    "duplicate-code",
+]
+
+[tool.pylint.basic]
+# A one-line property accessor (`return len(self.X_train)`) says everything a
+# docstring would. Anything with real logic in it still needs one.
+docstring-min-length = 5
+# Short names that are conventional in numerical code and clearer than a
+# spelled-out alternative: X/Y for design matrices, x/y for a sample and its
+# label, tr/va/te for split indices, T/V/C for tensor dimensions.
+good-names = [
+    "X", "Y", "x", "y", "n", "i", "j", "k", "t", "c", "w", "p", "f", "s",
+    "T", "V", "C", "R", "N", "lo", "hi", "tr", "va", "te", "rng", "ds",
+    "df", "ax", "fig", "lr", "pb", "pnb", "NEG", "_",
+]
+
+[tool.pylint.design]
+# Training and CLI functions genuinely carry a lot of state. These ceilings
+# are set just above what the current code needs, so a function that grows
+# past them still gets flagged.
+max-locals = 30
+max-args = 10
+max-positional-arguments = 10
+max-branches = 15
+max-statements = 60
+
+[tool.pylint.format]
+# Black enforces 88 on code but will not reflow a comment, a docstring table
+# or a URL. The slack is for those; anything black can wrap, it does.
+max-line-length = 100
