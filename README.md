@@ -34,6 +34,7 @@ Details, every other split and the reproduction commands:
 
 ## Docs
 
+- [Vahini playground](https://playground.vahinitech.com): one letter through the pipeline, in the browser ([source](playground/))
 - [Getting started](docs/getting_started.md): the problem, the code, where to begin
 - [Benchmarks](docs/benchmarks.md): all results and how they were measured
 - [Uncertainty](docs/uncertainty.md): ensembles, calibration, and when to trust a prediction
