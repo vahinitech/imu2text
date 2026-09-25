@@ -69,7 +69,7 @@ The cards in step 4 of the page are the open tasks. Each links to an issue.
 | `og.html` | source of `og.png`; regenerate with the command in its header |
 
 The Vahini logo, colours and fonts are not in this repository. The
-deployment (vahini-web) serves them next to the page:
+deployment at playground.vahinitech.com serves them next to the page:
 
 | Path | What |
 |---|---|
