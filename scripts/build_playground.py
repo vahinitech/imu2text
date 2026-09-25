@@ -103,19 +103,29 @@ def rounded(a: np.ndarray, digits: int = 3) -> list:
     return np.round(np.asarray(a, dtype=np.float64), digits).tolist()
 
 
+# Rough scales for the synthetic signal, in raw counts, so its converted
+# values look like a pen's: gravity on one axis of each accelerometer (16,384
+# counts per g, imu2text/filters.py), strokes of a few tenths of a g, rotation
+# of tens of degrees per second (14.3 counts per deg/s), a steady field.
+SYNTH_OFFSET = [0, 0, 16384, 0, 0, 16384, 0, 0, 0, 2500, -1200, 3800]
+SYNTH_AMPLITUDE = [4000, 4000, 2500, 4000, 4000, 2500, 900, 900, 600, 300, 300, 300]
+
+
 def synthetic_signal(seed: int = 0, length: int = 120) -> np.ndarray:
     """A made-up 13-channel recording: smooth strokes plus sensor noise.
 
     It exists so the public page can show what each filter does to a signal
-    without shipping a real recording. It is not handwriting.
+    without shipping a real recording. It is not handwriting; only the
+    magnitudes are chosen to resemble a pen's.
     """
     rng = np.random.default_rng(seed)
     t = np.arange(length) / SAMPLE_RATE_HZ
     out = np.zeros((length, len(CHANNEL_NAMES)), dtype=np.float32)
     for c in range(12):
         f = rng.uniform(1.0, 4.0)
-        out[:, c] = 800 * np.sin(2 * np.pi * f * t + rng.uniform(0, np.pi))
-        out[:, c] += rng.normal(0, 120, length)
+        wave = np.sin(2 * np.pi * f * t + rng.uniform(0, np.pi))
+        out[:, c] = SYNTH_OFFSET[c] + SYNTH_AMPLITUDE[c] * wave
+        out[:, c] += rng.normal(0, 0.15 * SYNTH_AMPLITUDE[c], length)
     out[:, 12] = np.clip(
         np.sin(np.pi * t / t[-1]) * 900 + rng.normal(0, 40, length), 0, None
     )

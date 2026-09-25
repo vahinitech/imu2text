@@ -29,6 +29,19 @@
       <div id="signal-note" class="note"></div>
       <div class="controls" id="filters" role="radiogroup" aria-label="Filter"></div>
       <div id="signal"></div>
+      <div id="raw">
+        <h3>Raw values</h3>
+        <label class="time-control">Time
+          <input id="time" type="range" min="0" max="0" value="0" aria-describedby="time-readout">
+          <output id="time-readout"></output>
+        </label>
+        <p class="hint">Drag the slider or move over a plot. Values are raw sensor
+          counts; g and °/s use the conversions documented in
+          <code>imu2text/filters.py</code> (the gyroscope one is inferred, not
+          from a datasheet).</p>
+        <div class="table-wrap"><table id="raw-table"></table></div>
+        <button id="download-csv" type="button">Download this recording as CSV</button>
+      </div>
       <div id="filter-result" class="result-card"></div>
     </section>
 

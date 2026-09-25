@@ -90,6 +90,19 @@ svg { display: block; width: 100%; height: auto; overflow: visible; }
 svg text { fill: var(--text-secondary); font-size: 11px; font-family: inherit; }
 svg .label-strong { fill: var(--text-primary); font-size: 13px; }
 
+.time-control { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-secondary); margin: 6px 0; }
+.time-control input { flex: 1; max-width: 420px; accent-color: var(--series-1); }
+.time-control output { font-variant-numeric: tabular-nums; min-width: 7ch; color: var(--text-primary); }
+.table-wrap { overflow-x: auto; margin: 8px 0 12px; }
+#raw-table { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; width: 100%; }
+#raw-table th, #raw-table td { text-align: right; padding: 4px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+#raw-table th:first-child, #raw-table td:first-child, #raw-table th:nth-child(2), #raw-table td:nth-child(2) { text-align: left; }
+#raw-table thead th { color: var(--text-secondary); font-weight: 600; }
+#raw-table td.now { color: var(--text-primary); font-weight: 600; }
+@media (max-width: 600px) {
+  #raw-table th:first-child, #raw-table td:first-child { white-space: normal; }
+  #raw-table th:nth-child(n+5), #raw-table td:nth-child(n+5) { display: none; }
+}
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .card { border: 1px dashed var(--text-muted); border-radius: 12px; padding: 14px; font-size: 14px; }
 .card h3 { margin: 0 0 6px; color: var(--text-primary); }
