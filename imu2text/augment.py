@@ -42,7 +42,10 @@ exposes every knob.
 
 Two policies ship. ``legacy`` (the default) is jitter + per-channel scale +
 magnitude warp + time warp - the exact policy behind the measured 64.8% ->
-71.6% writer-independent jump on the bundled OnHW subset. ``extended`` adds
+71.6% jump on the bundled subset (2,270 samples, 45 writers, 52 classes,
+writer-independent split built locally by ``make_split``; one seed; see
+``docs/benchmarks.md``). It is not an official OnHW split, so the number is
+not comparable to published results. ``extended`` adds
 rotation, channel dropout and random crop; it is unmeasured here, so it is
 opt-in rather than default.
 """
@@ -159,9 +162,13 @@ def random_rotation(
 ) -> np.ndarray:
     """Apply an independent small 3D rotation to each Acc/Gyro/Mag triad.
 
-    A different rotation is drawn for each triad because the four sensors sit
-    at different positions/orientations inside the pen - a real grip change
-    affects each sensor's frame slightly differently.
+    This is a regulariser, not a model of a grip change. The sensors are
+    rigidly mounted, so a real change of pen orientation is one rotation
+    applied to every triad (conjugated by each sensor's fixed mounting
+    frame). Independent draws break the cross-sensor geometry that such a
+    change preserves. The ``extended`` policy results in
+    ``docs/benchmarks.md`` were produced with this version; a shared-rotation
+    variant has not been measured.
 
     The Force channel (index 12) and any extra channels past 13 are left
     untouched (rotations don't apply to a scalar).
@@ -232,9 +239,9 @@ class AugmentationConfig:
 
     The **defaults reproduce the legacy policy** - jitter, per-channel scale,
     magnitude warp, time warp - with the exact sigmas that produced the
-    measured 64.8% -> 71.6% writer-independent jump on the bundled OnHW
-    subset (augment x4, 2x BiLSTM-100; see the README's "Improving accuracy"
-    section).
+    measured 64.8% -> 71.6% jump on the bundled subset (2,270 samples, 45
+    writers, 52 classes, locally built writer-independent split, one seed;
+    augment x4, 2x BiLSTM-100; see ``docs/benchmarks.md``).
 
     The three IMU-specific transforms added later (rotation, channel dropout,
     random crop) are **off by default**, because turning them on silently

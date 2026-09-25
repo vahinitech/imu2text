@@ -120,11 +120,12 @@ unfreeze_trunk(new_model, lr=1e-4)
 new_model.fit(X_sym_train, Y_sym_train, epochs=20, ...)
 ```
 
-This typically dominates training from scratch by 5-10 points on OnHW-symbols.
+Whether this beats training from scratch on OnHW-symbols has not been measured
+here; run both before quoting a gain.
 
 License and contact
 
-This project is provided by Vahini Technologies. See `LICENSE` for details.
+Apache License 2.0, Vahini Technologies. See `LICENSE` and `NOTICE`.
 
 Contact: info@vahintech.com
 
@@ -142,7 +143,7 @@ This repository aims to host implementations and example code for several online
 | OnHW-chars loaders (.npy + .pkl) | Yes - `imu2text/chars.py` | Unified loader for both right-handed (.npy, 30 splits) and left-handed (.pkl) OnHW-chars formats; auto-remaps writer IDs to contiguous range | - |
 | OnHW dataset downloader | Yes - `imu2text/download.py` | Direct-download script for all 17 Fraunhofer OnHW archives (chars, symbols, equations, words500, wordsTraj, icrow) | - |
 | OnHW-symbols | Yes - `imu2text/symbols.py` (`load_onhw_symbols`) | Single-symbol classification, 15 classes (digits 0-9 + operators + - · : =); auto-detects fold vs flat layout | Ott et al. 2022; see `docs/onhw_enhancement_guide.md` |
-| OnHW-equations | Yes - `imu2text/symbols.py` (`load_onhw_equations`) | Sequence-to-sequence recognition, 15-symbol charset; pairs with `imu2text/seq2seq.py` for CTC training | Ott et al., IJDAR 2022 |
+| OnHW-equations | Yes - `imu2text/symbols.py` (`load_onhw_equations`) | Symbol classification on the per-symbol `_e` slices, 15 classes. Whole-equation sequence recognition needs the `all_indices_e.txt` mapping, which the loader does not read yet | Ott et al., IJDAR 2022 |
 | OnHW-words500 | Yes - `imu2text/words.py` | Closed 500-word German vocabulary seq2seq; includes lexicon-constrained beam-search CTC decoder for big WER drop at ~zero cost | Ott et al., IJDAR 2022; cf. REWI (Li et al., iWOAR 2025) |
 | Transfer learning (chars -> symbols) | Yes - `onhw_symbols.build_transfer_model` | Reuse a pretrained chars CNN+BiLSTM trunk for the tiny symbols dataset (2.3k samples); freeze-then-fine-tune recipe | Standard transfer learning recipe |
 | Pen Tip Reconstruction and Classification (supplementary) | No | Pen-tip reconstruction and classification from online handwriting | Ott et al. (supplementary materials) |

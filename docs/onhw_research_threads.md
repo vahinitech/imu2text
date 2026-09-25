@@ -202,7 +202,7 @@ filed:
 | Issue | Why it is where it is |
 |---|---|
 | [#13 uncertainty-aware evaluation](https://github.com/vahinitech/imu2text/issues/13) | No download, no new architecture, and it answers whether the case errors are confidently wrong - which decides whether abstention recovers them in practice |
-| [#9 average over all 30 folds](https://github.com/vahinitech/imu2text/issues/9) | Every current number is one seed on one fold; a few hours of CPU removes the caveat from the whole benchmark table |
+| [#9 average over all 30 folds](https://github.com/vahinitech/imu2text/issues/9) | Every current number is one seed on one fold. The 30 directories are 3 case settings × 2 protocols × 5 folds, so each reported task (e.g. `both/indep`) is averaged over its own 5 folds, never across all 30; a few hours of CPU removes the caveat from the whole benchmark table |
 | [#11 word context for case](https://github.com/vahinitech/imu2text/issues/11) | The largest identified gain. Case is a property of word position, not glyph shape, and the lexicon decoder is already written |
 | [#10 factorise letter and case heads](https://github.com/vahinitech/imu2text/issues/10) | Matches the diagnosis directly, and may fail informatively |
 | [#12 hybrid classical + deep](https://github.com/vahinitech/imu2text/issues/12) | Filed with a prediction of 0 to +2 points, so a null result closes the direction cheaply |

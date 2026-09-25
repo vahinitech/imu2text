@@ -64,8 +64,9 @@ module exposes a ``build_transfer_model`` helper that:
 4. Freezes the conv trunk for a few warmup epochs (only the new head trains),
    then unfreezes everything for fine-tuning at a low learning rate.
 
-This is the standard transfer-learning recipe and typically dominates
-training from scratch on OnHW-symbols by 5-10 points.
+This is the standard freeze-then-fine-tune recipe. Whether it beats
+training from scratch on OnHW-symbols has not been measured in this repo;
+run both before quoting a gain.
 
 Usage
 -----
