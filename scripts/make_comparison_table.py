@@ -164,7 +164,11 @@ def main():
     ap.add_argument("--epochs", type=int, default=30)
     ap.add_argument("--fold", type=int, default=0)
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--deterministic", action="store_true")
+    # A before/after comparison needs bit-reproducible runs, so determinism is
+    # the default; --no-deterministic is for quick exploratory sweeps only.
+    ap.add_argument(
+        "--deterministic", action=argparse.BooleanOptionalAction, default=True
+    )
     ap.add_argument("--out-dir", default="results")
     args = ap.parse_args()
 

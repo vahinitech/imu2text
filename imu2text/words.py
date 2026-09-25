@@ -25,7 +25,7 @@ This module provides:
    given a bonus. This is the standard closed-vocabulary HWR decoding
    recipe.
 
-4. A ``--demo`` mode that synthesizes a tiny 50-word lexicon and verifies
+4. A ``--demo`` mode that synthesizes a tiny 10-word lexicon and
    compares lexicon-constrained and greedy decoding on synthetic CTC
    posteriors noisy enough that greedy makes mistakes. It demonstrates the
    mechanism; it is not a measurement on real data.
@@ -60,7 +60,7 @@ true variable-length token sequences that CTC expects.
 The integer-encoded labels use the 59-character charset:
 
     ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÄÖÜäöüß
-    0:25                                26:51                  52:56
+    0:25                                26:51                  52:58
 
 Usage
 -----
@@ -103,13 +103,13 @@ def _vocab_index_table() -> Dict[str, int]:
 
 
 def encode_word(word: str) -> List[int]:
-    """Encode a string into OnHW-words500 integer tokens (0..56)."""
+    """Encode a string into OnHW-words500 integer tokens (0..58)."""
     table = _vocab_index_table()
     return [table[ch] for ch in word]
 
 
 def decode_tokens(tokens: Sequence[int]) -> str:
-    """Decode integer tokens (0..56) back to a string. Drops -1 / blank."""
+    """Decode integer tokens (0..58) back to a string. Drops -1 / blank."""
     return "".join(WORDS500_VOCAB[t] for t in tokens if 0 <= t < len(WORDS500_VOCAB))
 
 
@@ -124,7 +124,7 @@ class OnHWWordsDataset(NamedTuple):
     X_train, X_val : list[np.ndarray]
         IMU sequences, each (T, 13) float.
     Y_train, Y_val : list[list[int]]
-        Per-sample label sequences (token indices in 0..56).
+        Per-sample label sequences (token indices in 0..58).
     train_words, val_words : list[str]
         Decoded string labels (one per sample).
     train_ids, val_ids : np.ndarray
@@ -274,17 +274,19 @@ def load_onhw_words500(
     train_words = [decode_tokens(seq) for seq in Y_train]
     val_words = [decode_tokens(seq) for seq in Y_val]
 
-    # Sanity: token indices must be within the charset, or equal to the
-    # padding/blank index (the shipped labels are padded to a fixed width).
-    all_tokens = [t for seq in (Y_train + Y_val) for t in seq]
-    if all_tokens:
-        max_tok = max(all_tokens)
-        if max_tok > WORDS500_BLANK_IDX:
-            raise ValueError(
-                f"found token {max_tok} but the words500 charset only has "
-                f"{len(WORDS500_VOCAB)} symbols (+ blank at {WORDS500_BLANK_IDX}) "
-                "- the data may be encoded with a different charset"
-            )
+    # Sanity: once the trailing padding is gone, every token is a CTC target
+    # and must be a charset index. A negative token or an embedded blank is
+    # not a valid target, and decode_tokens would silently drop it.
+    bad = sorted(
+        {t for seq in (Y_train + Y_val) for t in seq if not 0 <= t < WORDS500_BLANK_IDX}
+    )
+    if bad:
+        raise ValueError(
+            f"found token(s) {bad[:5]} but the words500 charset only has "
+            f"{len(WORDS500_VOCAB)} symbols (0..{WORDS500_BLANK_IDX - 1}, blank "
+            f"{WORDS500_BLANK_IDX} only as trailing padding) - the data may be "
+            "encoded with a different charset"
+        )
 
     # A handful of recordings in the published archives have zero timesteps
     # (3 of 19,918 train and 8 of 5,300 val in indep fold 0). They carry no
@@ -368,8 +370,9 @@ class LexiconDecoder:
         Maximum number of beams to keep at each timestep. Higher = more
         accurate but slower.
     lexicon_bonus : float, default 1.0
-        Log-probability bonus added to beams whose final decode matches a
-        lexicon word exactly. Set to 0 to disable the final rescoring.
+        Log-probability bonus a complete lexicon word gets over a partial
+        prefix in the final choice. Only used with ``strict=False``; strict
+        decoding never returns a prefix, so there is nothing to rescore.
     strict : bool, default True
         When no beam spells a complete lexicon word, return "" (an explicit
         no-decode) rather than a partial prefix that is certainly wrong. Set
@@ -410,7 +413,11 @@ class LexiconDecoder:
         ``V`` must equal ``len(charset) + 1`` (the +1 is the CTC blank at the
         last index).
 
-        This is CTC prefix beam search: each beam carries the probability of
+        This is CTC prefix beam search (Hannun et al., "First-Pass Large
+        Vocabulary Continuous Speech Recognition using Bi-Directional
+        Recurrent DNNs", arXiv:1408.2873, 2014; CTC from Graves et al.,
+        ICML 2006), with beams pruned against a prefix set of the lexicon
+        and no language model. Each beam carries the probability of
         the alignments that end in a blank and those that end in the last
         emitted label, kept separately, and the two are *summed* over
         alignments rather than maximised. Tracking them apart is what makes
@@ -474,19 +481,20 @@ class LexiconDecoder:
             )
 
         scored = [(np.logaddexp(pb, pnb), s) for s, (pb, pnb) in beams.items()]
-        words = [
-            (lp + self.lexicon_bonus, s) for lp, s in scored if self._is_full_word(s)
-        ]
-        if words:
-            return max(words)[1]
-        # No beam spelled a complete word. On a closed vocabulary a partial
-        # prefix is a guaranteed error, so the default is to say so with an
-        # empty decode rather than emit something that cannot be right.
-        # strict=False returns the best prefix instead, which is worth having
-        # when the metric is CER and partial credit counts.
         if self.strict:
-            return ""
-        return max(scored)[1] if scored else ""
+            # On a closed vocabulary a partial prefix is a guaranteed error,
+            # so strict mode returns the best complete word, or an empty
+            # decode that reports the miss.
+            words = [(lp, s) for lp, s in scored if self._is_full_word(s)]
+            return max(words)[1] if words else ""
+        # strict=False lets a prefix win when it is more likely than every
+        # complete word by more than lexicon_bonus; worth having when the
+        # metric is CER and partial credit counts.
+        rescored = [
+            (lp + (self.lexicon_bonus if self._is_full_word(s) else 0.0), s)
+            for lp, s in scored
+        ]
+        return max(rescored)[1] if rescored else ""
 
     def decode(
         self, infer_model, X: np.ndarray, down_len: int, batch: int = 32

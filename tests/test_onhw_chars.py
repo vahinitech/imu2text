@@ -29,8 +29,8 @@ def pkl_dataset_dir():
     writers_raw = [10, 10, 10, 20, 20, 20, 30, 30, 30]  # 3 writers, non-contiguous IDs
     n = len(writers_raw)
     x = [rng.normal(0, 1, size=(20 + i % 3, 13)).astype(np.float32) for i in range(n)]
-    y_str = list(alphabet) * (n // len(alphabet))
-    y_int = list(range(len(alphabet))) * (n // len(alphabet))
+    y_str = [alphabet[i % len(alphabet)] for i in range(n)]
+    y_int = [i % len(alphabet) for i in range(n)]
 
     d = tempfile.mkdtemp(prefix="onhw_chars_pkl_")
     for fname, obj in [
@@ -43,6 +43,14 @@ def pkl_dataset_dir():
             pickle.dump(obj, f)
     yield d
     shutil.rmtree(d, ignore_errors=True)
+
+
+def test_pkl_loader_rejects_parallel_arrays_of_different_lengths(pkl_dataset_dir):
+    """A short label list would silently pair recordings with the wrong label."""
+    with open(os.path.join(pkl_dataset_dir, "all_gt.pkl"), "wb") as f:
+        pickle.dump(["A", "B"], f)
+    with pytest.raises(ValueError, match="differ in length"):
+        C.load_onhw_chars(pkl_dataset_dir)
 
 
 # --------------------------------------------------------------------------- #

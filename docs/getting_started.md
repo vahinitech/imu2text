@@ -175,9 +175,11 @@ are *confidently* wrong. If they are already low-confidence, a system that
 defers on them recovers most of that 12-point penalty in practice without
 solving it.
 
-**Average over the 30 folds.** ([#9](https://github.com/vahinitech/imu2text/issues/9))
-Every number above is one seed on one fold. A few hours of CPU removes that
-caveat from the whole benchmark.
+**Average over the folds.** ([#9](https://github.com/vahinitech/imu2text/issues/9))
+Every number above is one seed on one fold. The 30 split directories are 3
+case settings × 2 protocols × 5 folds, so each task (for example
+`both/indep`) is averaged over its own 5 folds. A few hours of CPU removes
+that caveat from the whole benchmark.
 
 **Split letter identity from case.** ([#10](https://github.com/vahinitech/imu2text/issues/10))
 A 26-way head plus a binary case head matches the diagnosis directly, and lets

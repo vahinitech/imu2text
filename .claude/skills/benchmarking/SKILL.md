@@ -49,7 +49,9 @@ Never write an accuracy without all four of:
    reasons that have nothing to do with the model
 
 Single seed on one fold is a data point, not a result. Say so. The 30
-published folds exist to be averaged.
+published split directories are 3 case settings × 2 protocols × 5 folds;
+average a task over its own 5 folds, never across all 30, which would mix
+26- and 52-class tasks and WD with WI.
 
 ## Pick the right published number to compare against
 

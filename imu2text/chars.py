@@ -25,8 +25,9 @@ The Fraunhofer IIS OnHW-chars dataset is published in two formats:
    - ``fold``       : 0-4 (5-fold cross validation).
 
    ``X_train`` / ``X_test`` are object arrays of ``(T, 13)`` float arrays
-   (variable T). ``y_train`` / ``y_test`` are int arrays (0..25 for lower/
-   upper, 0..51 for both).
+   (variable T). ``y_train`` / ``y_test`` are single-character string
+   arrays (``dtype='<U1'``, e.g. ``['A', 'b', ...]``), which the loader
+   encodes to 0..25 for lower/upper and 0..51 for both.
 
 2. **Left-handed (.pkl)** - 2,270 samples from 9 writers, 52 classes. No
    official splits; ships as four pickles:
@@ -188,6 +189,12 @@ def _load_npy_split(base: str, case: str, dependency: str, fold: int):
     classes = list(
         {"lower": CHARS_LOWER, "upper": CHARS_UPPER, "both": CHARS_BOTH}[case]
     )
+    for side, xs, ys in (("train", X_train, y_train), ("test", X_test, y_test)):
+        if len(xs) != len(ys):
+            raise ValueError(
+                f"{folder}: X_{side} has {len(xs)} recordings but y_{side} "
+                f"has {len(ys)} labels"
+            )
     y_train = _encode_labels(y_train, classes, folder)
     y_test = _encode_labels(y_test, classes, folder)
     return X_train, y_train, X_test, y_test, classes
@@ -240,6 +247,16 @@ def _load_pkl_chars(base: str):
         y_int = np.array(list(pickle.load(f)), dtype=np.int64)
     with open(os.path.join(base, "list_ids.pkl"), "rb") as f:
         writers_raw = np.array(list(pickle.load(f)), dtype=np.int64)
+    lengths = {
+        "all_x_dat_imu.pkl": len(X),
+        "all_gt.pkl": len(y_str),
+        "all_gt_enc.pkl": len(y_int),
+        "list_ids.pkl": len(writers_raw),
+    }
+    if len(set(lengths.values())) != 1:
+        # Parallel arrays of different lengths would silently pair recordings
+        # with the wrong label or writer.
+        raise ValueError(f"{base}: parallel pickles differ in length: {lengths}")
     return X, y_str, y_int, writers_raw
 
 
@@ -288,7 +305,11 @@ def load_onhw_chars(
     -------
     OnHWCharsDataset
         Named tuple with both per-split (X_train, y_train, X_test, y_test)
-        and aggregated (X_all, y_all, writers) views.
+        and aggregated (X_all, y_all, writers) views. Recordings are returned
+        as published, including the 3 zero-timestep recordings in the .npy
+        archive; ``imu2text.models.load_official_split`` drops them and
+        reports the counts, so use it (or filter them yourself) before
+        scaling.
     """
     # Validate arguments first so an invalid case/dependency/fold always raises
     # ValueError, even if the directory doesn't contain the corresponding

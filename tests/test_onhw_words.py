@@ -316,6 +316,17 @@ def test_a_token_above_the_blank_is_still_rejected(tmp_path):
         W.load_onhw_words500(str(tmp_path), fold=0)
 
 
+@pytest.mark.parametrize(
+    "label", [[0, -1, 2], [0, W.WORDS500_BLANK_IDX, 2]], ids=["negative", "blank"]
+)
+def test_an_invalid_active_token_is_rejected(tmp_path, label):
+    """After the padding is stripped, a negative or embedded blank token is no
+    valid CTC target; decode_tokens would drop it without a word."""
+    _write_fold(str(tmp_path / "0"), [label], pad_to=19)
+    with pytest.raises(ValueError, match="different charset"):
+        W.load_onhw_words500(str(tmp_path), fold=0)
+
+
 def test_umlauts_round_trip_through_the_charset():
     """The German words in this dataset need ÄÖÜäöüß; 26+26+7 = 59 symbols."""
     for word in ("Fräulein", "Öl", "Straße", "Übung", "Jahr"):
@@ -499,3 +510,20 @@ def test_lexicon_decode_uses_each_recordings_actual_length():
 
     decoder = W.LexiconDecoder(["a", "ab"], charset="ab")
     assert decoder.decode(Predictor(), np.zeros((2, 8, 13)), [1, 2]) == ["a", "ab"]
+
+
+def test_lexicon_bonus_decides_between_a_word_and_a_likelier_prefix():
+    """With strict=False the bonus is what lets a complete word beat a prefix."""
+    a, b, c = ALPHA.index("A"), ALPHA.index("B"), ALPHA.index("C")
+    p = np.full((3, len(ALPHA) + 1), 1e-6)
+    p[0, a] = p[1, b] = 1.0
+    p[2, c], p[2, BLANK] = 0.6, 0.4  # "ABC" (a prefix) is likelier than "AB"
+    p /= p.sum(axis=1, keepdims=True)
+
+    def decode(bonus):
+        return W.LexiconDecoder(
+            ["AB", "ABCD"], charset=ALPHA, strict=False, lexicon_bonus=bonus
+        ).decode_one(p)
+
+    assert decode(0.0) == "ABC"
+    assert decode(1.0) == "AB"
