@@ -18,11 +18,12 @@ No download needed to check the sequence pipeline: `python -m imu2text.seq2seq -
 
 ## Results
 
-Official splits, writer-independent, fold 0, one seed.
+Official splits, writer-independent, fold 0; one seed unless stated.
 
 | Task | Metric | imu2text | Published |
 |---|---|--:|--:|
 | OnHW-chars, 52 classes | accuracy | **72.5%** | 68.06% (Ott et al., ACM MM 2022, CNN+BiLSTM) |
+| OnHW-chars, 52 classes, 5 seeds averaged | accuracy | **74.46%** | n/a |
 | OnHW-Words500, 59 characters | greedy CER, refit on all training writers | **53.95%** | not compared |
 
 On the characters, 43% of the remaining errors are a letter read as its
@@ -33,8 +34,10 @@ Details, every other split and the reproduction commands:
 
 ## Docs
 
+- [Vahini playground](https://playground.vahinitech.com): one letter through the pipeline, in the browser ([source](playground/))
 - [Getting started](docs/getting_started.md): the problem, the code, where to begin
 - [Benchmarks](docs/benchmarks.md): all results and how they were measured
+- [Uncertainty](docs/uncertainty.md): ensembles, calibration, and when to trust a prediction
 - [Datasets](docs/datasets.md): the OnHW archives and how to load them
 - [Roadmap](docs/roadmap.md): what is done and what comes next
 - [Glossary](docs/glossary.md): the abbreviations

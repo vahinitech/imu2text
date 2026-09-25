@@ -1,0 +1,300 @@
+[
+  {
+    "group": "right",
+    "split": "official both/indep/fold0, writer-independent",
+    "split_seed": 0,
+    "model": "cnn_bilstm_attn",
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "files": [
+      "right_seed0.npz",
+      "right_seed1.npz",
+      "right_seed2.npz",
+      "right_seed3.npz",
+      "right_seed4.npz"
+    ],
+    "members": [
+      {
+        "seed": 0,
+        "val_acc": 81.41263940520446,
+        "all": {
+          "n": 7956,
+          "accuracy": 72.25992961287079,
+          "case_insensitive_accuracy": 84.2885872297637,
+          "nll": 0.872014582157135,
+          "ece": 2.3431881126287943
+        },
+        "right-handed": {
+          "n": 7956,
+          "accuracy": 72.25992961287079,
+          "case_insensitive_accuracy": 84.2885872297637,
+          "nll": 0.872014582157135,
+          "ece": 2.3431881126287943
+        }
+      },
+      {
+        "seed": 1,
+        "val_acc": 81.38404346582784,
+        "all": {
+          "n": 7956,
+          "accuracy": 72.66214177978884,
+          "case_insensitive_accuracy": 84.640522875817,
+          "nll": 0.8674648404121399,
+          "ece": 2.3416355162364497
+        },
+        "right-handed": {
+          "n": 7956,
+          "accuracy": 72.66214177978884,
+          "case_insensitive_accuracy": 84.640522875817,
+          "nll": 0.8674648404121399,
+          "ece": 2.3416355162364497
+        }
+      },
+      {
+        "seed": 2,
+        "val_acc": 81.41263940520446,
+        "all": {
+          "n": 7956,
+          "accuracy": 72.2473604826546,
+          "case_insensitive_accuracy": 83.96178984414279,
+          "nll": 0.880152702331543,
+          "ece": 2.1847611762369765
+        },
+        "right-handed": {
+          "n": 7956,
+          "accuracy": 72.2473604826546,
+          "case_insensitive_accuracy": 83.96178984414279,
+          "nll": 0.880152702331543,
+          "ece": 2.1847611762369765
+        }
+      },
+      {
+        "seed": 3,
+        "val_acc": 81.12668001143838,
+        "all": {
+          "n": 7956,
+          "accuracy": 71.9079939668175,
+          "case_insensitive_accuracy": 83.93665158371041,
+          "nll": 0.8884393572807312,
+          "ece": 2.386469969150408
+        },
+        "right-handed": {
+          "n": 7956,
+          "accuracy": 71.9079939668175,
+          "case_insensitive_accuracy": 83.93665158371041,
+          "nll": 0.8884393572807312,
+          "ece": 2.386469969150408
+        }
+      },
+      {
+        "seed": 4,
+        "val_acc": 81.61281098084072,
+        "all": {
+          "n": 7956,
+          "accuracy": 71.84514831573655,
+          "case_insensitive_accuracy": 84.08748114630468,
+          "nll": 0.9066892862319946,
+          "ece": 2.2135293666533684
+        },
+        "right-handed": {
+          "n": 7956,
+          "accuracy": 71.84514831573655,
+          "case_insensitive_accuracy": 84.08748114630468,
+          "nll": 0.9066892862319946,
+          "ece": 2.2135293666533684
+        }
+      }
+    ],
+    "ensemble": {
+      "all": {
+        "n": 7956,
+        "accuracy": 74.45952740070388,
+        "case_insensitive_accuracy": 86.1362493715435,
+        "nll": 0.7822611927986145,
+        "ece": 4.711356689585042
+      },
+      "right-handed": {
+        "n": 7956,
+        "accuracy": 74.45952740070388,
+        "case_insensitive_accuracy": 86.1362493715435,
+        "nll": 0.7822611927986145,
+        "ece": 4.711356689585042
+      }
+    }
+  },
+  {
+    "group": "with_left",
+    "split": "pooled both/indep, right + left",
+    "split_seed": 0,
+    "model": "cnn_bilstm_attn",
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "files": [
+      "both_seed0.npz",
+      "both_seed1.npz",
+      "both_seed2.npz",
+      "both_seed3.npz",
+      "both_seed4.npz"
+    ],
+    "members": [
+      {
+        "seed": 0,
+        "val_acc": 75.46319479218828,
+        "all": {
+          "n": 8373,
+          "accuracy": 71.71861937179028,
+          "case_insensitive_accuracy": 83.48262271587245,
+          "nll": 0.9172834753990173,
+          "ece": 2.3485813476300996
+        },
+        "right-handed": {
+          "n": 7956,
+          "accuracy": 72.53645047762694,
+          "case_insensitive_accuracy": 84.53996983408749,
+          "nll": 0.8712074756622314,
+          "ece": 2.4318823797835245
+        },
+        "left-handed": {
+          "n": 417,
+          "accuracy": 56.11510791366906,
+          "case_insensitive_accuracy": 63.30935251798561,
+          "nll": 1.7963749170303345,
+          "ece": 6.299729613091448
+        }
+      },
+      {
+        "seed": 1,
+        "val_acc": 73.71056584877316,
+        "all": {
+          "n": 8373,
+          "accuracy": 70.44070225725547,
+          "case_insensitive_accuracy": 82.16887614952824,
+          "nll": 0.9682296514511108,
+          "ece": 2.3107302828841947
+        },
+        "right-handed": {
+          "n": 7956,
+          "accuracy": 71.34238310708899,
+          "case_insensitive_accuracy": 83.23278029160383,
+          "nll": 0.923382580280304,
+          "ece": 2.2844984293987904
+        },
+        "left-handed": {
+          "n": 417,
+          "accuracy": 53.23741007194245,
+          "case_insensitive_accuracy": 61.87050359712231,
+          "nll": 1.8238738775253296,
+          "ece": 7.723388572533925
+        }
+      },
+      {
+        "seed": 2,
+        "val_acc": 74.73710565848774,
+        "all": {
+          "n": 8373,
+          "accuracy": 70.97814403439628,
+          "case_insensitive_accuracy": 82.34802340857517,
+          "nll": 0.9308918714523315,
+          "ece": 1.9522262005933828
+        },
+        "right-handed": {
+          "n": 7956,
+          "accuracy": 71.95827048768226,
+          "case_insensitive_accuracy": 83.50930115635998,
+          "nll": 0.8859289288520813,
+          "ece": 2.155277431722919
+        },
+        "left-handed": {
+          "n": 417,
+          "accuracy": 52.27817745803357,
+          "case_insensitive_accuracy": 60.19184652278178,
+          "nll": 1.7887438535690308,
+          "ece": 6.625097582666137
+        }
+      },
+      {
+        "seed": 3,
+        "val_acc": 74.73710565848774,
+        "all": {
+          "n": 8373,
+          "accuracy": 71.70667622118715,
+          "case_insensitive_accuracy": 83.41096381225367,
+          "nll": 0.9273546934127808,
+          "ece": 2.3235446209870823
+        },
+        "right-handed": {
+          "n": 7956,
+          "accuracy": 72.67471091000502,
+          "case_insensitive_accuracy": 84.50226244343891,
+          "nll": 0.8854576349258423,
+          "ece": 2.625151414025244
+        },
+        "left-handed": {
+          "n": 417,
+          "accuracy": 53.23741007194245,
+          "case_insensitive_accuracy": 62.589928057553955,
+          "nll": 1.7267132997512817,
+          "ece": 7.659754294643014
+        }
+      },
+      {
+        "seed": 4,
+        "val_acc": 73.43515272909364,
+        "all": {
+          "n": 8373,
+          "accuracy": 71.38421115490267,
+          "case_insensitive_accuracy": 83.45873641466619,
+          "nll": 0.9276005625724792,
+          "ece": 1.7582174937357462
+        },
+        "right-handed": {
+          "n": 7956,
+          "accuracy": 72.29763700351936,
+          "case_insensitive_accuracy": 84.53996983408749,
+          "nll": 0.8837757706642151,
+          "ece": 1.9121751897205566
+        },
+        "left-handed": {
+          "n": 417,
+          "accuracy": 53.956834532374096,
+          "case_insensitive_accuracy": 62.829736211031175,
+          "nll": 1.7637377977371216,
+          "ece": 6.126835123955202
+        }
+      }
+    ],
+    "ensemble": {
+      "all": {
+        "n": 8373,
+        "accuracy": 74.15502209482861,
+        "case_insensitive_accuracy": 85.63238982443568,
+        "nll": 0.8192477226257324,
+        "ece": 5.72762149161981
+      },
+      "right-handed": {
+        "n": 7956,
+        "accuracy": 74.92458521870287,
+        "case_insensitive_accuracy": 86.55103066867773,
+        "nll": 0.7828812599182129,
+        "ece": 5.655218406204395
+      },
+      "left-handed": {
+        "n": 417,
+        "accuracy": 59.47242206235012,
+        "case_insensitive_accuracy": 68.10551558752998,
+        "nll": 1.5130863189697266,
+        "ece": 7.770079799550329
+      }
+    }
+  }
+]

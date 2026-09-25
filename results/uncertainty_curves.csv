@@ -1,0 +1,37 @@
+panel,series,x,y,n
+reliability,single model (seed 0),0.0574,0.0000,1.0
+reliability,single model (seed 0),0.1124,0.0968,31.0
+reliability,single model (seed 0),0.1728,0.2558,86.0
+reliability,single model (seed 0),0.2334,0.2752,149.0
+reliability,single model (seed 0),0.3001,0.3140,207.0
+reliability,single model (seed 0),0.3664,0.3557,298.0
+reliability,single model (seed 0),0.4357,0.4571,396.0
+reliability,single model (seed 0),0.5029,0.5387,620.0
+reliability,single model (seed 0),0.5661,0.5644,590.0
+reliability,single model (seed 0),0.6338,0.6570,586.0
+reliability,single model (seed 0),0.7001,0.6701,585.0
+reliability,single model (seed 0),0.7681,0.7001,707.0
+reliability,single model (seed 0),0.8340,0.8015,781.0
+reliability,single model (seed 0),0.9037,0.9072,1228.0
+reliability,single model (seed 0),0.9616,0.9769,1691.0
+coverage,single model (seed 0),100.0000,72.2599,7956
+coverage,single model (seed 0),89.9950,76.8575,7160
+coverage,single model (seed 0),80.0025,80.0314,6365
+reliability,5-seed ensemble,0.0647,0.0000,1.0
+reliability,5-seed ensemble,0.1038,0.1053,19.0
+reliability,5-seed ensemble,0.1699,0.2121,99.0
+reliability,5-seed ensemble,0.2352,0.3632,190.0
+reliability,5-seed ensemble,0.3034,0.3616,271.0
+reliability,5-seed ensemble,0.3668,0.4435,345.0
+reliability,5-seed ensemble,0.4350,0.4683,457.0
+reliability,5-seed ensemble,0.5008,0.5617,664.0
+reliability,5-seed ensemble,0.5659,0.6155,619.0
+reliability,5-seed ensemble,0.6329,0.6790,623.0
+reliability,5-seed ensemble,0.6995,0.7547,644.0
+reliability,5-seed ensemble,0.7661,0.7972,705.0
+reliability,5-seed ensemble,0.8345,0.8758,829.0
+reliability,5-seed ensemble,0.9042,0.9483,1200.0
+reliability,5-seed ensemble,0.9563,0.9907,1290.0
+coverage,5-seed ensemble,100.0000,74.4595,7956
+coverage,5-seed ensemble,89.9950,78.7849,7160
+coverage,5-seed ensemble,80.0025,82.5137,6365

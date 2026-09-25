@@ -41,3 +41,6 @@ data/OnHW-*/
 data/onhw-*/
 data/Words500_*/
 data/ICROW_*/
+
+# Playground data built from locally downloaded OnHW recordings.
+playground/data/local.js

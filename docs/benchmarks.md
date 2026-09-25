@@ -16,6 +16,7 @@ right-handed writers.
 | OnHW-chars, 52 classes | official WI, fold 0 | **72.46** | 68.06 | [OnHW-chars](#onhw-chars-official-benchmark) |
 | OnHW-chars, 26 lower / upper | official WI | 82.45 / 86.78 | 79.48 / 85.60 | [OnHW-chars](#onhw-chars-official-benchmark) |
 | OnHW-chars, 52 classes, case-insensitive | official WI | 84.34 | n/a | [Error analysis](#where-the-remaining-error-is) |
+| OnHW-chars, 52 classes, 5-seed ensemble | official WI, fold 0 | **74.46** | n/a | [Uncertainty](uncertainty.md#results) |
 | OnHW-symbols, 15 classes | official WI | 72.83 | 79.51 | [Symbols and equations](#onhw-symbols-and-onhw-equations) |
 | OnHW-equations (split), 15 classes | official WI | **87.04** | 83.88 | [Symbols and equations](#onhw-symbols-and-onhw-equations) |
 | OnHW-words500, 30 epochs, lexicon | official WI | CER 32.65 / WER 40.23 | not in these tables | [Words](#onhw-words500) |

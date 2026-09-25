@@ -786,6 +786,7 @@ def train_eval(
         pred = model.predict(X[idx], verbose=0)
         return float((np.argmax(pred, 1) == np.argmax(Y[idx], 1)).mean())
 
+    test_proba = model.predict(X[te], verbose=0)
     result = {
         "model": name,
         "params": model.count_params(),
@@ -793,7 +794,8 @@ def train_eval(
         "val_acc": acc(va) * 100,
         "test_acc": acc(te) * 100,
         "secs": secs,
-        "test_pred": np.argmax(model.predict(X[te], verbose=0), 1),
+        "test_proba": test_proba,
+        "test_pred": np.argmax(test_proba, 1),
         "test_true": np.argmax(Y[te], 1),
     }
     print(
@@ -877,6 +879,14 @@ def main() -> None:
     ap.add_argument("--epochs", type=int, default=50)
     ap.add_argument("--batch", type=int, default=64)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument(
+        "--split-seed",
+        type=int,
+        default=None,
+        help="seed for the train/val/test partition (default: --seed). Fix it "
+        "and vary --seed to train ensemble members on the same split, so "
+        "their test predictions line up sample for sample",
+    )
     ap.add_argument(
         "--split",
         choices=["random", "writer"],
@@ -1064,6 +1074,7 @@ def main() -> None:
     # two runs with the same --seed started from different initial weights.
     tf.keras.utils.set_random_seed(args.seed)
     np.random.seed(args.seed)
+    split_seed = args.seed if args.split_seed is None else args.split_seed
     if args.deterministic:
         # Seeding alone does not make a CPU run repeatable: parallel reductions
         # accumulate in whatever order threads finish, so two runs with the
@@ -1084,14 +1095,14 @@ def main() -> None:
             args.case,
             args.dependency,
             args.fold,
-            args.seed,
+            split_seed,
         )
         n, n_classes = len(x), len(classes)
         writers = np.full(n, -1, dtype=np.int64)
         split_desc = f"pooled {args.case}/{args.dependency}, right + left"
     elif args.onhw_chars_l:
         x, y, classes, (tr, va, te) = load_chars_l_split(
-            args.onhw_chars_l, args.case, args.dependency, args.seed
+            args.onhw_chars_l, args.case, args.dependency, split_seed
         )
         n, n_classes = len(x), len(classes)
         writers = np.full(n, -1, dtype=np.int64)
@@ -1099,7 +1110,7 @@ def main() -> None:
         split_desc = f"constructed {args.case}/{protocol} (left-handed)"
     elif args.onhw_symbols:
         x, y, classes, (tr, va, te), ds_protocol = load_symbols_split(
-            args.onhw_symbols, args.symbols_kind, args.seed
+            args.onhw_symbols, args.symbols_kind, split_seed
         )
         n, n_classes = len(x), len(classes)
         writers = np.full(n, -1, dtype=np.int64)
@@ -1108,7 +1119,7 @@ def main() -> None:
         )
     elif args.onhw_chars:
         x, y, classes, (tr, va, te) = load_official_split(
-            args.onhw_chars, args.case, args.dependency, args.fold, args.seed
+            args.onhw_chars, args.case, args.dependency, args.fold, split_seed
         )
         n, n_classes = len(x), len(classes)
         # No per-sample writer IDs ship with these archives; the split already
@@ -1141,7 +1152,7 @@ def main() -> None:
             _, writers = np.unique(codes, return_inverse=True)  # codes -> int IDs
         else:
             writers = np.full(n, -1, dtype=np.int64)
-        tr, va, te = make_split(n, y, args.seed, mode=args.split, writers=writers)
+        tr, va, te = make_split(n, y, split_seed, mode=args.split, writers=writers)
         split_desc = args.split
     if x and x[0].shape[1] != N_CHANNELS:
         raise SystemExit(
@@ -1256,13 +1267,27 @@ def main() -> None:
 
     if args.save_predictions:
         os.makedirs(os.path.dirname(args.save_predictions) or ".", exist_ok=True)
-        np.savez(
+        # proba keeps the full softmax, so ensembles and calibration can be
+        # computed later without retraining; handedness is -1 when the run
+        # did not pool the two archives.
+        te_hand = (
+            handedness[split[2]]
+            if handedness is not None
+            else np.full(len(split[2]), -1, dtype=np.int64)
+        )
+        np.savez_compressed(
             args.save_predictions,
             true=best["test_true"],
             pred=best["test_pred"],
+            proba=best["test_proba"].astype(np.float32),
+            handedness=te_hand,
             classes=np.array(classes),
             model=best["model"],
             test_acc=best["test_acc"],
+            val_acc=best["val_acc"],
+            seed=args.seed,
+            split_seed=split_seed,
+            split=label,
         )
         print(f"  wrote predictions to {args.save_predictions}")
     if args.error_analysis:

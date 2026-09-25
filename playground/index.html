@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vahini playground</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Vahini playground</h1>
+      <p class="lead">A pen with motion sensors writes one letter. Follow it through
+        the pipeline: the raw signal, a filter, the model, and what the model
+        thinks it saw. Every number on this page comes from a run in the
+        <a id="repo-link" href="#">imu2text repository</a>.</p>
+    </header>
+
+    <section aria-labelledby="s1">
+      <h2 id="s1"><span class="step">1</span> Pick a letter</h2>
+      <p class="hint">Real test letters from writers the model never saw during training.</p>
+      <div id="letters"></div>
+    </section>
+
+    <section aria-labelledby="s2">
+      <h2 id="s2"><span class="step">2</span> The signal, and a filter</h2>
+      <p class="hint">13 channels at 100 Hz: two accelerometers, a gyroscope, a
+        magnetometer and the pen-tip force.</p>
+      <div id="signal-note" class="note"></div>
+      <div class="controls" id="filters" role="radiogroup" aria-label="Filter"></div>
+      <div id="signal"></div>
+      <div id="filter-result" class="result-card"></div>
+    </section>
+
+    <section aria-labelledby="s3">
+      <h2 id="s3"><span class="step">3</span> The model's answer</h2>
+      <p class="hint">Five copies of the same network, trained with different random
+        seeds. Each gives a probability for all 52 letters. The ensemble averages them.</p>
+      <div class="controls" id="models" role="radiogroup" aria-label="Model"></div>
+      <div class="controls" id="training" role="radiogroup" aria-label="Training data"></div>
+      <div class="two-col">
+        <div>
+          <h3>Top five letters</h3>
+          <div id="bars"></div>
+        </div>
+        <div>
+          <h3>What each of the five models said</h3>
+          <div id="members"></div>
+          <p id="members-read" class="hint"></p>
+        </div>
+      </div>
+      <div id="model-result" class="result-card"></div>
+    </section>
+
+    <section aria-labelledby="s4">
+      <h2 id="s4"><span class="step">4</span> Not built yet</h2>
+      <p class="hint">Each card is an open piece of work. Pick one.</p>
+      <div id="open" class="cards"></div>
+    </section>
+
+    <footer>
+      <p><strong>Data.</strong> The OnHW datasets are by Fraunhofer IIS and are for
+        non-commercial use. They are not covered by this repository's Apache-2.0
+        license and are not redistributed here: the published page shows model
+        outputs and a synthetic signal, and a local build adds the recordings you
+        downloaded yourself. Cite: Ott, Wehbi, Hamann, Barth, Eskofier and
+        Mutschler, "The OnHW Dataset: Online Handwriting Recognition from
+        IMU-Enhanced Ballpoint Pens with Machine Learning", Proc. ACM IMWUT 4(3), 2020.</p>
+      <p>Code: Apache-2.0. Build the data with <code>python -m scripts.build_playground</code>;
+        see <code>playground/README.md</code>.</p>
+    </footer>
+  </main>
+
+  <script src="stages.js"></script>
+  <script src="data/public.js"></script>
+  <script src="data/local.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
