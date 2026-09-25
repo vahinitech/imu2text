@@ -46,6 +46,9 @@
   }
   </script>
   <link rel="stylesheet" href="style.css">
+  <!-- vahinitech.com colours and fonts; supplied by the deployment, absent in this repo -->
+  <link rel="stylesheet" href="theme/vahini-theme.css">
+  <script src="theme.js"></script>
 </head>
 <body>
   <a class="skip" href="#workspace">Skip to the playground</a>
@@ -59,6 +62,7 @@
       <nav aria-label="Page">
         <a href="#workspace">Play</a>
         <a href="#how">How it works</a>
+        <a href="#designs">AI designs</a>
         <a href="#glossary">Glossary</a>
         <a class="btn btn--small" id="repo-link" href="https://github.com/vahinitech/imu2text">Contribute</a>
       </nav>
@@ -150,13 +154,14 @@
       <p id="run-status" class="run-status" aria-live="polite"></p>
       <p id="waiting" class="waiting">Press <strong>Recognize</strong> to see what the AI reads.</p>
       <div id="verdict" aria-live="polite"></div>
+      <div id="why" class="why" hidden></div>
       <div id="class-view" class="answer-grid" hidden>
         <div>
           <h3 class="mini">Its top five guesses</h3>
           <div id="bars"></div>
         </div>
         <div id="members-col">
-          <h3 class="mini">What each of the 5 models said</h3>
+          <h3 class="mini">What each of the 5 runs said</h3>
           <div id="members"></div>
         </div>
       </div>
@@ -217,7 +222,15 @@
       <div id="term-training"><dt>Training and testing</dt><dd>Training is learning from examples with answers. Testing is checking on examples the model never saw.</dd></div>
       <div id="term-new-people"><dt>New people</dt><dd>Test writers who were not in the training data. Also called writer-independent. The fair test for a new pen owner.</dd></div>
       <div id="term-familiar-people"><dt>Familiar people</dt><dd>The same people appear in training and test, so the model already knows their handwriting. Also called writer-dependent. Scores are higher.</dd></div>
-      <div id="term-seed"><dt>Seed</dt><dd>The random starting point of training. Different seeds give slightly different models; here Model 1 to 5.</dd></div>
+      <div id="term-cnn-bilstm"><dt>CNN-BiLSTM</dt><dd>The AI design used on this page. For letters and symbols: a CNN, then a BiLSTM, then attention. The word reader is a CNN and a BiLSTM.</dd></div>
+      <div id="term-gru"><dt>GRU</dt><dd>A simpler LSTM. It remembers what came before with fewer parts, so it is smaller and faster.</dd></div>
+      <div id="term-transformer"><dt>Transformer</dt><dd>A model where every moment of a recording looks at every other moment. It needs a lot of data.</dd></div>
+      <div id="term-autoencoder"><dt>Autoencoder</dt><dd>A model that learns to squeeze a recording and rebuild it. It learns without answers.</dd></div>
+      <div id="term-vae"><dt>VAE</dt><dd>Variational autoencoder: an autoencoder that can also make new, realistic recordings.</dd></div>
+      <div id="term-gnn"><dt>GNN</dt><dd>Graph neural network: treats things, here the 13 sensors, as points connected to each other.</dd></div>
+      <div id="term-moe"><dt>Mixture of experts</dt><dd>A team of small models. A router picks which of them answers each recording.</dd></div>
+      <div id="term-quantum"><dt>Hybrid quantum network</dt><dd>A network where a small quantum circuit, today usually simulated on a normal computer, does one step.</dd></div>
+      <div id="term-seed"><dt>Seed</dt><dd>The random starting point of training. The same design trained from 5 seeds gives CNN-BiLSTM #1 to #5.</dd></div>
       <div id="term-ensemble"><dt>Ensemble ("all 5 together")</dt><dd>Several models answer, and their scores are averaged into one answer.</dd></div>
       <div id="term-confidence"><dt>Confidence</dt><dd>How much of its score the model gives to an answer. 90% means it is quite sure.</dd></div>
       <div id="term-accuracy"><dt>Accuracy</dt><dd>The share of test samples read correctly.</dd></div>
@@ -227,6 +240,127 @@
       <div id="term-word-list"><dt>Word list (lexicon)</dt><dd>A list of allowed words. The model picks the closest one, or gives no answer if none fits.</dd></div>
       <div id="term-cer"><dt>Character error rate (CER)</dt><dd>How many letters are wrong, as a share of the word's length. Lower is better.</dd></div>
     </dl>
+  </section>
+
+  <section id="designs" class="wrap section" aria-labelledby="designs-h">
+    <h2 id="designs-h">Why a CNN-BiLSTM? The other AI designs</h2>
+    <p class="hint">A pen recording is a short time series: 13 numbers, 100 times a
+      second. Each design below reads it differently. Scores are letters from people
+      the model never saw, unless the row says otherwise; "not measured" means nobody
+      has run it on this data in this project yet.</p>
+    <div class="table-wrap">
+      <table class="results designs">
+        <thead><tr><th scope="col">Design</th><th scope="col">How it reads the pen</th><th scope="col">Good when</th><th scope="col">Here</th></tr></thead>
+        <tbody>
+          <tr><td><a class="term" href="#term-cnn">CNN</a></td><td>Slides small windows along the signal and spots short patterns, like a quick upstroke.</td><td>You need speed or a small chip.</td><td>48.7%*</td></tr>
+          <tr><td>LSTM, <a class="term" href="#term-bilstm">BiLSTM</a></td><td>Reads the signal in time order and remembers what came before. A BiLSTM also reads it backwards.</td><td>Order matters more than shape.</td><td>43.8%*, 56.2%*</td></tr>
+          <tr class="designs__ours"><td><strong>CNN-BiLSTM</strong> (this page)</td><td>The CNN finds the strokes, the BiLSTM joins them in order, attention picks the moments that matter.</td><td>Little data, short signals. The design Ott et al. benchmark on OnHW.</td><td>64.8%*; 72.46% on the official test, 74.46% as a 5-run vote</td></tr>
+          <tr><td>CNN-GRU</td><td>A GRU is an LSTM with fewer parts. It learns the same kind of order.</td><td>You want a smaller, faster model.</td><td>not measured</td></tr>
+          <tr><td>CNN-MLP</td><td>After the CNN, a plain layer looks at everything at once and forgets the order.</td><td>Very short, simple shapes.</td><td>not measured</td></tr>
+          <tr><td>CNN-GNN</td><td>Treats the 13 sensors as connected points and learns how they relate.</td><td>Sensors that move together carry the signal.</td><td>no fair test yet</td></tr>
+          <tr><td><a class="term" href="#term-transformer">Transformer</a></td><td>Every moment looks at every other moment through attention; no reading order.</td><td>Much more data than OnHW has.</td><td>built, not measured</td></tr>
+          <tr><td><a class="term" href="#term-autoencoder">Autoencoder</a></td><td>Learns to squeeze a recording and rebuild it, without any labels.</td><td>You have many recordings but few with answers.</td><td>not measured</td></tr>
+          <tr><td><a class="term" href="#term-vae">VAE</a> or GAN</td><td>Learns to make new, realistic recordings.</td><td>A group is rare in the data, like left-handed people.</td><td>not measured</td></tr>
+          <tr><td><a class="term" href="#term-moe">Mixture of experts</a></td><td>Several small models, the experts, plus a router that sends each recording to the experts that suit it.</td><td>Writers differ a lot, for example left- and right-handed.</td><td>built (<code>build_moe</code>), not measured</td></tr>
+          <tr><td><a class="term" href="#term-quantum">Hybrid quantum</a></td><td>A small quantum circuit does part of the work, for example the filter of a CNN, and a normal network does the rest.</td><td>Research only so far. <a href="https://arxiv.org/abs/2402.10540">Zaman et al. (2024)</a> compared three such designs on 4 handwritten digits, 100 to 500 training images, on a quantum simulator.</td><td>not measured</td></tr>
+          <tr><td>DBN</td><td>An older stack of layers trained one at a time, from before CNNs and LSTMs took over.</td><td>Mostly of historical interest.</td><td>not measured</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="hint">* Left-handed OnHW-chars_L, 2,270 letters, a split that shares writers
+      between training and test, so these four are only comparable with each other. The
+      official-test figures are right-handed OnHW-chars, 52 classes, seed 0. Details in
+      <a href="https://github.com/vahinitech/imu2text/blob/main/docs/benchmarks.md">docs/benchmarks.md</a>.</p>
+    <div class="grid3">
+      <article class="card">
+        <h3>Bigger is not better here</h3>
+        <p>A larger BiLSTM (2 layers of 100) scored 99.2% on its own training letters
+          and 70.4% on new people. It memorised. The smaller one with the same tricks
+          did better on new people.</p>
+      </article>
+      <article class="card">
+        <h3>Combine, then vote</h3>
+        <p>Training the same design 5 times and averaging lifts letters from new people
+          from 72.18% (one run, on average) to 74.46%. A vote of different designs,
+          say a CNN-BiLSTM and a Transformer, has not been tried.</p>
+      </article>
+      <article class="card">
+        <h3>Worth trying</h3>
+        <p>A CNN in front of a Transformer, as speech models do. An autoencoder trained on
+          unlabelled recordings first, then taught letters. A router that sends each
+          recording to one of several small experts (<code>build_moe</code> is in the code,
+          not measured).</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="why-not-more" class="wrap section" aria-labelledby="whynot-h">
+    <h2 id="whynot-h">Why is it not 99%?</h2>
+    <div class="grid3">
+      <article class="card">
+        <h3>The pen cannot feel size</h3>
+        <p>A small c and a capital C are the same movement, bigger. The pen measures
+          speed and turning, not position, and capitals are also written faster, so
+          the signals nearly match. 43.1% of the mistakes are this mix-up; ignoring
+          small and capital, one CNN-BiLSTM reads 84.34% of letters from new people
+          right instead of 72.46%.</p>
+      </article>
+      <article class="card">
+        <h3>New people write differently</h3>
+        <p>Everyone has their own habits. For numbers and symbols, the same design
+          reads <span data-bind="tasks.symbols_dep.accuracy" data-fmt="pct">94.71%</span>
+          when it has seen the writer before and
+          <span data-bind="tasks.symbols_indep.accuracy" data-fmt="pct">71.03%</span>
+          for new people.</p>
+      </article>
+      <article class="card">
+        <h3>Few left-handed examples</h3>
+        <p>Most training letters come from right-handed people. For new left-handed
+          people the 5-run vote reads
+          <span data-bind="left_summary.ensemble_accuracy" data-fmt="pct">59.47%</span>,
+          against <span data-bind="groups.right.ensemble_accuracy" data-fmt="pct">74.46%</span>
+          for right-handed people.</p>
+      </article>
+      <article class="card">
+        <h3>Words run together</h3>
+        <p>In a word the model also has to find where each letter starts and ends.
+          The word model here trained for only 15 rounds and reads
+          <span data-bind="words.exact_lexicon" data-fmt="pct">32.73%</span> of words
+          exactly.</p>
+      </article>
+      <article class="card">
+        <h3>Be careful with 99%</h3>
+        <p>A model tested on the same people it learned from can score near 99% and
+          still fail on a new writer. Every score on this page is on people the model
+          never saw, unless it says "familiar people".</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="ideas" class="wrap section" aria-labelledby="ideas-h">
+    <h2 id="ideas-h">Questions to think about</h2>
+    <p class="hint">These are open in this repo. Pick one, try it, and
+      <a href="https://github.com/vahinitech/imu2text/issues/new">share what you find</a>.</p>
+    <ol class="ideas">
+      <li><strong>The pen cannot feel size. What else could tell c from C?</strong>
+        A capital often starts a word. Would reading the whole word help?
+        <span class="hint">Start: <code>imu2text/seq2seq.py</code></span></li>
+      <li><strong>Left-handed people often push the pen where right-handed people pull it.</strong>
+        Could flipped right-handed recordings work as left-handed practice data?
+        <span class="hint">Start: <code>imu2text/augment.py</code></span></li>
+      <li><strong>When the 5 runs disagree, should an app ask the writer to write again?</strong>
+        How much disagreement is too much?
+        <span class="hint">Start: the developer notes under step 3</span></li>
+      <li><strong>Which sensor matters most?</strong> Train without the magnetometer, or
+        without the force sensor, and compare.
+        <span class="hint">Start: <code>imu2text/models.py</code></span></li>
+      <li><strong>How many writers are enough?</strong> Does accuracy keep rising with
+        every new person, or does it level off?
+        <span class="hint">Start: <code>scripts/make_learning_curve.py</code></span></li>
+      <li><strong>Which cleaning filter would you design?</strong> Try it on step 2
+        and see if the AI reads better.
+        <span class="hint">Start: <code>playground/stages.js</code></span></li>
+    </ol>
   </section>
 
   <section id="results" class="wrap section" aria-labelledby="results-h">

@@ -18,7 +18,7 @@ const TASKS = {
 const KIND_TITLES = {
   clear: "Easy: the model is sure and right",
   case: "Tricky: small letter or capital?",
-  disagree: "Tricky: the 5 models disagree",
+  disagree: "Tricky: the 5 runs disagree",
   unsure: "Tricky: the model is unsure",
   wrong: "Fooled: sure, but wrong",
   right: "Read correctly",
@@ -28,6 +28,10 @@ const KIND_TITLES = {
 const WORD_KINDS = ["right", "fixed", "abstain", "wrong"];
 const WORD_TITLES = { wrong: "Read wrong" };
 const PEOPLE = { indep: "New people", dep: "Familiar people" };
+// Every letter and symbol model on this page is the same design; the five
+// ensemble members differ only in their random start (seed 0 to 4).
+const NET = "CNN-BiLSTM";
+const memberName = (i) => `${NET} #${i + 1}`;
 
 const SENSOR_PANELS = [
   { title: "Front accelerometer", channels: [0, 1, 2] },
@@ -390,9 +394,9 @@ function currentProbs() {
 function modelName() {
   const cur = current();
   if (!cur) return "none";
-  if (cur.mode === "words") return "Word reader";
-  if (cur.mode === "single") return "One model";
-  return state.model === "mean" ? "All 5 together" : `Model ${state.model + 1}`;
+  if (cur.mode === "words") return `${NET} word reader`;
+  if (cur.mode === "single") return NET;
+  return state.model === "mean" ? `${NET} ×5 vote` : memberName(state.model);
 }
 // Bars start at zero width or height and grow when revealed (CSS transition).
 function grow(nodes) {
@@ -477,9 +481,9 @@ function reading() {
     const caseSplit = first.toLowerCase() === second.toLowerCase();
     // Display thresholds for choosing a sentence, not measured results.
     if (u.disagreement >= 0.5) {
-      add("The 5 models disagree: each reads something different. This person's writing is unlike what they learned from. ");
+      add("The 5 runs disagree: each reads something different. This person's writing is unlike what they learned from. ");
     } else if (a[1] >= 0.7) {
-      add(`All 5 models agree on ${first}. `);
+      add(`All 5 runs agree on ${first}. `);
     } else if (caseSplit) {
       add(`Every model hesitates between ${first} and ${second}: the same shape at a different size, and the pen barely feels size. `);
     } else {
@@ -517,6 +521,66 @@ function renderWords() {
   return s.lexicon === s.ref;
 }
 
+// Why the answer came out the way it did, in plain words. The figures quoted
+// are from docs/benchmarks.md and data/public.js; the rules that pick a
+// sentence are display choices, not measurements.
+function whyLines(correct) {
+  const cur = current();
+  const s = sample();
+  if (cur.mode === "words") {
+    if (correct && s.greedy !== s.ref) {
+      return ["Letter by letter it read " + (s.greedy ? `"${s.greedy}"` : "nothing") +
+        ". The word list fixed it, because only one listed word was close."];
+    }
+    if (correct) return ["Every letter came out right, so the word list had nothing to fix."];
+    if (!s.lexicon) {
+      return ["No word in the list was close enough to what it read, so it gave no answer instead of a guess.",
+        "In a word the letters run into each other, and the model has to find where each one starts."];
+    }
+    return [`What it read was closer to "${s.lexicon}" than to "${s.ref}", so the word list picked the wrong word.`,
+      "This word model trained for only 15 rounds, and words are harder than single letters."];
+  }
+  const names = classNames();
+  const [a, b] = topK(currentProbs(), 2);
+  const first = names[a[0]], second = names[b[0]];
+  const truth = s.label;
+  const other = correct ? second : first;
+  const samePair = other.toLowerCase() === truth.toLowerCase() && other !== truth;
+  const lines = [];
+  if (correct && a[1] >= 0.7) {
+    lines.push(`The movement matched what it learned for ${truth} from other people.`);
+  } else if (correct) {
+    lines.push(`Right, but close: it kept ${pct(b[1])} for ${second}.`);
+  }
+  if (samePair) {
+    lines.push(`${truth} and ${other} are the same shape at a different size. The pen feels speed and turning, not where the tip is, ` +
+      "and people write capitals bigger and also faster, so the two signals look almost the same.");
+    if (!correct) lines.push("43% of the letter mistakes on new people are this small-or-capital mix-up.");
+  } else if (!correct) {
+    lines.push(`Parts of the movement for ${truth} and ${first} look alike to the sensors. ` +
+      "The model never saw this person write, so it cannot know their habits.");
+  }
+  if (cur.mode === "ensemble" && uncertainty().disagreement >= 0.5) {
+    lines.push("The 5 runs do not agree with each other, a sign this writing is unlike their training examples.");
+  }
+  if (cur.left) {
+    lines.push("Most training letters come from right-handed people, and left-handed people move the pen differently.");
+  }
+  if (cur.mode === "single" && state.protocol === "dep") {
+    lines.push("This person also wrote training examples, so the model knows their style. That is why familiar people score higher.");
+  }
+  return lines;
+}
+function renderWhy(correct) {
+  const box = document.getElementById("why");
+  const lines = whyLines(correct);
+  box.replaceChildren(el("strong", {}, correct ? "Why it worked" : "Why it went wrong"));
+  const list = el("ul");
+  lines.forEach((t) => list.append(el("li", {}, t)));
+  box.append(list);
+  show("why", lines.length > 0);
+}
+
 function resultCard() {
   const cur = current();
   const card = document.getElementById("model-result");
@@ -542,7 +606,7 @@ function resultCard() {
   const acc = state.model === "mean" ? summary.ensemble_accuracy : summary.member_accuracy[state.model];
   const who = cur.left ? "left-handed" : "right-handed";
   card.replaceChildren(
-    el("div", {}, `Over all ${summary.n_test.toLocaleString()} letters from new ${who} people, ${modelName().toLowerCase()} reads`),
+    el("div", {}, `Over all ${summary.n_test.toLocaleString()} letters from new ${who} people, ${modelName()} reads`),
     el("div", { class: "big" }, `${acc.toFixed(2)}% correctly`),
   );
 }
@@ -565,25 +629,31 @@ function renderModel() {
   const verdictBox = document.getElementById("verdict");
   verdictBox.replaceChildren();
   verdictBox.className = "";
+  document.getElementById("why").replaceChildren();
+  show("why", false);
   document.getElementById("model-result").replaceChildren();
   show("class-view", false);
   show("words-view", false);
   const button = document.getElementById("recognize");
   button.disabled = !cur || state.busy;
   if (!cur) {
-    intro.textContent = "Nothing to recognize yet for this choice.";
+    intro.replaceChildren("Nothing to recognize yet for this choice.");
     renderDev("dev-model");
     return;
   }
   if (cur.mode === "words") {
-    intro.textContent = "A network reads the whole word as a stream of letters. It can read letter by letter, or pick the closest word from a list.";
+    intro.replaceChildren("The AI is a ", termLink("cnn-bilstm", NET), " trained with ", termLink("ctc", "CTC"),
+      ". It reads the whole word as a stream of letters, then either keeps what it read or picks the closest word from a list.");
   } else if (cur.mode === "single") {
-    intro.textContent = "One trained model reads the signal and gives a score to every possible answer.";
+    intro.replaceChildren("The AI is a ", termLink("cnn-bilstm", NET),
+      " with attention, trained once (seed 0). It gives a score to every possible answer.");
   } else {
-    intro.textContent = "Five copies of the same model were trained separately. Each gives a score to all 52 letters; together they vote.";
+    intro.replaceChildren("The AI is a ", termLink("cnn-bilstm", NET),
+      " with attention. We trained it 5 times, each from a different ", termLink("seed", "random start"),
+      ", so #1 to #5 are the same design with slightly different habits. ×5 vote averages their scores.");
     const g = groupData();
-    const options = g.seeds.map((s, i) => ({ value: i, label: `Model ${i + 1}` }));
-    options.push({ value: "mean", label: "All 5 together" });
+    const options = g.seeds.map((s, i) => ({ value: i, label: memberName(i) }));
+    options.push({ value: "mean", label: `${NET} ×5 vote` });
     radioGroup(models, options, state.model, (v) => { state.model = v; renderModel(); renderPipeline(); writeHash(); });
     if (!cur.left && Object.keys(PUB.groups).length > 1) {
       radioGroup(training, Object.keys(PUB.groups).map((k) => ({
@@ -612,6 +682,7 @@ function renderModel() {
   const verdict = document.getElementById("verdict");
   verdict.className = `verdict ${correct ? "verdict--right" : "verdict--wrong"}`;
   verdict.textContent = correct ? `Correct: it is ${truth}` : `Not quite: it was ${truth}`;
+  renderWhy(correct);
   resultCard();
   renderDev("dev-model");
 }
@@ -621,7 +692,7 @@ const RUN_STEPS = [
   { pipe: 1, text: () => "Reading 13 sensor channels" },
   { pipe: 2, text: () => (state.filter === "none" ? "Keeping the raw signal"
     : `Cleaning the signal: ${STAGES.filters.find((f) => f.id === state.filter).name.toLowerCase()}`) },
-  { pipe: 3, text: () => (current().mode === "ensemble" && state.model === "mean" ? "5 models are reading it" : "The model is reading it") },
+  { pipe: 3, text: () => (current().mode === "ensemble" && state.model === "mean" ? `5 ${NET} runs are reading it` : `${modelName()} is reading it`) },
   { pipe: 4, text: () => "Deciding" },
 ];
 function recognize() {

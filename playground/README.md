@@ -61,16 +61,28 @@ The cards in step 4 of the page are the open tasks. Each links to an issue.
 | File | What |
 |---|---|
 | `index.html`, `style.css`, `app.js` | the page; plain JavaScript, no dependencies |
+| `theme.js` | keeps the page light when the site theme is served |
 | `stages.js` | the methods shown, with measured accuracies and sources |
 | `data/public.js` | generated model outputs and the synthetic signal |
 | `data/local.js` | generated real recordings, local only |
 | `favicon.svg`, `og.png`, `robots.txt`, `sitemap.xml` | icon, social preview, crawler files |
 | `og.html` | source of `og.png`; regenerate with the command in its header |
 
-The Vahini logo is not in this repository: the deployment copies
-`vahini-logo.png` next to `index.html`, and the page shows it when present
-(otherwise a drawn mark). The name and logo belong to Vahini Technologies and
-are not covered by the Apache-2.0 license.
+The Vahini logo, colours and fonts are not in this repository. The
+deployment (vahini-web) serves them next to the page:
+
+| Path | What |
+|---|---|
+| `vahini-logo.png` | the logo; the page shows it when present, otherwise a drawn mark |
+| `theme/vahini-theme.css` | the site's active theme as `--vahini-*` tokens, and its fonts |
+| `assets/fonts/` | the font files that stylesheet points to |
+
+`style.css` reads each colour as `var(--vahini-accent, #00adb5)` and so on,
+so the page follows whatever theme vahinitech.com uses and still renders with
+its own colours when opened from this repository. Add a new colour the same
+way: a `--vahini-*` name from the site's list, then a fallback. The name and
+logo belong to Vahini Technologies and are not covered by the Apache-2.0
+license.
 
 The search and sharing metadata (title, description, canonical URL, Open
 Graph, JSON-LD) is in the head of `index.html`. `tests/test_playground_page.py`

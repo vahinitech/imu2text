@@ -107,3 +107,14 @@ def test_page_loads_nothing_from_other_hosts():
         if 'rel="canonical"' in match.group(0):
             continue
         assert not url.startswith(("http:", "https:", "//")), url
+
+
+def test_colours_follow_the_site_theme_with_fallbacks():
+    """Site tokens are optional: every --vahini-* use carries a fallback."""
+    css = (PLAYGROUND / "style.css").read_text(encoding="utf-8")
+    uses = re.findall(r"var\(--vahini-[a-z0-9-]+([,)])", css)
+    assert uses, "style.css does not read the site theme"
+    assert all(sep == "," for sep in uses), "a --vahini-* token has no fallback"
+    html = (PLAYGROUND / "index.html").read_text(encoding="utf-8")
+    assert html.index('href="style.css"') < html.index('href="theme/vahini-theme.css"')
+    assert html.index('href="theme/vahini-theme.css"') < html.index('src="theme.js"')
