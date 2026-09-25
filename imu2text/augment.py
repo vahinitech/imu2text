@@ -41,13 +41,15 @@ random subset of these transforms to one sequence. ``AugmentationConfig``
 exposes every knob.
 
 Two policies ship. ``legacy`` (the default) is jitter + per-channel scale +
-magnitude warp + time warp - the exact policy behind the measured 64.8% ->
-71.6% jump on the bundled subset (2,270 samples, 45 writers, 52 classes,
-writer-independent split built locally by ``make_split``; one seed; see
-``docs/benchmarks.md``). It is not an official OnHW split, so the number is
-not comparable to published results. ``extended`` adds
-rotation, channel dropout and random crop; it is unmeasured here, so it is
-opt-in rather than default.
+magnitude warp + time warp, the policy behind the 64.8% -> 71.6% jump on
+OnHW-chars_L (2,270 samples, 52 classes, one seed). That split grouped
+samples by writers guessed from label order and shared real writers between
+train and test, so it is writer-dependent and not comparable to published
+results (``docs/benchmarks.md``). ``extended`` adds rotation, channel
+dropout and random crop. It is part of the 72.5% configuration on the
+official split and beat ``legacy`` on all three seeds of the real-writer
+OnHW-chars_L comparison, but stays opt-in so ``--augment N`` keeps its
+meaning.
 """
 
 from __future__ import annotations
@@ -239,14 +241,14 @@ class AugmentationConfig:
 
     The **defaults reproduce the legacy policy** - jitter, per-channel scale,
     magnitude warp, time warp - with the exact sigmas that produced the
-    measured 64.8% -> 71.6% jump on the bundled subset (2,270 samples, 45
-    writers, 52 classes, locally built writer-independent split, one seed;
-    augment x4, 2x BiLSTM-100; see ``docs/benchmarks.md``).
+    64.8% -> 71.6% jump on OnHW-chars_L (2,270 samples, 52 classes, a
+    writer-dependent split from guessed writers, one seed; augment x4,
+    2x BiLSTM-100; see ``docs/benchmarks.md``).
 
     The three IMU-specific transforms added later (rotation, channel dropout,
     random crop) are **off by default**, because turning them on silently
     would change what ``--augment N`` means and make that 71.6% figure
-    non-reproducible. They have not been measured on this subset. Opt in with
+    non-reproducible. Opt in with
     ``AugmentationConfig.extended()`` or ``--aug-policy extended``, and record
     whatever number the run produces before recommending them.
     """
@@ -279,8 +281,8 @@ class AugmentationConfig:
     def extended(cls) -> "AugmentationConfig":
         """Legacy policy plus rotation, channel dropout and random crop.
 
-        Unmeasured on the bundled subset - benchmark it before quoting a
-        number for it.
+        Measured in ``docs/benchmarks.md`` (OnHW-chars_L, real writers, three
+        seeds; and the 72.5% official-split configuration).
         """
         return cls(p_rotation=0.5, p_channel_dropout=0.3, p_crop=0.3)
 

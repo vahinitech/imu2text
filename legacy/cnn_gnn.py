@@ -13,7 +13,8 @@ This file is intentionally straightforward to make it easy to read and
 adapt. It is not organized as a library; it is a runnable example script.
 
 Notes
-- Expected data files: data/all_x_dat_imu.pkl, data/all_gt.pkl
+- Expected data files: data/OnHW-chars_L/all_x_dat_imu.pkl and all_gt.pkl
+  (python -m imu2text.download onhw_chars_L --out ./data)
 - Keep changes minimal when extending; this file focuses on clarity.
 """
 
@@ -64,8 +65,8 @@ def log_message(message: str) -> None:
 
 
 # File paths
-imu_data_file = "data/all_x_dat_imu.pkl"
-gt_data_file = "data/all_gt.pkl"
+imu_data_file = "data/OnHW-chars_L/all_x_dat_imu.pkl"
+gt_data_file = "data/OnHW-chars_L/all_gt.pkl"
 model_file = "data/mtl_model.h5"
 
 # Load the provided pkl files

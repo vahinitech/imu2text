@@ -4,8 +4,7 @@ Results, error analysis and the accuracy ceiling for the OnHW tasks; the README
 has the short version. WI is writer-independent (whole writers held out), WD is
 writer-dependent, CRR is character recognition rate. CER and WER are error
 rates, so lower is better. Quote the official benchmark (72.5% WI) against the
-literature; the bundled-subset and OnHW-chars_L figures only track changes
-within this repo.
+literature; the OnHW-chars_L figures only track changes within this repo.
 
 ## At a glance
 
@@ -21,7 +20,7 @@ right-handed writers.
 | OnHW-equations (split), 15 classes | official WI | **87.04** | 83.88 | [Symbols and equations](#onhw-symbols-and-onhw-equations) |
 | OnHW-words500, 30 epochs, lexicon | official WI | CER 32.65 / WER 40.23 | not in these tables | [Words](#onhw-words500) |
 | OnHW-words500, 15 epochs, refit, greedy | `Words500_indep_02` fold 0 | CER 53.95% / WER 91.10% | n/a | [Words](#onhw-words500) |
-| Bundled subset, 52 classes | WI, 45 writers | 71.6 | n/a | [Bundled subset](#bundled-subset) |
+| OnHW-chars_L (left-handed), 52 classes | constructed WI, 9 writers | 26.86 | n/a | [Coverage](#coverage-by-dataset) |
 
 The 52-class ceiling is the sensor: 43.1% of the remaining errors are a letter
 read as its own other case.
@@ -345,23 +344,23 @@ Git); the report records filenames, weight checksum, alphabet and duration
 bounds, and checks weight reload first. The last `summarize_ctc` audits metrics
 against saved predictions and reports the writer-bootstrap intervals.
 
-## Bundled subset
+## OnHW-chars_L with guessed writers (writer-dependent)
 
-`imu2text/models.py` uses a real train/val/test split, train-only
-normalization, and early stopping with best-weight restore. `legacy/cnn_gnn.py`
-is reference only; its self-reported accuracy is not held out. `--split writer`
-(default) holds out whole writers, with IDs rebuilt from recording order (see
-`infer_writer_ids`). `--split random` is stratified and easier, since a writer's
-style leaks into both sides.
+The first experiments in this repo ran on two files committed as a "bundled
+subset". They are Fraunhofer's OnHW-chars_L archive (2,270 left-handed
+samples, 52 classes), which the repo no longer contains; download it with
+`python -m imu2text.download onhw_chars_L`.
 
-```bash
-python -m imu2text.models                 # writer-independent, all 4 models
-python -m imu2text.models --split random  # easier random split
-```
+Those runs split by writers guessed from label order (`infer_writer_ids`
+starts a new writer at every A-to-z run), which finds 45. The archive's own
+`list_ids.pkl` has 9 writers, each of whom wrote about five alphabets, and
+with seed 0 all 5 real test writers also appear in training. **The numbers in
+this section are writer-dependent.** With the real writer IDs the same data
+scores 26.86% writer-independent ([coverage table](#coverage-by-dataset)).
 
-WI, 2,270 samples, 45 writers, 52 classes, 1×BiLSTM-64, seq len 100:
+Guessed-writer split, 2,270 samples, 52 classes, 1×BiLSTM-64, seq len 100:
 
-| Model       | Train % | WI Test % |
+| Model       | Train % | Test % |
 |-------------|--------:|----------:|
 | **cnn_bilstm** | 96.1 | **64.8** |
 | bilstm      | 88.7 | 56.2 |
@@ -369,22 +368,15 @@ WI, 2,270 samples, 45 writers, 52 classes, 1×BiLSTM-64, seq len 100:
 | lstm        | 75.7 | 43.8 |
 | majority baseline | n/a | 2.2 |
 
-| Configuration | WI Test % |
+| Configuration | Test % |
 |---|---:|
 | CNN+BiLSTM, 1×64, no augmentation | 64.8 |
 | + augmentation ×3 | 69.4 |
 | **+ augmentation ×4, 2×BiLSTM-100** | **71.6** |
 
-```bash
-python -m imu2text.models --models cnn_bilstm --split writer \
-    --augment 4 --rnn-units 100 --rnn-layers 2 --epochs 60
-```
-
-The ordering matches the literature (CNN+BiLSTM > BiLSTM > CNN > LSTM). With 27
-training writers, 64.8% is near the IMWUT 2020 52-class baseline (~64%) and
-71.6% is +6.8 above it; the like-for-like figure is the official benchmark's
-68.06%. More writers (full 31k dataset) should push higher (see the
-[projection](#accuracy-projection)).
+The model ordering (CNN+BiLSTM > BiLSTM > CNN > LSTM) matches the
+literature. Because the split shares writers, none of these numbers is
+comparable to a published writer-independent figure.
 
 ### Training options
 
@@ -395,7 +387,8 @@ subset**.
 
 - `--augment N`: `N` transformed copies per training sample, never applied to
   val/test (`augment_training`). The default `legacy` policy (jitter,
-  per-channel scale, magnitude warp, time warp) produced the 71.6%.
+  per-channel scale, magnitude warp, time warp) produced the 71.6% on the
+  guessed-writer split.
   `--aug-policy extended` adds three transforms from `imu2text/augment.py`:
   `random_rotation` (small 3D rotation per Acc/Gyro/Mag triad, as a grip change
   does), `channel_dropout` (zeroes one channel, never Force), and `random_crop`
@@ -413,8 +406,8 @@ subset**.
 
 ### OnHW-chars_L: augmentation and normalization
 
-**Not comparable to the 71.6% above**: 2,270 left-handed samples, 9 writers,
-52 classes. CNN+BiLSTM 1x64, 30 epochs, WI split, three seeds, `--deterministic`.
+The same data as the previous section, split by the archive's real writer
+IDs: 2,270 left-handed samples, 9 writers, 52 classes. CNN+BiLSTM 1x64, 30 epochs, WI split, three seeds, `--deterministic`.
 
 | Seed | `--aug-policy` off | `legacy` ×4 | `extended` ×4 | `global` norm | `per_sample` | `per_writer` |
 |---|---:|---:|---:|---:|---:|---:|
@@ -511,8 +504,14 @@ python scripts/make_learning_curve.py     # -> results/learning_curve.csv
 matlab -batch scripts/onhw_projection     # or: octave scripts/onhw_projection.m  -> results/onhw_projection.png
 ```
 
-On the un-augmented bundled-subset curve the ceiling is **L ≈ 76%**, projecting
-**~76% WI** at full-dataset scale (~71 training writers), between the 52-class
+The curve in `results/learning_curve.csv` was measured on the guessed-writer
+split of OnHW-chars_L, so it is writer-dependent, and so is the projection
+below. Re-measuring it needs real writer IDs: OnHW-chars_L has only 9 writers,
+too few for a curve, and the right-handed archive ships none. Read this
+section as a method, not a result.
+
+On the un-augmented guessed-writer curve the ceiling is **L ≈ 76%**, projecting
+**~76%** at full-dataset scale (~71 training writers), between the 52-class
 baseline (~64%) and the published uppercase WI figure (85.60, Table 3). Augmentation
 lifts every point (the 27-writer point rises 64.8 → 71.6%), so the augmented
 ceiling is higher (~80%). That is the expected range for the regular-paper IMU

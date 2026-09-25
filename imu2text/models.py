@@ -36,19 +36,23 @@ meaningful IMU transforms:
 
 Use ``--augment N`` to append N augmented copies of every training sample.
 
-Limitation
-----------
-The bundled ``data/all_gt.pkl`` has no explicit writer IDs. This script infers them
-heuristically from label order (see ``infer_writer_ids``) to approximate a
-writer-independent split; if your data is not recorded in strict alphabet cycles,
-prefer using true writer metadata and a group split on writer ID instead.
+Writer-independent splits need real writer IDs
+-----------------------------------------------
+``--split writer`` holds out whole writers, so it needs to know who wrote each
+sample: the official archives (``--onhw-chars``) bake the writer partition in,
+``--onhw-chars-l`` reads ``list_ids.pkl``, and your own pickles need
+``--writers-file``. Guessing writers from label order does not work: in
+OnHW-chars_L one writer wrote several alphabets, so the guess put the same
+person in train and test (docs/benchmarks.md).
 
 Usage
 -----
-    python -m imu2text.models                 # train+eval all models, print table
-    python -m imu2text.models --models cnn_bilstm
-    python -m imu2text.models --epochs 80 --seed 1
-    python -m imu2text.models --augment 4 --rnn-units 100 --rnn-layers 2  # best config
+    python -m imu2text.download onhw_chars --out ./data
+    python -m imu2text.models --models cnn_bilstm_attn \
+        --onhw-chars data/onhw-chars_2021-06-30 --case both --dependency indep
+    python -m imu2text.models --onhw-chars-l data/OnHW-chars_L   # left-handed
+    python -m imu2text.models --imu-file my_x.pkl --gt-file my_gt.pkl \
+        --writers-file my_writers.pkl                             # your own data
 """
 
 from __future__ import annotations
@@ -79,8 +83,6 @@ from .callbacks import RestoreBest
 # they can be reused by the seq2seq pipeline and unit-tested independently.
 from .augment import AUG_POLICIES, augment_training
 
-IMU_FILE = "data/all_x_dat_imu.pkl"
-GT_FILE = "data/all_gt.pkl"
 N_CHANNELS = 13
 
 #: Below this many samples a per-writer scaler's statistics are too noisy to
@@ -92,7 +94,7 @@ MIN_SAMPLES_PER_WRITER_SCALER = 5
 # Data
 # --------------------------------------------------------------------------- #
 def load_raw(
-    imu_file: str = IMU_FILE, gt_file: str = GT_FILE
+    imu_file: str, gt_file: str
 ) -> Tuple[List[np.ndarray], np.ndarray, List[str]]:
     """Load the IMU sequences and integer-encode the character labels (0..C-1)."""
     with open(imu_file, "rb") as f:
@@ -106,15 +108,13 @@ def load_raw(
 
 
 def infer_writer_ids(chars: List[str]) -> np.ndarray:
-    """Reconstruct per-sample writer IDs from the recording order.
+    """Group samples into alphabet runs: a new ID wherever a label repeats.
 
-    The OnHW pen records one writer at a time, who writes the alphabet
-    sequentially (A..Z a..z). The bundled labels therefore appear in repeating
-    alphabet cycles, but no explicit writer column is stored. We recover writer
-    boundaries by detecting where a character *repeats* - that repeat marks the
-    start of the next writer's session. This is what enables a true
-    writer-independent (WI) split: no writer's samples can land in both train
-    and test.
+    This finds where one pass through the alphabet ends, not where one writer
+    ends. A writer who wrote several alphabets gets several IDs, so a split on
+    these IDs can put the same person in train and test. On OnHW-chars_L it
+    finds 45 runs for 9 real writers. Do not use it for a writer-independent
+    split; use real writer IDs.
     """
     writer = np.empty(len(chars), dtype=np.int64)
     wid, seen = 0, set()
@@ -913,7 +913,8 @@ def main() -> None:
         choices=sorted(AUG_POLICIES),
         default="legacy",
         help="'legacy' (default) = jitter/scale/mag-warp/time-warp, "
-        "the policy behind the measured 71.6%% WI result; "
+        "the policy behind the 71.6%% on a guessed-writer (writer-dependent) "
+        "split of OnHW-chars_L; "
         "'extended' adds rotation/channel-dropout/crop, which "
         "are unmeasured on this subset",
     )
@@ -990,17 +991,17 @@ def main() -> None:
     )
     ap.add_argument(
         "--imu-file",
-        default=IMU_FILE,
-        help="pickle: list of (T, channels) float arrays",
+        default=None,
+        help="your own data: pickle, list of (T, channels) float arrays",
     )
     ap.add_argument(
-        "--gt-file", default=GT_FILE, help="pickle: list of character labels"
+        "--gt-file", default=None, help="your own data: pickle, list of labels"
     )
     ap.add_argument(
         "--writers-file",
         default=None,
-        help="pickle: list of writer codes (one per sample); "
-        "if omitted, writer IDs are inferred from label cycles",
+        help="your own data: pickle, one writer code per sample. Required "
+        "for --split writer",
     )
     ap.add_argument(
         "--channels",
@@ -1118,6 +1119,18 @@ def main() -> None:
             "writer-independent" if args.dependency == "indep" else "writer-dependent"
         )
     else:
+        if not (args.imu_file and args.gt_file):
+            raise SystemExit(
+                "no data given. Use --onhw-chars or --onhw-chars-l (download "
+                "with `python -m imu2text.download`), --onhw-symbols, or your "
+                "own --imu-file and --gt-file."
+            )
+        if args.split == "writer" and not args.writers_file:
+            raise SystemExit(
+                "--split writer needs real writer IDs: pass --writers-file. "
+                "Guessing writers from label order puts the same person in "
+                "train and test. Use --split random to split by sample instead."
+            )
         x, y, classes = load_raw(args.imu_file, args.gt_file)
         n, n_classes = len(x), len(classes)
         if args.writers_file:
@@ -1127,8 +1140,7 @@ def main() -> None:
                 raise SystemExit(f"{len(codes)} writer codes for {n} samples")
             _, writers = np.unique(codes, return_inverse=True)  # codes -> int IDs
         else:
-            with open(args.gt_file, "rb") as f:
-                writers = infer_writer_ids(list(pickle.load(f)))
+            writers = np.full(n, -1, dtype=np.int64)
         tr, va, te = make_split(n, y, args.seed, mode=args.split, writers=writers)
         split_desc = args.split
     if x and x[0].shape[1] != N_CHANNELS:

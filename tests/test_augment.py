@@ -110,7 +110,7 @@ def test_augment_training_appends_only_training_samples():
 
 
 def test_augmentation_config_defaults_match_legacy():
-    """Defaults must reproduce the legacy 64.8 -> 71.6 jump documented in README."""
+    """Defaults must reproduce the legacy policy behind the documented 64.8 -> 71.6."""
     cfg = A.AugmentationConfig()
     assert cfg.jitter_sigma == 0.05
     assert cfg.scale_sigma == 0.08
@@ -143,8 +143,8 @@ def test_augment_one_zero_config_is_identity(seq):
 # Policies
 #
 # The default policy has to stay bit-for-bit the one behind the measured 71.6%
-# writer-independent result. Enabling the newer transforms by default would
-# change what `--augment N` does and quietly invalidate that number, so these
+# (a writer-dependent split, docs/benchmarks.md). Enabling the newer
+# transforms by default would change what `--augment N` does and quietly invalidate that number, so these
 # tests pin which transforms each policy turns on.
 # --------------------------------------------------------------------------- #
 def test_legacy_is_the_default_policy():

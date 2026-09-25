@@ -252,12 +252,12 @@ reader is a researcher deciding whether to trust the numbers.
 Research writing has its own AI tells beyond the general list:
 
 - **Never inflate a result.** Report the split, the number of writers, and
-  the metric. "64.8% writer-independent on the bundled subset" is a claim.
+  the metric. "72.5% writer-independent on the official OnHW-chars
+  `both/indep/fold0` split, 52 classes" is a claim.
   "State-of-the-art accuracy" is not.
-- **Never invent a citation or a dataset statistic.** If the PDF is not in
-  `papers/`, say the number is second-hand and name where it came from.
-  `papers/README.md` is generated from DOI lookups and mis-attributes
-  several files, so it is not a source for authorship.
+- **Never invent a citation or a dataset statistic.** If you have not read
+  the number in the paper itself, say it is second-hand and name where it
+  came from. Papers are cited, never committed.
 - **Attribute borrowed design, never borrowed code.** Citing a paper's
   architecture choice is fine. The implementation is ours, written
   independently. This matters more for AI-assisted changes, because a model

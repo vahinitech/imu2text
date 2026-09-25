@@ -8,12 +8,17 @@ full-dataset scale.
 Output: results/learning_curve.csv  with columns
     n_writers, n_samples, wi_test_acc
 
-Run:  python scripts/make_learning_curve.py
+Run:  python scripts/make_learning_curve.py [--onhw-chars-l data/OnHW-chars_L]
+
+Writers come from the archive's list_ids.pkl. OnHW-chars_L has 9 writers, so
+the curve has only a few points; the committed results/learning_curve.csv
+was measured earlier on writers guessed from label order and is
+writer-dependent (docs/benchmarks.md).
 """
 
+import argparse
 import csv
 import os
-import pickle
 import sys
 
 # Running this file directly puts scripts/ on sys.path, not the repo root, so
@@ -42,10 +47,15 @@ def main() -> None:
     tf.config.experimental.enable_op_determinism()
     os.makedirs("results", exist_ok=True)
 
-    x, y, classes = M.load_raw()
-    n, n_classes = len(x), len(classes)
-    with open(M.GT_FILE, "rb") as f:
-        writers = M.infer_writer_ids(list(pickle.load(f)))
+    ap = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
+    ap.add_argument("--onhw-chars-l", default="data/OnHW-chars_L")
+    args = ap.parse_args()
+
+    from imu2text.chars import load_onhw_chars  # noqa: PLC0415
+
+    ds = load_onhw_chars(args.onhw_chars_l)
+    x, y, writers = list(ds.X_all), ds.y_all, ds.writers
+    n, n_classes = len(x), len(ds.classes)
 
     tr_full, va, te = M.make_split(n, y, SEED, mode="writer", writers=writers)
     train_writers = np.unique(writers[tr_full])

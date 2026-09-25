@@ -114,7 +114,7 @@ class OnHWCharsDataset(NamedTuple):
     ``writers`` are derived by concatenation. The .pkl format has no splits,
     so ``X_all`` / ``y_all`` / ``writers`` are populated and the train/test
     arrays are ``None`` (the caller is expected to split using
-    ``imu2text.models.make_split`` with the inferred writer IDs).
+    ``imu2text.models.make_split`` with the writer IDs from ``list_ids.pkl``).
     """
 
     X_train: Optional[List[np.ndarray]]
