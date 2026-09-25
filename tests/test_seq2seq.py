@@ -1,5 +1,6 @@
 """Tests for the CTC sequence-to-sequence pipeline (onhw_seq2seq)."""
 
+import json
 from types import SimpleNamespace
 
 import numpy as np
@@ -155,3 +156,14 @@ def test_words_cli_preserves_the_archives_writer_protocol(monkeypatch, test_writ
         assert captured["writers"] is None
     else:
         np.testing.assert_array_equal(captured["writers"], [1, 2, 3])
+
+
+def test_run_names_the_test_split_next_to_the_metrics(tmp_path, capsys):
+    """A CER copied from the log or JSON must carry the protocol it came from."""
+    x, labels = S.make_demo_data(n=48, seed=0)
+    out = tmp_path / "run.json"
+    S.run(x, labels, 1, 16, 160, 8, 1, 0, results_path=str(out))
+    assert "random sample split" in capsys.readouterr().out
+    assert json.loads(out.read_text(encoding="utf-8"))["test_split"] == (
+        "random sample split"
+    )

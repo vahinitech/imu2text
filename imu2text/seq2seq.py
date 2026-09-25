@@ -304,6 +304,14 @@ def run(
     if results_path:
         Path(results_path).parent.mkdir(parents=True, exist_ok=True)
     train, val, test = sequence_split(n, seed, n_train, writers)
+    # Name the test protocol next to every number, so a CER copied from the
+    # log cannot pass a random re-split off as writer-independent.
+    if n_train is None:
+        test_split = "random sample split"
+    elif writers is not None:
+        test_split = "published writer-independent split"
+    else:
+        test_split = "published split, writers not checked"
     charset = Charset([symbols] if symbols is not None else [labels[i] for i in train])
     unknown = set("".join(labels)) - set(charset.symbols)
     if unknown:
@@ -360,7 +368,7 @@ def run(
         )
     print(
         f"\nTest CER: {c * 100:.2f}%   Test WER: {w * 100:.2f}%   "
-        f"(n={len(test)}, charset={charset.size} symbols)"
+        f"(n={len(test)}, charset={charset.size} symbols, {test_split})"
     )
     for r, h in list(zip(refs, hyps))[:10]:
         print(f"  ref: {r!r:20s} hyp: {h!r}")
@@ -376,6 +384,7 @@ def run(
             "charset": charset.symbols,
             "seed": seed,
             "validation_split": "writer" if writers is not None else "random",
+            "test_split": test_split,
             "official_partition": n_train is not None,
             "epochs_requested": epochs,
             "epochs_run": len(history.history["loss"]),
