@@ -41,6 +41,15 @@ python -m scripts.build_playground \
     --onhw-chars data/onhw-chars_2021-06-30   # leave out for public.js only
 ```
 
+The chart sections read the same file. "Compare the algorithms" shows the
+published OnHW-chars table (Ott et al., ACM MM 2022, Table 3) next to this
+repo's runs. Training curves, calibration and mix-ups per algorithm appear
+once each built-in design has a saved run in `results/algorithms/`:
+
+```bash
+bash scripts/run_algorithms.sh data/onhw-chars_2021-06-30   # hours on a CPU
+```
+
 The OnHW datasets are by Fraunhofer IIS, for non-commercial use, and are not
 covered by this repository's Apache-2.0 license. Do not commit `local.js`.
 
@@ -62,6 +71,7 @@ The cards in step 4 of the page are the open tasks. Each links to an issue.
 |---|---|
 | `index.html`, `style.css`, `app.js` | the page; plain JavaScript, no dependencies |
 | `theme.js` | keeps the page light when the site theme is served |
+| `charts.js` | "Compare the algorithms" and "How sure is the AI?" charts |
 | `stages.js` | the methods shown, with measured accuracies and sources |
 | `data/public.js` | generated model outputs and the synthetic signal |
 | `data/local.js` | generated real recordings, local only |

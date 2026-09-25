@@ -281,3 +281,20 @@ details.dev p { margin: 6px 0; }
   .glossary > div { padding: 9px 10px; }
   .glossary dd { font-size: 13px; }
 }
+
+/* ---- chart sections ---- */
+.uq-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 12px; }
+.uq-wide { grid-column: 1 / -1; }
+.uq-card h3 { font-size: 17px; margin-bottom: 8px; }
+.uq-chart svg { width: 100%; height: auto; display: block; }
+.uq-chart [data-tip] { cursor: pointer; }
+.uq-chart [data-tip]:focus-visible { outline: 2px solid var(--accent-deep); }
+.uq-note { font-size: 14px; color: var(--elephant); margin: 8px 0 0; }
+.uq-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; font-size: 13px; color: var(--muted); margin-top: 6px; }
+.uq-item { display: inline-flex; align-items: center; gap: 6px; }
+.uq-key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.uq-tip { position: fixed; z-index: 20; max-width: 280px; background: var(--dark); color: #fff; font-size: 13px; line-height: 1.4; padding: 7px 10px; border-radius: 8px; pointer-events: none; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2); }
+#algo-runs { margin-top: 14px; }
+#algo-table td, #algo-table th { text-align: right; }
+#algo-table td:first-child, #algo-table th:first-child { text-align: left; }
+@media (max-width: 820px) { .uq-grid { grid-template-columns: minmax(0, 1fr); } }

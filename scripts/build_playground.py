@@ -26,6 +26,7 @@ Two outputs:
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import os
 
@@ -33,7 +34,10 @@ import numpy as np
 
 from imu2text.chars import CHANNEL_NAMES
 from imu2text.filters import FILTERS, SAMPLE_RATE_HZ
-from scripts.ensemble_chars import load_members
+from scripts.ensemble_chars import expected_calibration_error, load_members
+from scripts.make_comparison_table import PUBLISHED
+from scripts.plot_results import DEFAULT_BENCHMARKS
+from scripts.plot_uncertainty import coverage_curve, reliability
 
 OUT_DIR = os.path.join("playground", "data")
 PER_KIND = 6
@@ -275,6 +279,171 @@ def task_records(path: str, seed: int = 0) -> dict:
     }
 
 
+# Bins for the per-sample model disagreement (mutual information, bits).
+MI_BINS = np.linspace(0.0, 1.5, 16)
+COVERAGE_STEPS = np.arange(10, 101, 5)
+
+
+def uncertainty_charts(groups: dict) -> dict:
+    """Aggregate uncertainty views of the 5-run vote for the playground charts.
+
+    All from saved test outputs: reliability (per confidence bin), accuracy
+    when the least confident answers are refused, per-letter uncertainty
+    split into "the letter itself is ambiguous" (mean member entropy) and
+    "the runs disagree" (mutual information), the vote's confusion counts,
+    and, when the left-handed group is present, disagreement by hand.
+    """
+    right = groups["right"]
+    probs = np.stack([m["proba"] for m in right]).astype(np.float64)
+    true = right[0]["true"]
+    mean = probs.mean(0)
+    classes = right[0]["classes"].astype(str).tolist()
+
+    def calibration(p):
+        rows = reliability(p, true)
+        return {
+            "bins": [
+                [round(float(c), 4), round(float(a), 4), int(n)] for c, a, n in rows
+            ],
+            "ece": round(100 * expected_calibration_error(p, true), 2),
+        }
+
+    def coverage(p):
+        _, acc = coverage_curve(p, true)
+        idx = [int(np.ceil(len(true) * c / 100)) - 1 for c in COVERAGE_STEPS]
+        return [[int(c), round(float(acc[i]), 2)] for c, i in zip(COVERAGE_STEPS, idx)]
+
+    total = entropy_bits(mean)
+    own = entropy_bits(probs).mean(0)
+    disagree = np.maximum(total - own, 0.0)
+    pred = mean.argmax(1)
+    letters = []
+    for c, name in enumerate(classes):
+        mask = true == c
+        letters.append(
+            {
+                "label": name,
+                "n": int(mask.sum()),
+                "accuracy": round(100 * float((pred[mask] == c).mean()), 1),
+                "ambiguous": round(float(own[mask].mean()), 3),
+                "disagree": round(float(disagree[mask].mean()), 3),
+            }
+        )
+    confusion = np.zeros((len(classes), len(classes)), dtype=int)
+    np.add.at(confusion, (true, pred), 1)
+
+    charts = {
+        "n": int(len(true)),
+        "calibration": {"single": calibration(probs[0]), "vote": calibration(mean)},
+        "coverage": {"single": coverage(probs[0]), "vote": coverage(mean)},
+        "letters": letters,
+        "confusion": confusion.tolist(),
+        "hands": None,
+    }
+    if "with_left" in groups:
+        both = groups["with_left"]
+        bprobs = np.stack([m["proba"] for m in both]).astype(np.float64)
+        bmean = bprobs.mean(0)
+        bmi = np.maximum(entropy_bits(bmean) - entropy_bits(bprobs).mean(0), 0.0)
+        hand = both[0]["handedness"]
+        hands = {"edges": [round(float(e), 2) for e in MI_BINS]}
+        for key, code in (("right", 0), ("left", 1)):
+            vals = bmi[hand == code]
+            hist, _ = np.histogram(np.clip(vals, 0, MI_BINS[-1] - 1e-9), bins=MI_BINS)
+            hands[key] = {
+                "n": int(vals.size),
+                "share": [round(float(h) / vals.size, 4) for h in hist],
+                "quartiles": [
+                    round(float(q), 3) for q in np.percentile(vals, [25, 50, 75])
+                ],
+            }
+        charts["hands"] = hands
+    return charts
+
+
+def comparison_records() -> dict:
+    """Test accuracy per method on the six official OnHW-chars tests.
+
+    Published rows are Ott et al., ACM MM 2022, Table 3 (as transcribed in
+    scripts/make_comparison_table.py); ours come from results/comparison_*.json.
+    The left-handed rows are the guessed-writer OnHW-chars_L runs in
+    scripts/plot_results.py (writer-dependent, comparable only to each other).
+    """
+    methods = [
+        {
+            "name": name.split(" [", maxsplit=1)[0],
+            "source": "Ott et al., ACM MM 2022, Table 3",
+            "ours": False,
+            "cells": {f"{c}_{d}": v for (c, d), v in cells.items()},
+        }
+        for name, cells in PUBLISHED.items()
+    ]
+    for cfg in ("baseline", "best"):
+        path = os.path.join("results", f"comparison_{cfg}.json")
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as fh:
+                data = json.load(fh)
+            methods.append(
+                {
+                    "name": data["label"].replace(" (this repo)", ""),
+                    "source": f"this repo, fold {data['fold']}, seed {data['seed']}",
+                    "ours": True,
+                    "cells": data["results"],
+                }
+            )
+    return {
+        "official": methods,
+        "left_guessed": [
+            {"name": n, "test": v}
+            for n, v in DEFAULT_BENCHMARKS
+            if n != "majority baseline"
+        ],
+    }
+
+
+def algorithm_records(pattern: str) -> list:
+    """One record per saved single-design run (scripts/run_algorithms.sh)."""
+    records = []
+    for path in sorted(glob.glob(pattern)):
+        with np.load(path, allow_pickle=False) as d:
+            proba = d["proba"].astype(np.float64)
+            true = d["true"]
+            classes = d["classes"].astype(str).tolist()
+            pred = proba.argmax(1)
+            confusion = np.zeros((len(classes), len(classes)), dtype=int)
+            np.add.at(confusion, (true, pred), 1)
+            wrong = pred != true
+            case = np.array(
+                [classes[t].lower() == classes[p].lower() for t, p in zip(true, pred)]
+            )
+            records.append(
+                {
+                    "name": str(d["model"]),
+                    "split": str(d["split"]),
+                    "seed": int(d["seed"]),
+                    "params": int(d["params"]) if "params" in d else None,
+                    "train": (
+                        round(float(d["train_acc"]), 2) if "train_acc" in d else None
+                    ),
+                    "val": round(float(d["val_acc"]), 2),
+                    "test": round(float(d["test_acc"]), 2),
+                    "ece": round(100 * expected_calibration_error(proba, true), 2),
+                    "calibration": [
+                        [round(float(c), 4), round(float(a), 4), int(n)]
+                        for c, a, n in reliability(proba, true)
+                    ],
+                    "case_share": round(
+                        100 * float((wrong & case).sum() / max(wrong.sum(), 1)), 1
+                    ),
+                    "history": (
+                        json.loads(str(d["history"])) if "history" in d else None
+                    ),
+                    "confusion": confusion.tolist(),
+                }
+            )
+    return records
+
+
 def write_js(path: str, name: str, payload: dict) -> None:
     """Write ``window.<name> = {...}`` so the page also works from file://."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -295,6 +464,11 @@ def main() -> None:
     )
     ap.add_argument(
         "--onhw-chars", help="downloaded right-handed archive, for local.js"
+    )
+    ap.add_argument(
+        "--algorithms",
+        default="results/algorithms/*.npz",
+        help="quoted glob of single-design runs from scripts/run_algorithms.sh",
     )
     ap.add_argument(
         "--words",
@@ -349,6 +523,9 @@ def main() -> None:
         },
         "words": word_records(args.words) if os.path.exists(args.words) else None,
         "synthetic_signal": filtered_versions(synthetic_signal()),
+        "uncertainty": uncertainty_charts(groups),
+        "comparison": comparison_records(),
+        "algorithms": algorithm_records(args.algorithms),
     }
     write_js(os.path.join(OUT_DIR, "public.js"), "PLAYGROUND_PUBLIC", public)
 

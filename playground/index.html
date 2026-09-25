@@ -63,6 +63,7 @@
         <a href="#workspace">Play</a>
         <a href="#how">How it works</a>
         <a href="#designs">AI designs</a>
+        <a href="#algos">Charts</a>
         <a href="#glossary">Glossary</a>
         <a class="btn btn--small" id="repo-link" href="https://github.com/vahinitech/imu2text">Contribute</a>
       </nav>
@@ -230,6 +231,12 @@
       <div id="term-gnn"><dt>GNN</dt><dd>Graph neural network: treats things, here the 13 sensors, as points connected to each other.</dd></div>
       <div id="term-moe"><dt>Mixture of experts</dt><dd>A team of small models. A router picks which of them answers each recording.</dd></div>
       <div id="term-quantum"><dt>Hybrid quantum network</dt><dd>A network where a small quantum circuit, today usually simulated on a normal computer, does one step.</dd></div>
+      <div id="term-calibration"><dt>Calibration</dt><dd>Whether "80% sure" really means right 80% of the time. The calibration gap is how far off it is on average (ECE).</dd></div>
+      <div id="term-entropy"><dt>Entropy (bits)</dt><dd>How spread out the AI's scores are. 0 bits: all on one letter. Higher: it hesitates between several.</dd></div>
+      <div id="term-disagreement"><dt>Disagreement (mutual information)</dt><dd>The part of the doubt that comes from the 5 runs giving different answers.</dd></div>
+      <div id="term-confusion"><dt>Confusion matrix</dt><dd>A grid of which letter was written (rows) and what the AI read (columns). Off the diagonal are mistakes.</dd></div>
+      <div id="term-epoch"><dt>Epoch or training round</dt><dd>One pass over all training letters. Training here runs 30.</dd></div>
+      <div id="term-validation"><dt>Validation letters</dt><dd>Letters from training writers held back to check progress while training. The test people stay unseen.</dd></div>
       <div id="term-seed"><dt>Seed</dt><dd>The random starting point of training. The same design trained from 5 seeds gives CNN-BiLSTM #1 to #5.</dd></div>
       <div id="term-ensemble"><dt>Ensemble ("all 5 together")</dt><dd>Several models answer, and their scores are averaged into one answer.</dd></div>
       <div id="term-confidence"><dt>Confidence</dt><dd>How much of its score the model gives to an answer. 90% means it is quite sure.</dd></div>
@@ -291,6 +298,54 @@
           recording to one of several small experts (<code>build_moe</code> is in the code,
           not measured).</p>
       </article>
+    </div>
+  </section>
+
+  <section id="algos" class="wrap section" aria-labelledby="algos-h">
+    <h2 id="algos-h">Compare the algorithms</h2>
+    <p class="hint">Hover or tap a bar for its source. Every score is letters read right on the same test.</p>
+    <div class="uq-grid">
+      <article class="card uq-card uq-wide">
+        <h3>Which algorithm reads best?</h3>
+        <div class="seg seg--small" id="algo-tests" role="radiogroup" aria-label="Which official test"></div>
+        <div id="algo-official" class="uq-chart"></div>
+        <p id="algo-official-note" class="uq-note"></p>
+      </article>
+      <article class="card uq-card">
+        <h3>Four designs, one small set</h3>
+        <div id="algo-left" class="uq-chart"></div>
+        <p class="uq-note">The left-handed OnHW-chars_L set, 2,270 letters, with writers shared
+          between training and test. Only good for comparing these four with each other.</p>
+      </article>
+      <article class="card uq-card" id="algo-runs-empty">
+        <h3>Training curves for every algorithm</h3>
+        <p class="uq-note">Curves, calibration and mix-ups per algorithm appear here once each
+          design is trained on the same test. That is an open task: it takes hours on a CPU.</p>
+        <div class="code"><pre><code>bash scripts/run_algorithms.sh data/onhw-chars_2021-06-30</code></pre></div>
+      </article>
+    </div>
+    <div id="algo-runs" hidden>
+      <div class="seg seg--small" id="algo-pick" role="radiogroup" aria-label="Which algorithm"></div>
+      <div class="table-wrap"><table id="algo-table" class="results"></table></div>
+      <div class="uq-grid">
+        <article class="card uq-card"><h3>Did it learn or memorise?</h3><div id="algo-curves" class="uq-chart"></div><p id="algo-curves-note" class="uq-note"></p></article>
+        <article class="card uq-card"><h3>Does its "sure" mean right?</h3><div id="algo-cal" class="uq-chart"></div></article>
+        <article class="card uq-card uq-wide"><h3>What it mixes up</h3><div id="algo-conf" class="uq-chart"></div><p id="algo-conf-note" class="uq-note"></p></article>
+      </div>
+    </div>
+  </section>
+
+  <section id="uq" class="wrap section" aria-labelledby="uq-h">
+    <h2 id="uq-h">How sure is the AI?</h2>
+    <p class="hint">The CNN-BiLSTM ×5 vote on all 7,956 test letters from new people.
+      Hover or tap a point to read it. Method and papers:
+      <a href="https://github.com/vahinitech/imu2text/blob/main/docs/uncertainty.md">docs/uncertainty.md</a>.</p>
+    <div class="uq-grid">
+      <article class="card uq-card"><h3>Does "80% sure" mean 80% right?</h3><div id="uq-cal" class="uq-chart"></div><p id="uq-cal-note" class="uq-note"></p></article>
+      <article class="card uq-card"><h3>Let it say "not sure"</h3><div id="uq-cov" class="uq-chart"></div><p id="uq-cov-note" class="uq-note"></p></article>
+      <article class="card uq-card uq-wide"><h3>Which letters is it least sure about?</h3><div id="uq-letters" class="uq-chart"></div><p id="uq-letters-note" class="uq-note"></p></article>
+      <article class="card uq-card"><h3>What gets mixed up with what?</h3><div id="uq-conf" class="uq-chart"></div><p id="uq-conf-note" class="uq-note"></p></article>
+      <article class="card uq-card" id="uq-hands-card"><h3>Left-handed writing puzzles the runs</h3><div id="uq-hands" class="uq-chart"></div><p id="uq-hands-note" class="uq-note"></p></article>
     </div>
   </section>
 
@@ -409,5 +464,6 @@
   <script src="data/public.js"></script>
   <script src="data/local.js"></script>
   <script src="app.js"></script>
+  <script src="charts.js"></script>
 </body>
 </html>
