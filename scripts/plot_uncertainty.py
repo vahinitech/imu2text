@@ -25,7 +25,7 @@ import os
 import numpy as np
 
 from scripts.ensemble_chars import ECE_BINS, expected_calibration_error, load_members
-from scripts.plot_error_analysis import BLUE, GRAY, MUTED, RED, TEXT, plt, style_axes
+from scripts.plot_error_analysis import BLUE, GRAY, RED, TEXT, plt, style_axes
 
 COVERAGE_MARKS = (100, 90, 80)
 
@@ -52,7 +52,7 @@ def coverage_curve(proba, true):
     return 100 * k / len(true), 100 * np.cumsum(correct) / k
 
 
-def main() -> None:
+def main() -> None:  # pylint: disable=too-many-locals
     """CLI: draw the two panels for one group of ensemble members."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     ap.add_argument("members", help="quoted glob of --save-predictions files")
@@ -79,8 +79,9 @@ def main() -> None:
     style_axes(ax_a, grid_axis="both")
     style_axes(ax_b, grid_axis="both")
 
-    ax_a.plot([0, 1], [0, 1], color=GRAY, lw=1, ls=(0, (3, 3)), zorder=1)
-    ax_a.text(0.2, 0.25, "calibrated", color=MUTED, fontsize=7, rotation=38)
+    ax_a.plot(
+        [0, 1], [0, 1], color=GRAY, lw=1, ls=(0, (3, 3)), zorder=1, label="calibrated"
+    )
     csv_rows = []
     for name, proba, color, marker in series:
         rel = reliability(proba, true)
@@ -98,31 +99,28 @@ def main() -> None:
         csv_rows += [("reliability", name, c, a, n) for c, a, n in rel]
 
         cov, acc = coverage_curve(proba, true)
-        ax_b.plot(cov, acc, color=color, lw=1.6, zorder=3, label=name)
+        # The operating points go in the legend: labels inside the panel
+        # always cross the rising curves.
+        points = []
         for mark in COVERAGE_MARKS:
             i = int(round(mark / 100 * len(true))) - 1
             ax_b.plot(cov[i], acc[i], marker=marker, ms=5, color=color, zorder=4)
             csv_rows.append(("coverage", name, cov[i], acc[i], i + 1))
+            points.append(f"{acc[i]:.1f}% at {mark}%")
+        ax_b.plot(
+            cov,
+            acc,
+            color=color,
+            lw=1.6,
+            zorder=3,
+            label=f"{name}: {', '.join(points)}",
+        )
     ax_a.set(xlim=(0, 1), ylim=(0, 1))
     ax_a.set_xlabel("mean confidence in bin", fontsize=8, color=TEXT)
     ax_a.set_ylabel("accuracy in bin", fontsize=8, color=TEXT)
     ax_a.set_title("A  Reliability", loc="left", fontsize=9, color=TEXT)
     ax_a.legend(frameon=False, fontsize=7, loc="upper left")
 
-    # Label the ensemble's operating points so the key numbers are readable
-    # without the CSV; the single model's sit just below them.
-    cov, acc = coverage_curve(ensemble, true)
-    for mark in COVERAGE_MARKS:
-        i = int(round(mark / 100 * len(true))) - 1
-        ax_b.annotate(
-            f"{acc[i]:.1f}% at {mark}%",
-            (cov[i], acc[i]),
-            xytext=(6, -11),
-            textcoords="offset points",
-            fontsize=7,
-            color=TEXT,
-            ha="left",
-        )
     ax_b.set(xlim=(100, 20))
     ax_b.set_ylim(top=100.5)
     ax_b.set_xlabel(
@@ -130,7 +128,7 @@ def main() -> None:
     )
     ax_b.set_ylabel("accuracy on kept samples (%)", fontsize=8, color=TEXT)
     ax_b.set_title("B  Accuracy vs coverage", loc="left", fontsize=9, color=TEXT)
-    ax_b.legend(frameon=False, fontsize=7, loc="lower right")
+    ax_b.legend(frameon=False, fontsize=7, loc="upper left", bbox_to_anchor=(0, -0.2))
 
     population = "right-handed" if args.population == "right" else "all"
     fig.suptitle(
