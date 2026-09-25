@@ -45,7 +45,10 @@ CER percentage points of reduction for the same-split comparison; the grouped
 comparison spans −1.40–1.40 points.
 
 The final refit uses the grouped-validation minimum at epoch 15 and starts a
-fresh model on all 42 official training writers. It reduces greedy CER by
+fresh model on all 42 official training writers. Epoch 15 is also the last
+epoch of the budget: validation loss was still falling (11.14 to 10.79 over the
+last two epochs of `fixed_seed0_run1.json`), so validation selection did not
+shorten training, and every word model here is under-trained at 15 epochs. It reduces greedy CER by
 **5.35 percentage points** against the parent (paired writer-bootstrap 95%
 interval **2.77–7.76 points**). This combines the pipeline changes with more
 training examples, writer coverage, and optimizer updates. It is one additional

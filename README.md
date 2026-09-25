@@ -59,14 +59,15 @@ the checkpoint fix, with zero changed predictions on 7,956 test recordings
 writer-independent split). It does not improve this character configuration.
 
 On right-handed **OnHW-Words500**, published writer-independent fold 0, the
-corrected pipeline plus validation-selected refitting reduces **CER from 59.30%
-to 53.95%** and raises **greedy exact word accuracy from 5.54% to 8.90%**.
-The archive has 19,915 nonempty training and 5,292 test recordings, 53 writers
-(11 unseen test writers), and 59 character symbols. Final lexicon decoding
-reaches **32.73% exact word accuracy**, with a higher **56.85% CER** than greedy.
-These are single-seed, 15-epoch CPU measurements; the final refit uses more
-training data than the parent. The same-split code comparison reduces CER to
-55.70%. See the [benchmark protocol and results](docs/benchmarks.md) and
+CTC length fix alone, on the same inner split, reduces greedy **CER from 59.30%
+to 55.70%**. A final refit on all 42 training writers reaches **53.95% CER**
+and **8.90% greedy exact word accuracy** (parent: 5.54%); it adds training data
+as well as the fix, and was planned after the first grouped-validation result.
+Its selected epoch equals the 15-epoch budget, so the models are under-trained.
+Final lexicon decoding reaches **32.73% exact word accuracy**, with a higher
+**56.85% CER** than greedy. The archive has 19,915 nonempty training and 5,292
+test recordings, 53 writers (11 unseen test writers), and 59 character
+symbols. All single-seed CPU runs. See the [benchmark protocol and results](docs/benchmarks.md) and
 [root causes, fixes, and measured attribution](docs/rca_ctc_lengths.md).
 
 ![Error analysis](results/error_analysis.png)
