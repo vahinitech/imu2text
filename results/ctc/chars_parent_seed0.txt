@@ -1,0 +1,29 @@
+  dropped 3 sample(s) with fewer than 1 timestep(s): 3 of 23319 train, 0 of 7956 test
+Samples: 31272 | classes: 52 | writers: not recorded | split: official both/indep/fold0, writer-independent | aug: x2 (extended) | maxlen: 100 | tr/va/te: 59457/3497/7956 | label smoothing=0.1, LR-on-plateau
+Majority-class baseline (test): 1.92%
+
+  [cnn_bilstm_attn] training...
+  [cnn_bilstm_attn] done: test=72.26% train=91.24% (1137s)
+| Model           | Params   |   Train % |   Val % |   Test % (held-out) | Time   |
+|-----------------|----------|-----------|---------|---------------------|--------|
+| cnn_bilstm_attn | 157,928  |     91.24 |   81.41 |               72.26 | 1137s  |
+
+Best held-out: cnn_bilstm_attn @ 72.26% (52-class, official both/indep/fold0, writer-independent)
+  wrote predictions to /tmp/imu2text-accuracy/results/ctc/chars_parent_seed0.npz
+
+  Error analysis on 7956 test samples (2207 wrong, 27.74% error)
+  case-insensitive accuracy : 84.29%  (plain: 72.26%)
+  errors that are case only : 957/2207 (43.4% of all errors)
+  top 12 confusions (true -> predicted):
+    's' -> 'S': 62 (2.8% of errors) [case pair]
+    'w' -> 'W': 52 (2.4% of errors) [case pair]
+    'z' -> 'Z': 51 (2.3% of errors) [case pair]
+    'W' -> 'w': 43 (1.9% of errors) [case pair]
+    'u' -> 'U': 42 (1.9% of errors) [case pair]
+    'Y' -> 'y': 42 (1.9% of errors) [case pair]
+    'x' -> 'X': 41 (1.9% of errors) [case pair]
+    'X' -> 'x': 41 (1.9% of errors) [case pair]
+    'o' -> 'O': 40 (1.8% of errors) [case pair]
+    'O' -> 'o': 39 (1.8% of errors) [case pair]
+    'p' -> 'P': 38 (1.7% of errors) [case pair]
+    'S' -> 's': 38 (1.7% of errors) [case pair]

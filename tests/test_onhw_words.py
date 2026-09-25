@@ -499,6 +499,19 @@ def test_dropping_keeps_labels_and_writer_ids_aligned(tmp_path):
     assert len(ds.train_ids) == len(ds.X_train) == len(ds.Y_train)
 
 
+def test_lexicon_decode_uses_each_recordings_actual_length():
+    class Predictor:
+        inputs = [None, None]
+
+        def predict(self, inputs, verbose=0):
+            del verbose
+            assert np.array_equal(inputs[1], [[1], [2]])
+            return np.array([[[0.99, 0.005, 0.005], [0.005, 0.99, 0.005]]] * 2)
+
+    decoder = W.LexiconDecoder(["a", "ab"], charset="ab")
+    assert decoder.decode(Predictor(), np.zeros((2, 8, 13)), [1, 2]) == ["a", "ab"]
+
+
 def test_lexicon_bonus_decides_between_a_word_and_a_likelier_prefix():
     """With strict=False the bonus is what lets a complete word beat a prefix."""
     a, b, c = ALPHA.index("A"), ALPHA.index("B"), ALPHA.index("C")

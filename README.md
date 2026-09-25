@@ -39,7 +39,8 @@ python -m imu2text.seq2seq --demo        # synthetic, no download
 
 ## Results
 
-OnHW-chars, official `both/indep/fold0` split, 52 classes, writer-independent:
+Historical OnHW-chars experiments, official `both/indep/fold0` split, 52 classes,
+writer-independent:
 
 | Model | Train % | WI Test % |
 |---|--:|--:|
@@ -51,6 +52,23 @@ OnHW-chars, official `both/indep/fold0` split, 52 classes, writer-independent:
 Single seed, fold 0, CPU-only. 43% of the remaining errors are a letter
 confused with its own other case, which the IMU cannot resolve: scored
 case-insensitively the same model reads 84.3%.
+
+The latest deterministic character regression scores **72.26% before and after**
+the checkpoint fix, with zero changed predictions on 7,956 test recordings
+(23,316 nonempty official training recordings, 52 classes, the same published
+writer-independent split). It does not improve this character configuration.
+
+On right-handed **OnHW-Words500**, published writer-independent fold 0, the
+CTC length fix alone, on the same inner split, reduces greedy **CER from 59.30%
+to 55.70%**. A final refit on all 42 training writers reaches **53.95% CER**
+and **8.90% greedy exact word accuracy** (parent: 5.54%); it adds training data
+as well as the fix, and was planned after the first grouped-validation result.
+Its selected epoch equals the 15-epoch budget, so the models are under-trained.
+Final lexicon decoding reaches **32.73% exact word accuracy**, with a higher
+**56.85% CER** than greedy. The archive has 19,915 nonempty training and 5,292
+test recordings, 53 writers (11 unseen test writers), and 59 character
+symbols. All single-seed CPU runs. See the [benchmark protocol and results](docs/benchmarks.md) and
+[root causes, fixes, and measured attribution](docs/rca_ctc_lengths.md).
 
 ![Error analysis](results/error_analysis.png)
 

@@ -1,0 +1,88 @@
+{
+  "cer": 0.5929978875922014,
+  "wer": 0.9446334089191232,
+  "history": {
+    "loss": [
+      69.22747039794922,
+      19.19230842590332,
+      18.684904098510742,
+      18.088422775268555,
+      17.75576400756836,
+      17.525100708007812,
+      17.284706115722656,
+      17.00375747680664,
+      16.6667537689209,
+      16.039112091064453,
+      14.293174743652344,
+      12.12149429321289,
+      10.461897850036621,
+      9.272334098815918,
+      8.389508247375488
+    ],
+    "val_loss": [
+      20.351776123046875,
+      19.839771270751953,
+      19.002511978149414,
+      18.61832046508789,
+      18.32940673828125,
+      18.133804321289062,
+      17.77298927307129,
+      17.63263511657715,
+      16.955322265625,
+      15.608747482299805,
+      12.305848121643066,
+      10.325653076171875,
+      8.52379322052002,
+      7.658361911773682,
+      6.652475833892822
+    ]
+  },
+  "word_accuracy": 0.0553665910808768,
+  "validation_split": "random",
+  "epochs_run": 15,
+  "implementation": "parent",
+  "parent_commit": "03d1c8f",
+  "dataset": "Words500_indep_02",
+  "fold": 0,
+  "protocol": "official writer-independent",
+  "seed": 0,
+  "deterministic": true,
+  "epochs_requested": 15,
+  "rnn_units": 32,
+  "rnn_layers": 1,
+  "batch": 32,
+  "maxlen": 800,
+  "archive_train": 19915,
+  "test": 5292,
+  "writers": 53,
+  "symbols": 59,
+  "observed_lexicon_size": 501,
+  "seconds": 1393.007684190292,
+  "environment": {
+    "python": "3.10.21",
+    "tensorflow": "2.15.1",
+    "numpy": "1.26.4",
+    "platform": "Linux-6.8.0-137-generic-x86_64-with-glibc2.39"
+  },
+  "source_sha256": {
+    "imu2text/seq2seq.py": "2b1a4ff3f136c662b2c25fea9c56b5a56ed5035394cf25951de71899bf2562fb",
+    "imu2text/callbacks.py": "9665ea294e834079ad197649526e9f180970621b350849e8c35d698d9a3bbae2",
+    "imu2text/sequence_data.py": "e1710d1994e473ecf37289d77945cd7564e9b977cf741f1d080d1a9d4ef0a5b9",
+    "imu2text/words.py": "cc059432025c2d44775ea09478bea3fe0f2f14275d36c44fb665e7e72436652d",
+    "scripts/benchmark_ctc.py": "88611b56f71d55af748909c944a2c9095158227e059a4f1f21676e6d8d3e74fa"
+  },
+  "executable_source_sha256": {
+    "imu2text/seq2seq.py": "f6d0814912a139f2dc98499f7b6a6064141a5da8d6b8fd92778dbb29594e6bcd",
+    "imu2text/callbacks.py": "98a31256f031a209c47cff612662bfdf9d8a3e21c5d69ad35133eec02d5f6357",
+    "imu2text/sequence_data.py": "f3420cc6bf8a6ca08687c37aa99a6d7804ed28a7e8f1687dbd0d0d92ff276e5c",
+    "imu2text/words.py": "ea8b27088ab3b04eb73bb7d2046355894dbbe44145c13520d81f1e303f0a2101",
+    "scripts/benchmark_ctc.py": "e475868fc3299424f891b8d7de923857b4c3a4934f826c0dcf152ce4c5a9d399"
+  },
+  "library_source_sha256": {
+    "imu2text/seq2seq.py": "abe33c970bea17e35ffa7e3be1530cf99ab57b0dca7f8adea67665f79181260b",
+    "imu2text/callbacks.py": "98a31256f031a209c47cff612662bfdf9d8a3e21c5d69ad35133eec02d5f6357",
+    "imu2text/sequence_data.py": "f3420cc6bf8a6ca08687c37aa99a6d7804ed28a7e8f1687dbd0d0d92ff276e5c",
+    "imu2text/words.py": "ea8b27088ab3b04eb73bb7d2046355894dbbe44145c13520d81f1e303f0a2101",
+    "scripts/benchmark_ctc.py": "e475868fc3299424f891b8d7de923857b4c3a4934f826c0dcf152ce4c5a9d399"
+  }
+}

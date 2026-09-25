@@ -120,7 +120,7 @@ def run_cell(chars_dir, case, dependency, fold, epochs, seed, extra, determinist
         print(f"  {case}/{dependency}: FAILED\n{proc.stderr[-600:]}")
         return None
     for line in proc.stdout.splitlines():
-        if "Best held-out:" in line:
+        if "Selected by validation:" in line or "Best held-out:" in line:
             acc = float(line.split("@")[1].split("%")[0])
             print(f"  {case}/{dependency}: {acc:.2f}%  ({time.time() - started:.0f}s)")
             return acc

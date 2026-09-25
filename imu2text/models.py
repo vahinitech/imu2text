@@ -70,8 +70,10 @@ except ImportError:  # optional dependency
 
 import tensorflow as tf
 from tensorflow.keras import layers, Model
-from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+from tensorflow.keras.callbacks import ReduceLROnPlateau
 from tensorflow.keras.utils import to_categorical, pad_sequences
+
+from .callbacks import RestoreBest
 
 # Augmentation policy + per-writer normalization live in a dedicated module so
 # they can be reused by the seq2seq pipeline and unit-tested independently.
@@ -758,7 +760,7 @@ def train_eval(
     model.compile(optimizer="adam", loss=loss, metrics=["accuracy"])
 
     callbacks = [
-        EarlyStopping(
+        RestoreBest(
             monitor="val_accuracy", patience=8, restore_best_weights=True, mode="max"
         )
     ]
@@ -852,6 +854,11 @@ def error_analysis(
             f"    {classes[t]!r} -> {classes[p]!r}: {cnt}"
             f" ({100 * cnt / n_err:.1f}% of errors){same}"
         )
+
+
+def select_by_validation(rows):
+    """Rank candidates using validation alone; test scores remain reporting only."""
+    return sorted(rows, key=lambda row: row["val_acc"], reverse=True)
 
 
 def main() -> None:
@@ -1191,7 +1198,7 @@ def main() -> None:
         )
         for m in args.models
     ]
-    rows.sort(key=lambda r: r["test_acc"], reverse=True)
+    rows = select_by_validation(rows)
 
     table = [
         [
@@ -1220,7 +1227,7 @@ def main() -> None:
     else:
         label = "writer-independent" if args.split == "writer" else "random split"
     print(
-        f"\nBest held-out: {best['model']} @ {best['test_acc']:.2f}% "
+        f"\nSelected by validation: {best['model']} @ {best['test_acc']:.2f}% test "
         f"({n_classes}-class, {label})"
     )
     if handedness is not None:
