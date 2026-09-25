@@ -36,8 +36,10 @@ FRACTIONS = [0.2, 0.4, 0.6, 0.8, 1.0]
 
 def main() -> None:
     """Train on a growing number of writers and write the learning curve CSV."""
-    np.random.seed(SEED)
-    tf.random.set_seed(SEED)
+    # set_random_seed covers python's `random`, numpy and TF; tf.random.set_seed
+    # alone does not reach the Keras layer initialisers.
+    tf.keras.utils.set_random_seed(SEED)
+    tf.config.experimental.enable_op_determinism()
     os.makedirs("results", exist_ok=True)
 
     x, y, classes = M.load_raw()

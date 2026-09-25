@@ -142,3 +142,18 @@ def test_download_one_skips_an_existing_archive(tmp_path, monkeypatch):
     result = D.download_one("onhw_chars_L", str(tmp_path), skip_existing=True)
     assert result.endswith("OnHW-chars_L")
     assert (tmp_path / "OnHW-chars_L" / "all_gt.pkl").exists()
+
+
+def test_main_exits_nonzero_when_a_download_fails(monkeypatch, tmp_path):
+    """A failed download must not look like success to a shell script or CI."""
+
+    def fail(*a, **k):
+        raise OSError("network down")
+
+    monkeypatch.setattr(D, "download_one", fail)
+    monkeypatch.setattr(
+        D.sys, "argv", ["download", "onhw_chars_L", "--out", str(tmp_path)]
+    )
+    with pytest.raises(SystemExit) as exc:
+        D.main()
+    assert exc.value.code not in (0, None)

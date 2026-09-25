@@ -94,7 +94,7 @@ def plot_learning_curve(width: float) -> None:
     if not os.path.exists(CURVE_CSV):
         print(
             f"skip learning-curve figure ({CURVE_CSV} not found; "
-            f"run make_learning_curve.py first)"
+            f"run python -m scripts.make_learning_curve first)"
         )
         return
     with open(CURVE_CSV, encoding="utf-8") as f:

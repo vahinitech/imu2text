@@ -20,7 +20,7 @@ Usage
     # download just the small left-handed chars dataset (3.5 MB) for a smoke test
     python -m imu2text.download onhw_chars_L --out ./data
 
-    # download the full right-handed chars dataset (896 MB) with official 5-fold splits
+    # download the full right-handed chars dataset (896 MB) with its 30 official split directories
     python -m imu2text.download onhw_chars --out ./data
 
     # download every archive (several GB)
@@ -37,8 +37,8 @@ approximate size, and a short description. The names match the table in
 |---------------------------|---------|---------------------------------------------------|
 | onhw_chars                | 896 MB  | OnHW-chars right-handed (.npy, 30 official splits)|
 | onhw_chars_L              | 3.5 MB  | OnHW-chars left-handed (.pkl, no splits)          |
-| onhw_symbols_dep          | 95 MB   | OnHW-symbols writer-dependent (.pkl, 5 folds)     |
-| onhw_symbols_indep        | 95 MB   | OnHW-symbols writer-independent (.pkl, 5 folds)   |
+| onhw_symbols_dep          | 95 MB   | OnHW-symbols writer-dependent (.pkl, 1 split)     |
+| onhw_symbols_indep        | 95 MB   | OnHW-symbols writer-independent (.pkl, 1 split)   |
 | onhw_symbols_L            | 7.5 MB  | OnHW-symbols left-handed (.pkl)                   |
 | onhw_equations_dep        | 1.1 GB  | OnHW-equations WD (.pkl, 5 folds)                 |
 | onhw_equations_indep      | 1.1 GB  | OnHW-equations WI (.pkl, 5 folds)                 |
@@ -92,12 +92,14 @@ DATASETS: Dict[str, DatasetSpec] = {
         url=f"{ONHW_BASE}/OnHW-symbols_equations_dep.zip",
         size="95 MB",
         description="OnHW-symbols writer-dependent: 2,326 single-symbol "
-        "samples, 27 writers, 15 classes (digits 0-9 + +-:.:=).",
+        "samples, 27 writers, 15 classes (digits 0-9 + +-:.:=). One flat "
+        "official train/val split with every writer on both sides.",
     ),
     "onhw_symbols_indep": DatasetSpec(
         url=f"{ONHW_BASE}/OnHW-symbols_equations_indep.zip",
         size="95 MB",
-        description="OnHW-symbols writer-independent: same data, WI 5-fold.",
+        description="OnHW-symbols writer-independent: same data, one flat "
+        "official train/val split (no fold directories).",
     ),
     "onhw_symbols_L": DatasetSpec(
         url=f"{ONHW_BASE}/OnHW-symbols_equations_L.zip",
@@ -127,13 +129,13 @@ DATASETS: Dict[str, DatasetSpec] = {
         size="1.0 GB",
         description="OnHW-equations WI, per-symbol CTC split.",
     ),
-    # ---- OnHW-words500 (sequence-to-sequence, 57-char German vocab) ----
+    # ---- OnHW-words500 (sequence-to-sequence, 59-char German vocab) ----
     "onhw_words500_dep": DatasetSpec(
         url=f"{ONHW_BASE}/OnHW-Words500_dep.zip",
         size="849 MB",
         description="OnHW-words500 writer-dependent: 25,218 samples, ~50 "
-        "writers, 500-word closed vocabulary, 57-char charset "
-        "(A-Za-z + German umlauts).",
+        "writers, 500-word closed vocabulary, 59-char charset "
+        "(A-Za-z + ÄÖÜäöüß).",
     ),
     "onhw_words500_indep": DatasetSpec(
         url=f"{ONHW_BASE}/OnHW-Words500_indep.zip",
@@ -306,6 +308,7 @@ def main() -> None:
         return
 
     keys = list(DATASETS.keys()) if "all" in args.datasets else args.datasets
+    failed = []
     for key in keys:
         try:
             download_one(
@@ -313,6 +316,11 @@ def main() -> None:
             )
         except Exception as e:  # noqa: BLE001
             print(f"[fail] {key}: {e}", file=sys.stderr)
+            failed.append(key)
+    # Keep going so one bad archive does not block the rest, but exit nonzero
+    # so a shell script or CI job does not carry on with missing data.
+    if failed:
+        sys.exit(f"{len(failed)} of {len(keys)} downloads failed: {', '.join(failed)}")
 
 
 if __name__ == "__main__":
