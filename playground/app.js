@@ -218,7 +218,14 @@ function currentSignal() {
 let crosshairs = [];
 function drawPanel(panel, raw, filtered, showRaw) {
   const W = widthOf("signal", 900), H = 84, left = 4, right = 22, top = 16, bottom = 4;
-  const series = panel.channels.map((c) => ({ raw: raw[c], filt: filtered[c] }));
+  // Each line is drawn around its own mean: gravity puts one accelerometer
+  // axis about 16,000 counts from the others, which would flatten their
+  // shapes on a shared scale. Exact values are in the raw-values table.
+  const centre = (vals, m) => vals.map((v) => v - m);
+  const series = panel.channels.map((c) => {
+    const m = raw[c].reduce((acc, v) => acc + v, 0) / raw[c].length;
+    return { raw: centre(raw[c], m), filt: centre(filtered[c], m) };
+  });
   const all = series.flatMap((s) => (showRaw ? s.raw.concat(s.filt) : s.filt));
   let lo = Math.min(...all), hi = Math.max(...all);
   if (hi === lo) { hi += 1; lo -= 1; }
@@ -300,6 +307,7 @@ function renderRawTable() {
   document.getElementById("raw-table").replaceChildren(head, body);
   document.getElementById("time-readout").textContent =
     `${(t / PUB.sample_rate_hz).toFixed(2)} s · sample ${t + 1} of ${n}`;
+  document.getElementById("time-readout-short").textContent = `at ${(t / PUB.sample_rate_hz).toFixed(2)} s`;
 }
 function setTime(i) {
   state.t = i;
@@ -341,13 +349,14 @@ function renderSignal() {
   }
   radioGroup(document.getElementById("filters"),
     STAGES.filters.map((f) => ({ value: f.id, label: f.name })), state.filter,
-    (v) => { state.filter = v; renderSignal(); writeHash(); });
+    (v) => { state.filter = v; renderSignal(); renderPipeline(); writeHash(); });
 
   const box = document.getElementById("signal");
   box.replaceChildren();
   const showRaw = state.filter !== "none";
   for (const panel of SENSOR_PANELS) box.append(drawPanel(panel, sig.raw, sig.filtered, showRaw));
-  if (showRaw) box.append(el("p", { class: "hint" }, "Grey: before the filter. Colour: after."));
+  box.append(el("p", { class: "hint" }, (showRaw ? "Grey: before the filter. Colour: after. " : "") +
+    "Each line is drawn around its own average so its shape shows; exact values are under Raw sensor values."));
   const n = sig.filtered[0].length;
   document.getElementById("time").max = String(n - 1);
   setTime(Math.min(state.t ?? Math.floor(n / 2), n - 1));
@@ -491,6 +500,7 @@ function renderWords() {
 function renderModel() {
   const cur = current();
   const intro = document.getElementById("model-intro");
+  document.getElementById("members-read").textContent = "";
   show("class-view", cur && cur.mode !== "words");
   show("words-view", cur && cur.mode === "words");
   show("members-col", cur && cur.mode === "ensemble");
@@ -533,11 +543,11 @@ function renderModel() {
   const options = g.seeds.map((s, i) => ({ value: i, label: `Seed ${s}` }));
   options.push({ value: "mean", label: `Ensemble of ${g.seeds.length}` });
   radioGroup(document.getElementById("models"), options, state.model,
-    (v) => { state.model = v; renderModel(); writeHash(); });
+    (v) => { state.model = v; renderModel(); renderPipeline(); writeHash(); });
   if (!cur.left && Object.keys(PUB.groups).length > 1) {
     radioGroup(document.getElementById("training"), Object.keys(PUB.groups).map((k) => ({
       value: k, label: k === "right" ? "Trained on right-handed writers" : "Plus left-handed writers",
-    })), state.group, (v) => { state.group = v; renderModel(); writeHash(); });
+    })), state.group, (v) => { state.group = v; renderModel(); renderPipeline(); writeHash(); });
   }
   renderBars();
   renderMembers();
@@ -605,14 +615,54 @@ function renderOpen() {
   }
 }
 
+// ---------- pipeline strip and bound numbers ----------
+function renderPipeline() {
+  const cur = current();
+  const s = sample();
+  const set = (id, text) => { document.getElementById(id).textContent = text; };
+  const writers = state.task === "words" ? "unseen" : state.protocol === "indep" ? "unseen" : "seen";
+  set("pipe-task", `${TASKS[state.task].label} · ${writers}`);
+  set("pipe-filter", STAGES.filters.find((f) => f.id === state.filter).name);
+  const answer = document.getElementById("pipe-answer");
+  answer.className = "";
+  if (!cur || !s) {
+    set("pipe-sample", "not run yet"); set("pipe-model", "none"); answer.textContent = "none";
+    return;
+  }
+  if (cur.mode === "words") {
+    set("pipe-sample", s.ref);
+    set("pipe-model", "CTC + word list");
+    answer.textContent = s.lexicon || "(no answer)";
+    answer.className = s.lexicon === s.ref ? "right" : "wrong";
+    return;
+  }
+  set("pipe-sample", s.label);
+  set("pipe-model", cur.mode === "single" ? "One model" :
+    state.model === "mean" ? "Ensemble of 5" : `Seed ${state.model}`);
+  const probs = currentProbs();
+  const top = classNames()[probs.indexOf(Math.max(...probs))];
+  answer.textContent = `${top} · ${pct(Math.max(...probs))}`;
+  answer.className = top === s.label ? "right" : "wrong";
+}
+
+// Numbers written into the HTML (so crawlers and no-JS readers see them) are
+// re-read from the data here, so the page can never show a stale figure.
+function bindNumbers() {
+  for (const node of document.querySelectorAll("[data-bind]")) {
+    const value = node.dataset.bind.split(".").reduce((obj, key) => (obj == null ? obj : obj[key]), PUB);
+    if (typeof value === "number") node.textContent = node.dataset.fmt === "pct" ? `${value.toFixed(2)}%` : String(value);
+  }
+}
+
 function renderAll() {
   renderTask();
   renderSignal();
   renderModel();
+  renderPipeline();
   writeHash();
 }
 
-document.getElementById("repo-link").href = STAGES.repo;
+bindNumbers();
 document.getElementById("time").addEventListener("input", (e) => setTime(Number(e.target.value)));
 document.getElementById("download-csv").addEventListener("click", downloadCsv);
 readHash();

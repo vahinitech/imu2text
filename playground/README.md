@@ -64,6 +64,13 @@ The cards in step 4 of the page are the open tasks. Each links to an issue.
 | `stages.js` | the methods shown, with measured accuracies and sources |
 | `data/public.js` | generated model outputs and the synthetic signal |
 | `data/local.js` | generated real recordings, local only |
+| `favicon.svg`, `og.png`, `robots.txt`, `sitemap.xml` | icon, social preview, crawler files |
+| `og.html` | source of `og.png`; regenerate with the command in its header |
+
+The search and sharing metadata (title, description, canonical URL, Open
+Graph, JSON-LD) is in the head of `index.html`. `tests/test_playground_page.py`
+checks it, and that the numbers written into the HTML for crawlers match
+`data/public.js`.
 
 A view can be shared with its URL, for example
 `index.html#task=symbols&protocol=dep&sample=3&filter=lowpass`.
