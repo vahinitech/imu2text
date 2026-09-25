@@ -91,3 +91,54 @@ def test_synthetic_signal_goes_through_every_filter():
     assert set(versions) == {"none", "lowpass", "orientation"}
     assert all(len(v) == 13 for v in versions.values())
     assert versions["lowpass"] != versions["none"]
+
+
+def test_word_records_sort_words_by_what_the_decoders_did(tmp_path):
+    path = tmp_path / "words.npz"
+    np.savez(
+        path,
+        refs=np.array(["Haus", "Tag", "zur", "Man", "eine"]),
+        hyps=np.array(["Haus", "Mg", "zr", "Mn", "ein"]),
+        lexicon_hyps=np.array(["Haus", "US", "zur", "", "eine"]),
+    )
+    w = B.word_records(str(path))
+    kinds = {s["ref"]: s["kind"] for s in w["samples"]}
+    assert kinds == {
+        "Haus": "right",
+        "zur": "fixed",
+        "eine": "fixed",
+        "Man": "abstain",
+        "Tag": "wrong",
+    }
+    assert w["exact_greedy"] == 20.0 and w["exact_lexicon"] == 60.0
+    assert w["empty_lexicon"] == 1
+    fixed = next(s for s in w["samples"] if s["ref"] == "zur")
+    assert fixed["cer_greedy"] == 33.3 and fixed["cer_lexicon"] == 0.0
+
+
+def test_task_records_summarise_a_single_model_run(tmp_path):
+    classes = np.array(list("0123456789+-·:="))
+    true = np.array([0, 1, 2, 3])
+    proba = np.full((4, 15), 0.001)
+    proba[0, 0] = 0.95  # clear
+    proba[1, [1, 7, 9]] = 0.40, 0.35, 0.20  # right but unsure (41%)
+    proba[2, 5] = 0.90  # confidently wrong
+    proba[3, 3], proba[3, 8] = 0.60, 0.30  # right, neither clear nor unsure
+    proba /= proba.sum(1, keepdims=True)
+    path = tmp_path / "symbols.npz"
+    np.savez(
+        path,
+        true=true,
+        proba=proba.astype(np.float32),
+        classes=classes,
+        split="official symbols split, writer-independent",
+        model="cnn_bilstm_attn",
+        seed=0,
+    )
+    t = B.task_records(str(path))
+    assert t["accuracy"] == 75.0 and t["n_test"] == 4
+    assert {(s["kind"], s["label"]) for s in t["samples"]} == {
+        ("clear", "0"),
+        ("unsure", "1"),
+        ("wrong", "2"),
+    }

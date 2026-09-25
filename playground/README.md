@@ -1,8 +1,9 @@
 # Vahini playground
 
-One handwritten letter, followed through the pipeline: the pen's 13 sensor
-channels, a filter, five trained models, and what they think the letter is.
-Built for people new to the project, and as a map of where to contribute.
+One handwritten letter, symbol or word, followed through the pipeline: the
+pen's 13 sensor channels, a filter, the trained models, and what they think
+was written. Built for people new to the project, and as a map of where to
+contribute.
 
 Published at https://playground.vahinitech.com, pinned to one imu2text
 commit. Locally, open `index.html` in a browser; there is no server and no
@@ -13,17 +14,31 @@ build step.
 The page never runs a model. It shows what `scripts/build_playground.py`
 exported, so it cannot disagree with the Python code.
 
-**Published page (`data/public.js`, committed).** Model outputs for 24 real
-test letters from the official OnHW-chars `both/indep/fold0` split, and one
-synthetic signal to show what the filters do. No OnHW recordings.
+**Published page (`data/public.js`, committed).** Model outputs for real test
+samples, and one synthetic signal to show what the filters do. No OnHW
+recordings. What each task draws on:
 
-**Local (`data/local.js`, gitignored).** The same letters with their real
-recordings, raw and filtered. Download the data yourself, then:
+| Task | Writers | Model | Saved outputs |
+|---|---|---|---|
+| Characters | unseen, right- and left-handed | 5-seed ensemble | `results/ensemble/` |
+| Characters | seen | one model, seed 0 | `results/tasks/chars_dep.npz` |
+| Symbols, equations | unseen and seen | one model, seed 0 | `results/tasks/` |
+| Words | unseen | CTC, greedy and word-list decoding | `results/ctc/refit_seed0.json.predictions.npz` |
+
+**Local (`data/local.js`, gitignored).** The right-handed character samples
+with their real recordings, raw and filtered. Download the data yourself.
 
 ```bash
 python -m imu2text.download onhw_chars --out ./data
-python -m scripts.build_playground --members 'results/ensemble/right_seed*.npz' \
-    --onhw-chars data/onhw-chars_2021-06-30
+python -m scripts.build_playground \
+    --members 'results/ensemble/right_seed*.npz' \
+    --members-left 'results/ensemble/both_seed*.npz' \
+    --task chars_dep=results/tasks/chars_dep.npz \
+    --task symbols_indep=results/tasks/symbols_indep.npz \
+    --task symbols_dep=results/tasks/symbols_dep.npz \
+    --task equations_indep=results/tasks/equations_indep.npz \
+    --task equations_dep=results/tasks/equations_dep.npz \
+    --onhw-chars data/onhw-chars_2021-06-30   # leave out for public.js only
 ```
 
 The OnHW datasets are by Fraunhofer IIS, for non-commercial use, and are not
@@ -49,5 +64,13 @@ The cards in step 4 of the page are the open tasks. Each links to an issue.
 | `stages.js` | the methods shown, with measured accuracies and sources |
 | `data/public.js` | generated model outputs and the synthetic signal |
 | `data/local.js` | generated real recordings, local only |
+| `favicon.svg`, `og.png`, `robots.txt`, `sitemap.xml` | icon, social preview, crawler files |
+| `og.html` | source of `og.png`; regenerate with the command in its header |
 
-A view can be shared with its URL: `index.html#letter=7&filter=lowpass&model=mean`.
+The search and sharing metadata (title, description, canonical URL, Open
+Graph, JSON-LD) is in the head of `index.html`. `tests/test_playground_page.py`
+checks it, and that the numbers written into the HTML for crawlers match
+`data/public.js`.
+
+A view can be shared with its URL, for example
+`index.html#task=symbols&protocol=dep&sample=3&filter=lowpass`.

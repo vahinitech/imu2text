@@ -71,6 +71,18 @@ window.PLAYGROUND_STAGES = {
       why: "In words, position decides case. The lexicon decoder already exists.",
     },
     {
+      name: "Pen-tip trajectories",
+      stage: "model",
+      issue: null,
+      why: "OnHW-wordsTraj pairs IMU recordings with the tip's path from a tablet: 16,752 samples from 2 writers. No loader or model yet, and with 2 writers every result is writer-dependent.",
+    },
+    {
+      name: "Adapting to a new writer",
+      stage: "model",
+      issue: null,
+      why: "Domain adaptation (for example CORAL) adjusts the model to a writer's own recordings. It changes what a split means, so a result has to say what the model saw.",
+    },
+    {
       name: "Know when to abstain",
       stage: "result",
       issue: 13,

@@ -250,6 +250,13 @@ data. On symbols the tuned config is -0.43 on WD and 6.7 behind on WI, adding
 that happens, like the 2xBiLSTM-100 rows on OnHW-chars. Transfer learning from
 OnHW-chars (`imu2text/symbols.py`) targets the small case and is unmeasured.
 
+The playground uses deterministic reruns of the tuned configuration (seed 0,
+30 epochs, `--deterministic`, predictions saved in `results/tasks/`):
+symbols WD 94.71% (473 test samples) and WI 71.03% (611). The table's 95.77
+and 72.83 are the same configuration without `--deterministic`, so the
+difference is run-to-run variation on a small test set, not a change.
+Equations and OnHW-chars WD have not been rerun this way yet.
+
 ## OnHW-words500
 
 ### 30-epoch run
