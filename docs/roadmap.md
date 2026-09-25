@@ -1,6 +1,6 @@
 # Roadmap for the OnHW dataset family
 
-This repo started as single-character classification on a bundled subset. It
+This repo started as single-character classification on OnHW-chars_L. It
 now covers characters, symbols, split equations and OnHW-words500 on the
 published splits of the [Fraunhofer IIS OnHW dataset family](https://www.iis.fraunhofer.de/de/ff/lv/dataanalytics/anwproj/schreibtrainer/onhw-dataset.html).
 This file lists what is built, what comes next and in what order, and the
@@ -29,7 +29,7 @@ of the IJDAR 2022 benchmark paper, which this repo does not hold.
 
 - Official OnHW-chars benchmark, all six right-handed splits, fold 0: `imu2text/chars.py`, `scripts/make_comparison_table.py`, results in benchmarks.md.
 - More writers: the full 119-writer set replaced the 27-training-writer subset whose learning curve (`results/learning_curve.png`) was still climbing.
-- Augmentation: `--augment 4 --rnn-units 100 --rnn-layers 2` took the bundled subset from 64.8% to 71.6% WI; rotation, channel dropout and crop are in `imu2text/augment.py` behind `--aug-policy extended`.
+- Augmentation: `--augment 4 --rnn-units 100 --rnn-layers 2` took OnHW-chars_L from 64.8% to 71.6% on a split that shared writers between train and test (see [benchmarks](benchmarks.md#onhw-chars_l-with-guessed-writers-writer-dependent)), so not WI; rotation, channel dropout and crop are in `imu2text/augment.py` behind `--aug-policy extended`.
 - Normalization modes: `--norm per_sample` and the transductive `--norm per_writer` in `imu2text/models.py`; neither helped consistently on OnHW-chars_L.
 - Attention pooling, label smoothing and LR schedule: `--models cnn_bilstm_attn`, `--label-smoothing`, `--lr-schedule`.
 - Transformer and mixture-of-experts encoders: `build_transformer` and `build_moe` in `imu2text/models.py`, not benchmarked.

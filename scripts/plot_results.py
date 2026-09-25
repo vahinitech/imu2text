@@ -13,10 +13,14 @@ colorblind-safe palette instead of ad-hoc named CSS colors, and results are
 read from CSV rather than per-fold pickle files.
 
 Figures produced (into results/):
-  1. learning_curve.pdf/.png - writer-independent accuracy vs. number of
-     training writers, with the logistic projection fit (same model as
-     onhw_projection.m) extrapolated to full-dataset scale.
-  2. model_benchmarks.pdf/.png - held-out WI accuracy per architecture.
+  1. learning_curve.pdf/.png - test accuracy vs. number of training writers,
+     with the logistic projection fit (same model as onhw_projection.m)
+     extrapolated to full-dataset scale.
+  2. model_benchmarks.pdf/.png - test accuracy per architecture.
+
+The committed inputs were measured on OnHW-chars_L split by writers guessed
+from label order, which shares real writers between train and test, so both
+figures are labelled writer-dependent (docs/benchmarks.md).
 
 Usage:  python scripts/plot_results.py [--width 500]
 """
@@ -50,7 +54,7 @@ MUTED = "#83827d"
 RESULTS_DIR = "results"
 CURVE_CSV = os.path.join(RESULTS_DIR, "learning_curve.csv")
 
-# Writer-independent benchmarks from README (bundled subset, seed 0);
+# OnHW-chars_L, guessed-writer split (writer-dependent), seed 0;
 # overridden by results/benchmarks.csv (columns: model,wi_test_acc) if present.
 DEFAULT_BENCHMARKS = [
     ("cnn_bilstm", 64.8),
@@ -162,9 +166,9 @@ def plot_learning_curve(width: float) -> None:
             color=TEXT,
         )
 
-    ax.set_xlabel("Training writers (writer-independent split)")
-    ax.set_ylabel("WI test accuracy (%)")
-    ax.set_title("OnHW-chars learning curve and projection")
+    ax.set_xlabel("Training writers (guessed from label order)")
+    ax.set_ylabel("Test accuracy (%)")
+    ax.set_title("OnHW-chars_L learning curve, writer-dependent split")
     ax.set_ylim(0, 100)
     ax.legend(loc="lower right", frameon=False, fontsize=8)
 
@@ -211,8 +215,8 @@ def plot_benchmarks(width: float) -> None:
             color=TEXT,
         )
     ax.set_yticks(y, names)
-    ax.set_xlabel("Writer-independent test accuracy (%)")
-    ax.set_title("OnHW-chars: held-out accuracy by architecture (52 classes)")
+    ax.set_xlabel("Test accuracy (%), writer-dependent split")
+    ax.set_title("OnHW-chars_L: accuracy by architecture (52 classes)")
     ax.set_xlim(0, 100)
 
     for ext in ("pdf", "png"):

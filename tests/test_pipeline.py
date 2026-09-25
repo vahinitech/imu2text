@@ -4,6 +4,9 @@ These cover the pure/deterministic parts (splitting, writer inference,
 augmentation, normalization) so CI catches regressions without a training run.
 """
 
+import pickle
+import sys
+
 import numpy as np
 import pytest
 
@@ -711,3 +714,27 @@ def test_model_selection_ignores_test_ranking():
         {"model": "selected", "val_acc": 70, "test_acc": 65},
     ]
     assert select_by_validation(candidates)[0]["model"] == "selected"
+
+
+def _run_cli(monkeypatch, argv):
+    monkeypatch.setattr(sys, "argv", ["imu2text.models"] + argv)
+    with pytest.raises(SystemExit) as exc:
+        M.main()
+    return str(exc.value)
+
+
+def test_cli_without_data_says_where_to_get_it(monkeypatch):
+    """No bundled data ships with the repo; the error must name the options."""
+    msg = _run_cli(monkeypatch, [])
+    assert "--onhw-chars" in msg and "imu2text.download" in msg
+
+
+def test_writer_split_refuses_to_guess_writers(monkeypatch, tmp_path):
+    """Guessing writers from label order leaked writers on OnHW-chars_L."""
+    imu, gt = tmp_path / "x.pkl", tmp_path / "gt.pkl"
+    with open(imu, "wb") as f:
+        pickle.dump([np.ones((5, 13), np.float32)] * 4, f)
+    with open(gt, "wb") as f:
+        pickle.dump(list("ABAB"), f)
+    msg = _run_cli(monkeypatch, ["--imu-file", str(imu), "--gt-file", str(gt)])
+    assert "--writers-file" in msg

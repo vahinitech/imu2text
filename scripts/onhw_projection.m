@@ -1,9 +1,11 @@
 % onhw_projection.m
 % -------------------------------------------------------------------------
-% IMU smart-pen (ballpoint, regular paper) - writer-independent accuracy
-% projection. Reads the measured WI learning curve produced by
-% make_learning_curve.py and extrapolates expected accuracy as the number of
-% enrolled writers grows toward full-dataset scale.
+% IMU smart-pen (ballpoint, regular paper) - accuracy projection. Reads the
+% learning curve produced by make_learning_curve.py and extrapolates expected
+% accuracy as the number of enrolled writers grows toward full-dataset scale.
+% The projection is only writer-independent if the curve is. The committed
+% results/learning_curve.csv is not: it was measured on OnHW-chars_L split by
+% writers guessed from label order (docs/benchmarks.md).
 %
 % Model (logistic, our own - matches the empirical S-shape of WI scaling: a
 % shallow start with few writers, a steep middle, then saturation):
@@ -65,8 +67,8 @@ yline_compat(acc_ceiling, ':', ...
     sprintf('fitted ceiling L = %.1f%%', acc_ceiling));
 
 xlabel('Number of enrolled (training) writers');
-ylabel('Writer-independent character accuracy (%)');
-title({'IMU Smart-Pen - Writer-Independent Accuracy Projection', ...
+ylabel('Character accuracy (%)');
+title({'IMU Smart-Pen - Accuracy Projection', ...
        'CNN+BiLSTM on regular-paper ballpoint IMU data'});
 legend({'fitted saturating model', 'measured (this repo subset)', ...
         sprintf('projected @ %d writers = %.1f%%', W_full_train, acc_full)}, ...

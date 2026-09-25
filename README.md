@@ -44,7 +44,13 @@ Details, every other split and the reproduction commands:
 Read [AGENTS.md](AGENTS.md) first. CI runs `pytest`, `black`, `pylint` and a
 Markdown style check.
 
-## License
+## License and data
 
-Apache License 2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+The code is Apache License 2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 Maintained by [@vahinitech](https://github.com/vahinitech).
+
+The OnHW datasets are by Fraunhofer IIS, for non-commercial use only. They are
+not covered by the Apache license and this repository does not contain them:
+`python -m imu2text.download` fetches them from Fraunhofer. If you use them,
+cite Ott et al., "The OnHW Dataset: Online Handwriting Recognition from
+IMU-Enhanced Ballpoint Pens with Machine Learning", Proc. ACM IMWUT 4(3), 2020.

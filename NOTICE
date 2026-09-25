@@ -2,3 +2,7 @@ IMU2Text
 Copyright 2026 Vahini Technologies <info@vahinitech.com>
 
 This product includes software developed by Vahini Technologies.
+
+The Apache License 2.0 covers the source code in this repository. It does not
+cover the OnHW datasets, which are by Fraunhofer IIS, may be used for
+non-commercial purposes only, and are not distributed with this repository.
