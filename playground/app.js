@@ -23,7 +23,7 @@ const SENSOR_PANELS = [
 const AXIS_COLORS = ["var(--series-1)", "var(--series-2)", "var(--series-3)"];
 const AXIS_NAMES = ["x", "y", "z"];
 
-const state = { letter: 0, filter: "none", model: "mean", group: "right" };
+const state = { letter: 0, filter: "none", model: "mean", group: "right", t: null };
 
 // The selection lives in the URL (#letter=3&filter=lowpass&model=mean), so a
 // view can be shared in an issue or a chat.
@@ -124,6 +124,22 @@ function drawPanel(panel, raw, filtered, showRaw) {
     if (showRaw) svg.append(svgEl("path", { d: path(s.raw), fill: "none", stroke: "var(--raw)", "stroke-width": 1 }));
     svg.append(svgEl("path", { d: path(s.filt), fill: "none", stroke: color, "stroke-width": 1.6 }));
   });
+  // Crosshair for the selected moment; moving over any plot selects a time.
+  const cross = svgEl("line", { y1: top - 4, y2: H - bottom, stroke: "var(--text-muted)",
+    "stroke-width": 1, "stroke-dasharray": "2 2", visibility: "hidden" });
+  svg.append(cross);
+  const pick = (clientX) => {
+    const box = svg.getBoundingClientRect();
+    const vx = ((clientX - box.left) / box.width) * W;
+    const i = Math.round(((vx - left) / (W - left - right)) * (n - 1));
+    setTime(Math.max(0, Math.min(n - 1, i)));
+  };
+  svg.addEventListener("pointermove", (e) => pick(e.clientX));
+  svg.addEventListener("pointerdown", (e) => pick(e.clientX));
+  crosshairs.push((i) => {
+    cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i));
+    cross.setAttribute("visibility", "visible");
+  });
   if (panel.channels.length > 1) {
     // End labels, pushed apart so they never overlap.
     const ends = series.map((s, k) => ({ k, y: y(s.filt[n - 1]) })).sort((a, b) => a.y - b.y);
@@ -133,8 +149,83 @@ function drawPanel(panel, raw, filtered, showRaw) {
   return svg;
 }
 
+// ---------- raw values: slider, crosshairs, table, CSV ----------
+let crosshairs = [];
+const RAW_ROWS = [
+  ["Front accelerometer", [0, 1, 2]], ["Rear accelerometer", [3, 4, 5]],
+  ["Gyroscope", [6, 7, 8]], ["Magnetometer", [9, 10, 11]], ["Pen-tip force", [12]],
+];
+// Conversions documented in imu2text/filters.py. The accelerometer one is
+// derived from the data (a pen at rest reads 1 g); the gyroscope one is
+// inferred from plausible pen rotation, not from a datasheet.
+function physical(channel, counts) {
+  if (channel <= 5) return `${(counts / 16384).toFixed(3)} g`;
+  if (channel <= 8) return `${(counts / 14.3).toFixed(1)} °/s`;
+  return "";
+}
+function channelStats(vals) {
+  const sum = vals.reduce((acc, v) => acc + v, 0);
+  return { min: Math.min(...vals), max: Math.max(...vals), mean: sum / vals.length };
+}
+function fmt(v) { return Number(v).toLocaleString(undefined, { maximumFractionDigits: 1 }); }
+
+function renderRawTable() {
+  const sig = currentSignal();
+  const data = sig.filtered;
+  const n = data[0].length;
+  const t = Math.min(state.t, n - 1);
+  const table = document.getElementById("raw-table");
+  const head = el("thead");
+  const hr = el("tr");
+  for (const h of ["Sensor", "Axis", "Counts", "Units", "Min", "Max", "Mean"]) {
+    hr.append(el("th", { scope: "col" }, h));
+  }
+  head.append(hr);
+  const body = el("tbody");
+  for (const [name, chans] of RAW_ROWS) {
+    chans.forEach((c, k) => {
+      const st = channelStats(data[c]);
+      const tr = el("tr");
+      tr.append(el("td", {}, k === 0 ? name : ""), el("td", {}, chans.length > 1 ? AXIS_NAMES[k] : ""),
+        el("td", { class: "now" }, fmt(data[c][t])), el("td", {}, physical(c, data[c][t])),
+        el("td", {}, fmt(st.min)), el("td", {}, fmt(st.max)), el("td", {}, fmt(st.mean)));
+      body.append(tr);
+    });
+  }
+  table.replaceChildren(head, body);
+  document.getElementById("time-readout").textContent =
+    `${(t / PUB.sample_rate_hz).toFixed(2)} s · sample ${t + 1} of ${n}`;
+}
+
+function setTime(i) {
+  state.t = i;
+  document.getElementById("time").value = String(i);
+  for (const draw of crosshairs) draw(i);
+  renderRawTable();
+}
+
+function downloadCsv() {
+  const sig = currentSignal();
+  const data = sig.filtered;
+  const names = PUB.channels;
+  const lines = [["time_s", ...names].join(",")];
+  for (let i = 0; i < data[0].length; i++) {
+    lines.push([(i / PUB.sample_rate_hz).toFixed(2), ...names.map((_, c) => data[c][i])].join(","));
+  }
+  const letter = PUB.letters[state.letter];
+  const kind = sig.real ? `onhw-test${letter.test_index}` : "synthetic";
+  const a = el("a", {
+    href: URL.createObjectURL(new Blob([lines.join("\n") + "\n"], { type: "text/csv" })),
+    download: `vahini-playground-${kind}-${state.filter}.csv`,
+  });
+  document.body.append(a);
+  a.click();
+  a.remove();
+}
+
 function renderSignal() {
   const sig = currentSignal();
+  crosshairs = [];
   const note = document.getElementById("signal-note");
   note.textContent = sig.real
     ? ""
@@ -151,6 +242,10 @@ function renderSignal() {
   const showRaw = state.filter !== "none";
   for (const panel of SENSOR_PANELS) box.append(drawPanel(panel, sig.raw, sig.filtered, showRaw));
   if (showRaw) box.append(el("p", { class: "hint" }, "Grey: before the filter. Colour: after."));
+  const n = sig.filtered[0].length;
+  const slider = document.getElementById("time");
+  slider.max = String(n - 1);
+  setTime(Math.min(state.t ?? Math.floor(n / 2), n - 1));
 
   const f = STAGES.filters.find((s) => s.id === state.filter);
   const card = document.getElementById("filter-result");
@@ -306,6 +401,8 @@ function renderAll() {
 }
 
 document.getElementById("repo-link").href = STAGES.repo;
+document.getElementById("time").addEventListener("input", (e) => setTime(Number(e.target.value)));
+document.getElementById("download-csv").addEventListener("click", downloadCsv);
 readHash();
 renderAll();
 let resizeTimer;
