@@ -45,7 +45,7 @@ def entropy_bits(p: np.ndarray) -> np.ndarray:
     return -(p * np.log2(p + EPS)).sum(-1)
 
 
-def pick_letters(members: list, seed: int = 0) -> list:
+def pick_letters(members: list, seed: int = 0, hand=(0, -1)) -> list:
     """Choose test letters that show the three situations worth explaining.
 
     ``clear``: every member picks the right letter with high confidence.
@@ -55,7 +55,7 @@ def pick_letters(members: list, seed: int = 0) -> list:
     """
     ref = members[0]
     true, classes = ref["true"], ref["classes"].astype(str)
-    keep = np.isin(ref["handedness"], (0, -1))  # right-handed test letters
+    keep = np.isin(ref["handedness"], hand)  # right-handed by default
     probs = np.stack([m["proba"] for m in members])  # (S, N, C)
     mean = probs.mean(0)
     top = mean.argmax(1)
@@ -139,13 +139,18 @@ def filtered_versions(seq: np.ndarray) -> dict:
     }
 
 
-def letter_records(members, chosen, groups) -> list:
+def letter_records(members, chosen, groups, hand="right") -> list:
     """Model outputs for each chosen letter, per group of ensemble members."""
     ref = members[0]
     classes = ref["classes"].astype(str)
     records = []
     for kind, i in chosen:
-        rec = {"test_index": i, "kind": kind, "label": classes[ref["true"][i]]}
+        rec = {
+            "test_index": i,
+            "kind": kind,
+            "label": classes[ref["true"][i]],
+            "hand": hand,
+        }
         for name, group in groups.items():
             probs = np.stack([m["proba"][i] for m in group])
             rec[name] = {
@@ -157,10 +162,10 @@ def letter_records(members, chosen, groups) -> list:
     return records
 
 
-def group_summary(group) -> dict:
+def group_summary(group, hand=(0, -1)) -> dict:
     """Whole-test-set accuracy of each member and of the ensemble."""
     ref = group[0]
-    keep = np.isin(ref["handedness"], (0, -1))
+    keep = np.isin(ref["handedness"], hand)
     true = ref["true"][keep]
     probs = np.stack([m["proba"][keep] for m in group])
     return {
@@ -169,6 +174,104 @@ def group_summary(group) -> dict:
         "n_test": int(keep.sum()),
         "member_accuracy": [float((p.argmax(1) == true).mean() * 100) for p in probs],
         "ensemble_accuracy": float((probs.mean(0).argmax(1) == true).mean() * 100),
+    }
+
+
+def word_records(path: str, seed: int = 0) -> dict:
+    """Sample words from a saved CTC run, with both decodings and their CER.
+
+    ``right``: greedy decoding already spells the word. ``fixed``: greedy is
+    wrong and the lexicon decoder recovers it. ``abstain``: the lexicon
+    decoder returns nothing (no lexicon word fits). ``wrong``: both are
+    wrong. The CER helper is the one the benchmark used.
+    """
+    from imu2text.seq2seq import cer  # noqa: PLC0415  (imports TensorFlow)
+
+    with np.load(path, allow_pickle=False) as d:
+        refs, greedy, lexicon = d["refs"], d["hyps"], d["lexicon_hyps"]
+    kinds = {
+        "right": greedy == refs,
+        "fixed": (greedy != refs) & (lexicon == refs),
+        "abstain": lexicon == "",
+        "wrong": (greedy != refs) & (lexicon != refs) & (lexicon != ""),
+    }
+    rng = np.random.default_rng(seed)
+    samples, used = [], set()
+    for kind, mask in kinds.items():
+        seen = set()
+        for i in rng.permutation(np.flatnonzero(mask)):
+            # Each word once on the page, so no word sits in two groups.
+            if refs[i] in used:
+                continue
+            used.add(refs[i])
+            seen.add(refs[i])
+            samples.append(
+                {
+                    "kind": kind,
+                    "ref": str(refs[i]),
+                    "greedy": str(greedy[i]),
+                    "lexicon": str(lexicon[i]),
+                    "cer_greedy": round(100 * cer([refs[i]], [greedy[i]]), 1),
+                    "cer_lexicon": round(100 * cer([refs[i]], [lexicon[i]]), 1),
+                }
+            )
+            if len(seen) == PER_KIND:
+                break
+    return {
+        "n": int(len(refs)),
+        "cer_greedy": round(100 * cer(list(refs), list(greedy)), 2),
+        "cer_lexicon": round(100 * cer(list(refs), list(lexicon)), 2),
+        "exact_greedy": round(float((greedy == refs).mean() * 100), 2),
+        "exact_lexicon": round(float((lexicon == refs).mean() * 100), 2),
+        "empty_lexicon": int((lexicon == "").sum()),
+        "source": path.replace(os.sep, "/"),
+        "samples": samples,
+    }
+
+
+def task_records(path: str, seed: int = 0) -> dict:
+    """Sample test items from one single-model run on another task.
+
+    ``clear``: right with at least 90% confidence. ``unsure``: top choice
+    below 50%. ``wrong``: wrong with at least 70% confidence.
+    """
+    with np.load(path, allow_pickle=False) as d:
+        run = {k: d[k] for k in d.files}
+    proba, true = run["proba"], run["true"]
+    classes = run["classes"].astype(str).tolist()
+    top, conf = proba.argmax(1), proba.max(1)
+    kinds = {
+        "clear": (top == true) & (conf >= 0.9),
+        "unsure": conf < 0.5,
+        "wrong": (top != true) & (conf >= 0.7),
+    }
+    rng = np.random.default_rng(seed)
+    samples = []
+    for kind, mask in kinds.items():
+        seen = set()
+        for i in rng.permutation(np.flatnonzero(mask)):
+            if true[i] in seen:
+                continue
+            seen.add(true[i])
+            samples.append(
+                {
+                    "test_index": int(i),
+                    "kind": kind,
+                    "label": classes[true[i]],
+                    "probs": rounded(proba[i]),
+                }
+            )
+            if len(seen) == PER_KIND:
+                break
+    return {
+        "classes": classes,
+        "split": str(run["split"]),
+        "model": str(run["model"]),
+        "seed": int(run["seed"]),
+        "n_test": int(len(true)),
+        "accuracy": round(float((top == true).mean() * 100), 2),
+        "source": path.replace(os.sep, "/"),
+        "samples": samples,
     }
 
 
@@ -193,6 +296,19 @@ def main() -> None:
     ap.add_argument(
         "--onhw-chars", help="downloaded right-handed archive, for local.js"
     )
+    ap.add_argument(
+        "--words",
+        default="results/ctc/refit_seed0.json.predictions.npz",
+        help="saved Words500 CTC predictions (refs, hyps, lexicon_hyps)",
+    )
+    ap.add_argument(
+        "--task",
+        action="append",
+        default=[],
+        metavar="NAME=PATH",
+        help="a single-model --save-predictions file for another task, e.g. "
+        "symbols_indep=results/tasks/symbols_indep.npz",
+    )
     args = ap.parse_args()
 
     right = load_members(args.members)
@@ -212,6 +328,26 @@ def main() -> None:
         "sample_rate_hz": SAMPLE_RATE_HZ,
         "groups": {name: group_summary(g) for name, g in groups.items()},
         "letters": letter_records(right, chosen, groups),
+        "left_letters": (
+            letter_records(
+                groups["with_left"],
+                pick_letters(groups["with_left"], hand=(1,)),
+                {"with_left": groups["with_left"]},
+                hand="left",
+            )
+            if "with_left" in groups
+            else []
+        ),
+        "left_summary": (
+            group_summary(groups["with_left"], hand=(1,))
+            if "with_left" in groups
+            else None
+        ),
+        "tasks": {
+            name: task_records(path)
+            for name, path in (item.split("=", 1) for item in args.task)
+        },
+        "words": word_records(args.words) if os.path.exists(args.words) else None,
         "synthetic_signal": filtered_versions(synthetic_signal()),
     }
     write_js(os.path.join(OUT_DIR, "public.js"), "PLAYGROUND_PUBLIC", public)

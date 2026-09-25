@@ -10,16 +10,23 @@
   <main>
     <header>
       <h1>Vahini playground</h1>
-      <p class="lead">A pen with motion sensors writes one letter. Follow it through
-        the pipeline: the raw signal, a filter, the model, and what the model
-        thinks it saw. Every number on this page comes from a run in the
-        <a id="repo-link" href="#">imu2text repository</a>.</p>
+      <p class="lead">A pen with motion sensors writes a letter, a symbol or a word.
+        Follow it through the pipeline: the raw signal, a filter, the model, and
+        what the model thinks it saw. Every number on this page comes from a run
+        in the <a id="repo-link" href="#">imu2text repository</a>.</p>
     </header>
 
     <section aria-labelledby="s1">
-      <h2 id="s1"><span class="step">1</span> Pick a letter</h2>
-      <p class="hint">Real test letters from writers the model never saw during training.</p>
-      <div id="letters"></div>
+      <h2 id="s1"><span class="step">1</span> Pick a task and a sample</h2>
+      <div class="controls" id="task" role="radiogroup" aria-label="Task"></div>
+      <p id="task-note" class="hint"></p>
+      <div class="controls" id="protocol" role="radiogroup" aria-label="Writers"></div>
+      <div class="controls" id="hand" role="radiogroup" aria-label="Handedness"></div>
+      <div id="samples"></div>
+      <details class="why">
+        <summary>Seen and unseen writers</summary>
+        <div id="why-protocol"></div>
+      </details>
     </section>
 
     <section aria-labelledby="s2">
@@ -43,26 +50,45 @@
         <button id="download-csv" type="button">Download this recording as CSV</button>
       </div>
       <div id="filter-result" class="result-card"></div>
+      <details class="why">
+        <summary>What the sensors measure</summary>
+        <p>The <strong>accelerometers</strong>, one at the front of the pen and
+          one at the back, measure acceleration along three axes, including
+          gravity: a pen at rest reads about 1 g, 16,384 counts, split across
+          its axes by how it is tilted. The <strong>gyroscope</strong> measures
+          how fast the pen rotates. The <strong>magnetometer</strong> measures
+          the Earth's magnetic field, which changes with the pen's heading. The
+          <strong>force sensor</strong> measures how hard the tip presses, and
+          falls when the pen lifts. The pen records all 13 values 100
+          times a second.</p>
+        <p>None of them measures where the tip is. The model has to read the
+          letter from how the pen moves, which is why size, and so upper versus
+          lower case, is hard to see.</p>
+      </details>
     </section>
 
     <section aria-labelledby="s3">
       <h2 id="s3"><span class="step">3</span> The model's answer</h2>
-      <p class="hint">Five copies of the same network, trained with different random
-        seeds. Each gives a probability for all 52 letters. The ensemble averages them.</p>
+      <p id="model-intro" class="hint"></p>
       <div class="controls" id="models" role="radiogroup" aria-label="Model"></div>
       <div class="controls" id="training" role="radiogroup" aria-label="Training data"></div>
-      <div class="two-col">
+      <div id="class-view" class="two-col">
         <div>
-          <h3>Top five letters</h3>
+          <h3>Top five</h3>
           <div id="bars"></div>
         </div>
-        <div>
+        <div id="members-col">
           <h3>What each of the five models said</h3>
           <div id="members"></div>
           <p id="members-read" class="hint"></p>
         </div>
       </div>
+      <div id="words-view"></div>
       <div id="model-result" class="result-card"></div>
+      <details class="why">
+        <summary id="why-model-title">Why some letters are hard</summary>
+        <div id="why-model"></div>
+      </details>
     </section>
 
     <section aria-labelledby="s4">

@@ -40,6 +40,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   margin: 0;
   background: var(--surface-0);
@@ -109,3 +110,13 @@ svg .label-strong { fill: var(--text-primary); font-size: 13px; }
 .card p { margin: 0 0 8px; color: var(--text-secondary); }
 
 footer { color: var(--text-muted); font-size: 13px; margin-top: 24px; }
+
+.word-btn { font-size: 15px; }
+.words-table { border-collapse: collapse; margin: 8px 0; font-size: 15px; }
+.words-table th { text-align: left; font-weight: 600; color: var(--text-secondary); padding: 6px 16px 6px 0; }
+.words-table td { padding: 6px 16px 6px 0; color: var(--text-secondary); }
+.words-table td.word { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 18px; color: var(--text-primary); }
+details.why { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 10px; font-size: 14px; color: var(--text-secondary); }
+details.why summary { cursor: pointer; color: var(--text-primary); font-weight: 600; }
+details.why p { max-width: 75ch; }
+@media (max-width: 600px) { .words-table th { display: block; padding-bottom: 0; } .words-table td { display: inline-block; } }
