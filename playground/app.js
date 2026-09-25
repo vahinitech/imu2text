@@ -67,6 +67,12 @@ function radioGroup(container, options, current, onPick) {
   }
 }
 function pct(x) { return `${(x * 100).toFixed(1)}%`; }
+// Charts are drawn at their container's width, so labels keep their size on
+// a phone instead of shrinking with a scaled-down drawing.
+function widthOf(id, max) {
+  const w = document.getElementById(id).clientWidth;
+  return Math.max(260, Math.min(max, w || max));
+}
 
 // ---------- step 1: letters ----------
 function renderLetters() {
@@ -100,7 +106,7 @@ function currentSignal() {
 }
 
 function drawPanel(panel, raw, filtered, showRaw) {
-  const W = 600, H = 84, left = 4, right = 22, top = 16, bottom = 4;
+  const W = widthOf("signal", 900), H = 84, left = 4, right = 22, top = 16, bottom = 4;
   const series = panel.channels.map((c) => ({ raw: raw[c], filt: filtered[c] }));
   const all = series.flatMap((s) => (showRaw ? s.raw.concat(s.filt) : s.filt));
   let lo = Math.min(...all), hi = Math.max(...all);
@@ -176,7 +182,7 @@ function topK(probs, k) {
 function renderBars() {
   const letter = PUB.letters[state.letter];
   const top = topK(currentProbs(), 5);
-  const W = 420, rowH = 30, labelW = 34, valueW = 110;
+  const W = widthOf("bars", 460), rowH = 30, labelW = 34, valueW = 110;
   const svg = svgEl("svg", { viewBox: `0 0 ${W} ${rowH * top.length}`, role: "img",
     "aria-label": "Top five letters with probabilities" });
   top.forEach(([cls, p], r) => {
@@ -196,8 +202,9 @@ function renderBars() {
 function renderMembers() {
   const g = groupData();
   const top = topK(g.mean, 3).map(([cls]) => cls);
-  const S = g.members.length, W = 420, H = 150, base = 120, barW = 10, gap = 3;
-  const groupW = S * (barW + gap), groupGap = 40;
+  const S = g.members.length, W = widthOf("members", 460), H = 150, base = 120, barW = 10, gap = 3;
+  const groupW = S * (barW + gap);
+  const groupGap = Math.max(16, Math.min(60, (W - 40 - 3 * groupW) / 2));
   const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img",
     "aria-label": "Each model's probability for the three most likely letters" });
   svg.append(svgEl("line", { x1: 0, x2: W, y1: base, y2: base, stroke: "var(--grid)" }));
@@ -227,11 +234,18 @@ function renderMembers() {
   const caseSplit = PUB.classes[a[0]].toLowerCase() === PUB.classes[b[0]].toLowerCase();
   const bits = `Uncertainty ${total.toFixed(2)} bits: ${disagreement.toFixed(2)} from the models disagreeing, ${meanOwn.toFixed(2)} from each model's own doubt.`;
   // Display thresholds for choosing a sentence, not measured results.
+  const first = PUB.classes[a[0]], second = PUB.classes[b[0]];
   let read;
-  if (total < 0.5) read = "The models agree and are confident.";
-  else if (disagreement >= 0.5) read = "The models disagree with each other, so the model is unsure: this writer is unlike the training data (epistemic uncertainty)." +
-    (meanOwn >= 1 ? " Each model is also unsure on its own." : "");
-  else read = `Each model is itself split between ${PUB.classes[a[0]]} and ${PUB.classes[b[0]]}, and they agree on that. ${caseSplit ? "The signal barely tells the two cases apart" : "The signal is ambiguous"} (aleatoric uncertainty).`;
+  if (disagreement >= 0.5) {
+    read = "The models disagree with each other, so the model is unsure: this writer is unlike the training data (epistemic uncertainty)." +
+      (meanOwn >= 1 ? " Each model is also unsure on its own." : "");
+  } else if (a[1] >= 0.7) {
+    read = `The models agree on ${first} (${pct(a[1])} on average).`;
+  } else {
+    read = `Each model is itself split between ${first} and ${second}, and they agree on that. ${caseSplit ? "The signal barely tells the two cases apart" : "The signal is ambiguous"} (aleatoric uncertainty).`;
+  }
+  const truth = PUB.letters[state.letter].label;
+  read += first === truth ? ` The top choice, ${first}, is right.` : ` The top choice, ${first}, is wrong: the letter is ${truth}.`;
   read += ` ${bits}`;
   document.getElementById("members-read").textContent =
     read + " Dashed line: the ensemble average.";
@@ -294,4 +308,9 @@ function renderAll() {
 document.getElementById("repo-link").href = STAGES.repo;
 readHash();
 renderAll();
+let resizeTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { renderSignal(); renderModel(); }, 150);
+});
 renderOpen();
