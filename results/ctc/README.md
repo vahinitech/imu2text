@@ -19,11 +19,11 @@ fold 0: 19,915 nonempty official training recordings, 5,292 test recordings,
   OnHW-chars regression, with its published `both/indep/fold0` partition,
   23,316 nonempty official training recordings and 7,956 test recordings.
 
-Run-time source hashes remain unchanged in the word reports. Syntax fingerprints
+Run-time source hashes in the word reports are unchanged. Syntax fingerprints
 allow documentation edits; the `seq2seq.py` library fingerprint also omits its
 CLI `main`, which the benchmark and refit bypass. Training-function changes are
-rejected. The historical parent implementation itself is loaded from its Git
-revision, while the other hashes describe the benchmark harness and dependencies.
+rejected. The parent implementation is loaded from its Git revision; the other
+hashes describe the benchmark harness and dependencies.
 
 The final `.weights.h5` and `.normalization.npz` files are generated locally and
 ignored by Git. The report includes their filenames, the weight checksum, and

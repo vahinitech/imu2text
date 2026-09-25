@@ -77,7 +77,7 @@ Usage
     X_train, y_train = ds.X_train, ds.y_train
 
     # Load equations (sequence-to-sequence)
-    ds = load_onhw_equations("./data/OnHW-equations_dep")
+    ds = load_onhw_equations("./data/OnHW-symbols_equations_dep")
     # Use onhw_seq2seq for CTC training on these
 """
 

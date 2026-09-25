@@ -5,21 +5,20 @@ scipy==1.11.4
 scikit-learn==1.5.2        # >=1.5.0 fixes CVE-2024-5206 (sensitive-data leakage in TfidfVectorizer)
 
 # Deep learning frameworks
-tensorflow==2.15.1         # Keras 2 API used by cnn_gnn.py / onhw_models.py; ships macOS arm64 wheels
+tensorflow==2.15.1         # Keras 2 API used by imu2text/; ships macOS arm64 wheels
                            # (the old tensorflow-macos / tensorflow-estimator pins are no longer needed)
-torch==2.13.0              # Only cnn_gnn.py imports torch; the pin is still security-motivated.
+torch==2.13.0              # Only legacy/cnn_gnn.py imports torch; the pin is still security-motivated.
                            # >=2.6.0  fixes CVE-2025-32434 (RCE via torch.load, weights_only=True)
                            # >=2.8.0  improper resource shutdown (Dependabot #3)
                            # >=2.9.1  memory corruption in unpack_sequence (#8)
                            # >=2.10.0 memory corruption in torch.lstm_cell (#9)
                            # >=2.13.0 memory corruption in torch.jit.script (#11)
-                           # 2.7.1 was previously claimed to cover the last four. It did not.
 torchvision==0.28.0        # release matched to torch 2.13.0
-torch-geometric==2.6.1     # GCNConv layers used in cnn_gnn.py
+torch-geometric==2.6.1     # GCNConv layers used in legacy/cnn_gnn.py
 
 # Visualization & reporting
 matplotlib==3.8.4          # 3.4.x has no wheels for Python >=3.10
-tabulate==0.9.0            # result tables in cnn_gnn.py / onhw_models.py
+tabulate==0.9.0            # result tables in imu2text/models.py
 
 # CUDA note: for GPU installs, use the matching wheel index instead of pinning "+cu" here, e.g.
 #   pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu126
