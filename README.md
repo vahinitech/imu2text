@@ -76,4 +76,5 @@ pull request; CI gates all three. Working rules are in
 
 ## License
 
-MIT. Maintained by [@vahinitech](https://github.com/vahinitech).
+Apache License 2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE). Maintained by
+[@vahinitech](https://github.com/vahinitech).
