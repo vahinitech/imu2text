@@ -1,26 +1,20 @@
 # Getting started
 
-What this project does, why it exists, where the accuracy stands, and what to
-work on next. Written to be readable end to end whether this is your first
-machine-learning project or your fifteenth year of building systems.
+What this project does, where the accuracy stands, how to run it and what to
+work on next. If a term is unfamiliar, see the [glossary](glossary.md).
 
-If a term is unfamiliar, [docs/glossary.md](glossary.md) has it.
+## The problem
 
-## What the problem is
+Someone writes on ordinary paper with a ballpoint pen that has sensors inside.
+From the sensor stream alone, work out what they wrote.
 
-A person writes on ordinary paper with an ordinary-looking ballpoint pen. The
-pen contains sensors. From the sensor stream alone, produce the text they
-wrote.
+The hard part: **the pen does not know where it is.** Its accelerometers and
+gyroscope measure motion, not position. Getting position from acceleration
+means integrating twice, and the error drifts within a single character. So
+the pen cannot redraw the letter, and image-based handwriting recognition does
+not apply.
 
-That is harder than it sounds, for one structural reason:
-
-**The pen does not know where it is.** It has accelerometers and a gyroscope.
-Those measure *motion*, not position. Getting from acceleration to a position
-means integrating twice, and the error compounds fast enough to drift within a
-single character. So the pen cannot draw what was written, and none of the
-decades of image-based handwriting recognition applies to its output.
-
-What it gives you instead is a 13-channel time series at 100 Hz:
+What you get instead is a 13-channel time series at 100 Hz:
 
 | Channels | Sensor |
 |---|---|
@@ -30,222 +24,133 @@ What it gives you instead is a 13-channel time series at 100 Hz:
 | 9-11 | magnetometer, x/y/z |
 | 12 | pen-tip force |
 
-One character is roughly 50 timesteps of that. The task is to map a
-variable-length 13-channel signal to a label.
+One character is roughly 50 timesteps. The task is to map a variable-length
+13-channel signal to a label.
 
-## Why it matters
-
-Tablets already solve handwriting recognition, and solve it well. The reason
-to work on a pen is everything a tablet changes about the act of writing:
-
-- **Handwriting practice is a motor skill.** A child learning letterforms
-  needs the friction of paper and the weight of a real pen. A glass screen
-  teaches a different motion. If you want to give feedback on handwriting
-  without changing the handwriting, the sensor has to be in the pen.
-- **Cost and scale.** A classroom of tablets is a procurement project. A
-  classroom of pens is stationery.
-- **No screen.** In a school setting that is a feature, not a limitation.
-- **Paper is the existing workflow.** Homework, exams and forms are already
-  on paper. Digitising the pen means digitising what people already do.
-
-The application driving this repo is handwriting assessment in schools: read
-what a student wrote, and eventually say something useful about how they wrote
-it.
+Tablets already recognise handwriting well. A pen matters because it leaves the
+act of writing alone. A child learning letterforms needs the friction of paper
+and the weight of a real pen, and a glass screen teaches a different motion. A
+classroom of pens is stationery, not a procurement project. Homework, exams and
+forms are already on paper. The application behind this repo is handwriting
+assessment in schools: read what a student wrote, and later say something
+useful about how they wrote it.
 
 ## Where the accuracy is
 
-On the official OnHW-chars benchmark, 52 classes (A-Z and a-z), evaluated
-writer-independent so every test writer is unseen:
+On the official OnHW-chars benchmark (52 classes, A-Z and a-z,
+writer-independent `both/indep/fold0`, so every test writer is unseen), the
+best model here scores **72.5%** against 68.06% for CNN+BiLSTM in Ott et al.,
+ACM MM 2022, Table 3. Single seed, fold 0, CPU only. The full tables, the
+ablations and the other datasets are in [benchmarks.md](benchmarks.md).
 
-| Model | Train % | WI Test % |
-|---|--:|--:|
-| CNN+BiLSTM baseline | 90.1 | 69.2 |
-| + augmentation | 90.1 | 70.0 |
-| + attention pooling, label smoothing, LR schedule | 92.1 | **72.5** |
-| CNN+BiLSTM, Ott et al. ACM MM 2022 Table 3 | - | 68.06 |
+72.5% sounds low if you are used to MNIST. For 52 classes, an unseen writer and
+a sensor that never sees the letter's shape, it is not.
 
-Single seed, fold 0, CPU-only. Full tables in
-[docs/benchmarks.md](benchmarks.md).
-
-72.5% sounds low if you are used to MNIST. It is not low for this problem: 52
-classes, an unseen writer, and a sensor that never observes the letter's shape.
-
-## Current architecture
+## The model
 
 ![Architecture](../results/architecture.png)
 
-Three stages:
+1. **CNN trunk.** Two Conv1D layers with batch norm and max pooling read short
+   local patterns (a change in stroke direction, a pen lift) and downsample
+   time by 4, so a character goes from 100 timesteps to 25.
+2. **BiLSTM.** Reads those 25 steps forwards and backwards. The difference
+   between `c` and `a` is what happens after the curve, so the backward pass
+   matters.
+3. **Read-out.** The baseline takes the BiLSTM's final state. The attention
+   variant keeps all 25 steps, learns a weight for each, and takes the weighted
+   average plus a max.
 
-1. **CNN trunk.** Two Conv1D layers with batch norm and max pooling, which
-   read short local patterns (a stroke direction change, a pen lift) and
-   downsample time by 4. A character goes from 100 timesteps to 25.
-2. **BiLSTM.** Reads those 25 steps forwards and backwards. Bidirectional
-   matters because a stroke's meaning often depends on what follows it: the
-   difference between `c` and `a` is what happens after the curve.
-3. **Read-out.** The baseline takes the BiLSTM's final state. The better
-   variant keeps all 25 steps, learns a weight for each, and takes the
-   weighted average plus a max. Character identity usually turns on a few
-   moments of the stroke, and where those fall varies with writing speed.
-
-Roughly 145k parameters for the baseline, 158k with attention. Small, by
-design: see the next section for why.
+Roughly 145k parameters for the baseline, 158k with attention. Keeping it small
+is deliberate: extra capacity went into memorising the training set, not into
+test accuracy (see [benchmarks.md](benchmarks.md)).
 
 Sequence tasks (words, equations) use the same trunk with a CTC head, in
 `imu2text/seq2seq.py`.
 
-## What was done for accuracy
-
-In order of how much it mattered.
-
-**Using the real benchmark.** The repo could not open the published OnHW
-archives at all: labels were stored as strings not integers, three recordings
-have zero timesteps, and there was no code path to the official splits. Before
-that was fixed, the only numbers available came from a 2,270-sample subset.
-
-**Fixing the seed.** `--seed` did not pin a run. `tf.random.set_seed` does not
-reach the Keras layer initialisers, so two runs at the same seed started from
-different weights and landed about five points apart on the small dataset,
-which is larger than most of the effects being measured. Seeding now goes
-through `keras.utils.set_random_seed`, and `--deterministic` adds op
-determinism for a bit-reproducible run.
-
-**Regularisation, not capacity.** This is the load-bearing result. Going from
-1xBiLSTM-64 to 2xBiLSTM-100 bought +0.4 test accuracy for +5 train accuracy.
-Stacking every regulariser onto that larger model was *worse* than leaving
-augmentation off, at 99.2% train. Given enough parameters the model memorises
-the augmented copies too, and the augmentation stops constraining anything.
-
-The winning configuration is the small model with every lever on: attention
-pooling, augmentation, label smoothing, LR schedule. It holds train accuracy to
-92.1%, eight points below the larger models, and converts that restraint into
-test accuracy.
-
-**Levers do not act alone.** Attention pooling scored 69.0 against a 69.2
-baseline on its own and would have been discarded on that evidence. With
-augmentation it was worth +0.9, and +3.3 once the rest joined.
-
 ## Why characters get confused
 
-This is the most useful thing to understand before trying to improve anything.
+Read this before trying to improve anything. 43% of the remaining errors are a
+letter confused with its own other case (`s`→`S`, `o`→`O`, `w`→`W`), and all
+twelve of the commonest confusions are case pairs. Fold case away and the same
+model scores 84.3% instead of 72.5%.
 
-![Error analysis](../results/error_analysis.png)
-
-43% of the remaining errors are a letter confused with **its own other case**:
-`s`→`S`, `o`→`O`, `w`→`W`, `v`→`V`, `z`→`Z`. All twelve of the commonest
-confusions are case pairs. Fold case away and the same model scores 84.3%
-instead of 72.5%.
-
-For about ten letters the two cases are the *same shape at a different size*:
-C/c, O/o, S/s, U/u, V/v, W/w, X/x, Z/z, K/k, P/p. Measuring how separable they
-actually are, as AUC over the test set where 0.5 is a coin flip:
-
-| Cue | Same-shape pairs | Differently-shaped pairs |
-|---|--:|--:|
-| Acceleration RMS | 0.54 | 0.36-0.54 |
-| Duration | 0.59 | 0.83-0.95 |
-
-Acceleration scales as size over time squared. Writers form capitals both
-larger *and* proportionally faster, so the two effects cancel and the size
-information does not survive into the signal. Duration separates
-differently-shaped pairs well (`A` takes much longer than `a`) and same-shape
-pairs barely at all.
-
-**This is a sensing limit, not a model limit.** No architecture recovers
-information the sensor never recorded. The tell that a model has hit it: as
-accuracy rose from 68.0% to 72.5%, the case share of errors went *up*, from
-38.4% to 43.1%. The fixable errors are the ones that got fixed.
+For about ten letters (C/c, O/o, S/s, U/u, V/v, W/w, X/x, Z/z, K/k, P/p) the two
+cases are the same shape at a different size. Writers form capitals larger and
+proportionally faster, so the size difference cancels out of the acceleration
+signal. This is a sensing limit: no architecture recovers what the sensor never
+recorded. The measurements are in the error-analysis section of
+[benchmarks.md](benchmarks.md).
 
 ## What to do next
 
-Ordered by expected value per unit of work. Each links to a tracked issue.
+Ordered by expected value per unit of work. Each has an issue.
 
-**Give the model context.** ([#11](https://github.com/vahinitech/imu2text/issues/11))
-The single biggest available gain, and it needs no new sensor. Case in real
-writing is not a property of the glyph, it is decided by position in a word:
-`cat` and `Cat` differ by where the letter sits, not by how it is shaped. A
-word-level CTC model with a lexicon gets case almost free. The decoder is
-already written in `imu2text/words.py` and has never been run against a
-trained model.
+**Give the model context** ([#11](https://github.com/vahinitech/imu2text/issues/11)).
+Probably the biggest gain left, and it needs no new sensor. In real writing,
+case is decided by position in a word: `cat` and `Cat` differ by where the
+letter sits, not its shape. A word-level CTC model with a lexicon gets case
+almost for free. The lexicon decoder in `imu2text/words.py` has been run on
+OnHW-Words500 (results in [benchmarks](benchmarks.md)) but not yet used to
+settle case for character recognition.
 
-**Know when the model is guessing.** ([#13](https://github.com/vahinitech/imu2text/issues/13))
-Cheapest thread here: no download, no new architecture. A 72.5% recogniser
-that can flag its own uncertain 28% is usable in a classroom; one that cannot
-is a demo. The question worth answering first is whether the case confusions
-are *confidently* wrong. If they are already low-confidence, a system that
-defers on them recovers most of that 12-point penalty in practice without
-solving it.
+**Know when the model is guessing** ([#13](https://github.com/vahinitech/imu2text/issues/13)).
+The cheapest thread: no download, no new architecture. A 72.5% recogniser that
+can flag its own uncertain 28% is usable in a classroom; one that cannot is a
+demo. First check whether the case confusions are confidently wrong. If they
+are already low-confidence, deferring on them recovers most of that 12-point
+penalty in practice.
 
-**Average over the folds.** ([#9](https://github.com/vahinitech/imu2text/issues/9))
+**Average over the folds** ([#9](https://github.com/vahinitech/imu2text/issues/9)).
 Every number above is one seed on one fold. The 30 split directories are 3
-case settings × 2 protocols × 5 folds, so each task (for example
-`both/indep`) is averaged over its own 5 folds. A few hours of CPU removes
-that caveat from the whole benchmark.
+case settings × 2 protocols × 5 folds, so each task (for example `both/indep`)
+is averaged over its own 5 folds. A few hours of CPU.
 
-**Split letter identity from case.** ([#10](https://github.com/vahinitech/imu2text/issues/10))
-A 26-way head plus a binary case head matches the diagnosis directly, and lets
-the case decision be calibrated or deferred separately. It may also fail
-informatively: if the two heads are independent, the joint accuracy could come
-out below the current model.
+**Split letter identity from case** ([#10](https://github.com/vahinitech/imu2text/issues/10)).
+A 26-way head plus a binary case head matches the diagnosis and lets the case
+decision be calibrated or deferred on its own. It could also come out below the
+current model if the two heads are independent.
 
-**Hybrid classical + deep.** ([#12](https://github.com/vahinitech/imu2text/issues/12))
-Filed with a prediction of 0 to +2 points, because it works on the 57% of
-errors that are not case. A null result closes the direction cheaply.
+**Hybrid classical + deep** ([#12](https://github.com/vahinitech/imu2text/issues/12)).
+Predicted at 0 to +2 points, because it works on the 57% of errors that are not
+case. A null result closes the direction cheaply.
 
-More detail in [docs/onhw_research_threads.md](onhw_research_threads.md).
+More in [roadmap.md](roadmap.md).
 
 ## Other languages and scripts
 
-Everything above is Latin script, from German and English data. What changes
-for another language is worth thinking about before assuming the pipeline
-transfers.
+Everything here is Latin script, from German and English data. The sensor, the
+13 channels, the CNN+BiLSTM trunk, CTC, augmentation and the evaluation harness
+assume nothing about the alphabet. `imu2text/models.py` infers the class set
+from the labels, so classification needs no code change; the seq2seq charset is
+a constant per dataset.
 
-**What carries over unchanged.** The sensor, the 13 channels, the CNN+BiLSTM
-trunk, CTC, the augmentation transforms, the whole evaluation harness. None of
-it assumes anything about the alphabet.
+What does change is the learning problem. Devanagari and Telugu have far more
+glyph units than 52, and Telugu composes consonant-vowel clusters. Scripts
+written right to left, or with conjuncts formed in several passes, produce a
+different signal, and Latin results do not predict how they will go. Where
+characters connect (Arabic, Devanagari's shirorekha) segmentation gets harder,
+which pushes toward the sequence model.
 
-**What has to change.**
-
-- **The charset.** `imu2text/models.py` infers the class set from the labels,
-  so a new alphabet needs no code change for classification. The seq2seq
-  charset is a constant per dataset.
-- **Class count.** Devanagari and Telugu have far more distinct glyph units
-  than 52, and Telugu in particular composes consonant-vowel clusters. More
-  classes with the same amount of data per class is a harder problem.
-- **Stroke order and direction.** The model learns motion patterns, so a
-  script written right to left, or one with conjunct characters formed in
-  several passes, produces a different signal distribution. Nothing breaks;
-  it is a different learning problem, and results from Latin script do not
-  predict it.
-- **Segmentation.** Scripts where characters connect (Arabic, Devanagari's
-  shirorekha) make "where does one character end" less obvious. This pushes
-  toward the sequence model rather than single-character classification, which
-  is the direction the case-ambiguity work points anyway.
-
-**Data exists, at smaller scale than OnHW.** Two relevant datasets:
+Two smaller IMU datasets exist:
 
 - Sharma et al., "Dataset of inertial measurements for writing Punjabi
   characters using IMU sensors" (Data in Brief, 2024, Akal University
-  Bathinda). Gurmukhi script, IMU-captured, built around writing-style
-  diversity across Punjabi writers.
+  Bathinda). Gurmukhi script, collected across Punjabi writers.
 - Gupta and Mishra, "A Dataset of Inertial Measurement Units for Handwritten
-  English Alphabets" (IIT BHU Varanasi). Collected in India, but English
-  alphabets rather than an Indic script.
+  English Alphabets" (IIT BHU Varanasi). Collected in India, English alphabet.
 
-Neither is at OnHW's scale of 119 writers, and for a writer-independent
-protocol the writer count matters more than the sample count. For a script
-neither covers, a collection effort needs the protocol designed in from the
-start: at least a few dozen writers, and writer identity recorded so whole
-writers can be held out.
+Neither reaches OnHW's 119 writers, and for writer-independent evaluation the
+writer count matters more than the sample count. A new collection needs at
+least a few dozen writers, with writer identity recorded so whole writers can be
+held out. The sensible order is word-level recognition on the Latin data first,
+then collection, then transfer.
 
-The realistic sequence is: get word-level recognition working on the existing
-Latin data, then collect, then transfer.
-
-## How to start working on it
+## Install and run
 
 ```bash
 pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
 python -m imu2text.seq2seq --demo          # verifies the pipeline, no download
-pytest                                     # 173 tests, no dataset needed
+pytest                                     # no dataset needed
 ```
 
 Then download the benchmark and reproduce the headline number:
@@ -260,18 +165,24 @@ python -m imu2text.models --models cnn_bilstm_attn \
 ```
 
 About 15 minutes on 4 CPU cores. `--error-analysis` prints the confusion
-breakdown, which is where to look when a change does not help.
+breakdown, which is where to look when a change does not help. The other
+archives and loaders are in [datasets.md](datasets.md).
 
-Two rules that will save you time, both learned here the hard way:
+Results and figures live in `results/`; the numbers behind them are written up
+in [benchmarks.md](benchmarks.md).
 
-1. **Measure the noise floor before believing an improvement.** Same config,
-   same seed, twice. On the official split that spread is about 0.2 points; on
-   the small OnHW-chars_L set it is about 5. A gain smaller than the spread is
-   not a result. Use `--deterministic` for comparisons.
-2. **A synthetic test fixture written next to the loader tests nothing about
-   the real data format.** Four loaders here passed 65 tests while being
-   unable to open the published archives. Real-data tests live in
-   `tests/test_real_data.py`, gated on `ONHW_DATA_DIR`.
+## Contributing
+
+Two rules that save time:
+
+1. **Measure the noise floor before believing an improvement.** Run the same
+   config at the same seed twice. On the official split the spread is about 0.2
+   points; on the small OnHW-chars_L set it is about 5. A gain smaller than the
+   spread is not a result. Use `--deterministic` for comparisons.
+2. **Test loaders against the real archives.** A synthetic fixture written next
+   to the loader says nothing about the real data format: four loaders here
+   once passed 65 tests while unable to open the published archives. Real-data
+   tests live in `tests/test_real_data.py`, gated on `ONHW_DATA_DIR`.
 
 The working rules for changes are in [CLAUDE.md](../CLAUDE.md), and the
 benchmarking conventions in `.claude/skills/benchmarking/SKILL.md`.

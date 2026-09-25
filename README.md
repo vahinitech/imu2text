@@ -1,98 +1,50 @@
 # imu2text
 
-Handwriting recognition from a sensor-enhanced ballpoint pen. Trains and
-evaluates on the Fraunhofer IIS OnHW datasets (13 IMU channels at 100 Hz) and
-reports writer-independent accuracy on the official splits.
+Handwriting recognition from a sensor pen. imu2text trains on the Fraunhofer
+IIS OnHW datasets (13 IMU channels at 100 Hz) and reports accuracy on writers
+the model has never seen.
 
-New here? Start with [docs/getting_started.md](docs/getting_started.md).
-
-## Install
+## Quick start
 
 ```bash
 pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
-```
-
-Python 3.10. The pins are security-motivated (`torch==2.13.0`,
-`scikit-learn==1.5.2`); check the advisories before loosening them.
-
-## Train
-
-```bash
-python -m imu2text.download onhw_chars --out ./data          # 896 MB, once
-
+python -m imu2text.download onhw_chars --out ./data     # 896 MB, once
 python -m imu2text.models --models cnn_bilstm_attn \
-    --onhw-chars data/onhw-chars_2021-06-30 \
-    --case both --dependency indep --fold 0 \
-    --augment 2 --aug-policy extended \
-    --label-smoothing 0.1 --lr-schedule --epochs 30
+    --onhw-chars data/onhw-chars_2021-06-30 --case both --dependency indep --fold 0 \
+    --augment 2 --aug-policy extended --label-smoothing 0.1 --lr-schedule --epochs 30
 ```
 
-`--case` is `lower`, `upper` or `both`; `--dependency indep` is the
-writer-independent protocol. `--deterministic` makes a run bit-reproducible,
-which any before/after comparison needs.
-
-Sequence-to-sequence recognition for words and equations:
-
-```bash
-python -m imu2text.seq2seq --demo        # synthetic, no download
-```
+No download needed to check the sequence pipeline: `python -m imu2text.seq2seq --demo`.
 
 ## Results
 
-Historical OnHW-chars experiments, official `both/indep/fold0` split, 52 classes,
-writer-independent:
+Official splits, writer-independent, fold 0, one seed.
 
-| Model | Train % | WI Test % |
-|---|--:|--:|
-| CNN+BiLSTM | 90.1 | 69.2 |
-| + augmentation ×2 | 90.1 | 70.0 |
-| CNN+BiLSTM + attention pooling, augmentation, label smoothing, LR schedule | 92.1 | **72.5** |
-| CNN+BiLSTM (Ott et al., ACM MM 2022, Table 3) | - | 68.06 |
+| Task | Metric | imu2text | Published |
+|---|---|--:|--:|
+| OnHW-chars, 52 classes | accuracy | **72.5%** | 68.06% (Ott et al., ACM MM 2022, CNN+BiLSTM) |
+| OnHW-Words500, 59 characters | greedy CER, refit on all training writers | **53.95%** | not compared |
 
-Single seed, fold 0, CPU-only. 43% of the remaining errors are a letter
-confused with its own other case, which the IMU cannot resolve: scored
-case-insensitively the same model reads 84.3%.
+On the characters, 43% of the remaining errors are a letter read as its
+other case; scored case-insensitively the same model reaches 84.3%.
 
-The latest deterministic character regression scores **72.26% before and after**
-the checkpoint fix, with zero changed predictions on 7,956 test recordings
-(23,316 nonempty official training recordings, 52 classes, the same published
-writer-independent split). It does not improve this character configuration.
+Details, every other split and the reproduction commands:
+[docs/benchmarks.md](docs/benchmarks.md).
 
-On right-handed **OnHW-Words500**, published writer-independent fold 0, the
-CTC length fix alone, on the same inner split, reduces greedy **CER from 59.30%
-to 55.70%**. A final refit on all 42 training writers reaches **53.95% CER**
-and **8.90% greedy exact word accuracy** (parent: 5.54%); it adds training data
-as well as the fix, and was planned after the first grouped-validation result.
-Its selected epoch equals the 15-epoch budget, so the models are under-trained.
-Final lexicon decoding reaches **32.73% exact word accuracy**, with a higher
-**56.85% CER** than greedy. The archive has 19,915 nonempty training and 5,292
-test recordings, 53 writers (11 unseen test writers), and 59 character
-symbols. All single-seed CPU runs. See the [benchmark protocol and results](docs/benchmarks.md) and
-[root causes, fixes, and measured attribution](docs/rca_ctc_lengths.md).
+## Docs
 
-![Error analysis](results/error_analysis.png)
-
-Full tables, the accuracy ceiling and the machine specification are in
-[docs/benchmarks.md](docs/benchmarks.md). Abbreviations are in
-[docs/glossary.md](docs/glossary.md).
-
-## Run the benchmark
-
-```bash
-python scripts/make_comparison_table.py --config best --epochs 30
-python scripts/plot_error_analysis.py \
-    --predictions results/predictions_official_fold0.npz \
-    --onhw-chars data/onhw-chars_2021-06-30
-python scripts/plot_architecture.py
-```
+- [Getting started](docs/getting_started.md): the problem, the code, where to begin
+- [Benchmarks](docs/benchmarks.md): all results and how they were measured
+- [Datasets](docs/datasets.md): the OnHW archives and how to load them
+- [Roadmap](docs/roadmap.md): what is done and what comes next
+- [Glossary](docs/glossary.md): the abbreviations
 
 ## Contributing
 
-Contributions are welcome. Run `pytest`, `black` and `pylint` before opening a
-pull request; CI gates all three. Working rules are in
-[CLAUDE.md](CLAUDE.md).
+Read [AGENTS.md](AGENTS.md) first. CI runs `pytest`, `black`, `pylint` and a
+Markdown style check.
 
 ## License
 
-Apache License 2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE). Maintained by
-[@vahinitech](https://github.com/vahinitech).
+Apache License 2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Maintained by [@vahinitech](https://github.com/vahinitech).

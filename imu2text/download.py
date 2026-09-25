@@ -31,7 +31,7 @@ Datasets
 The ``DATASETS`` dictionary below lists every published archive. The keys
 are stable identifiers used by ``--dataset``; the values carry the URL, the
 approximate size, and a short description. The names match the table in
-``docs/onhw_enhancement_guide.md``.
+``docs/roadmap.md``.
 
 | Key                       | Size    | Description                                       |
 |---------------------------|---------|---------------------------------------------------|

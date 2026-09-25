@@ -17,9 +17,15 @@ __pycache__/
 results/logs/
 *.log
 
-# Final refit artifacts are regenerated from the recorded validation selection.
-results/ctc/*.weights.h5
+# Model weights are regenerated from the recorded runs or published outside
+# git (see AGENTS.md); predictions and tables are committed instead.
+*.weights.h5
+*.keras
 results/ctc/*.normalization.npz
+
+# Papers are cited, not redistributed.
+*.pdf
+!results/*.pdf
 
 # Input patch files are applied, not tracked: their content lands in the
 # source tree proper, so committing them would duplicate it.
@@ -29,7 +35,7 @@ patches/
 .venv/
 venv/
 
-# Ignore datasets fetched by onhw_download.py (the bundled all_*.pkl stay tracked)
+# Ignore datasets fetched by imu2text/download.py (the bundled all_*.pkl stay tracked)
 *.zip
 data/OnHW-*/
 data/onhw-*/

@@ -9,15 +9,15 @@ accuracy on OnHW-chars `both/indep/fold0`:
 | lowpass, 15 Hz | 66.39 | -0.93 |
 | orientation (Madgwick) | 63.76 | -3.56 |
 
-The two results have different causes. One is a property of the data. The
-other was a defect in the filter, and the number above does not measure what
-it claimed to.
+The two results have different causes. The low-pass drop is a property of
+the data. The orientation drop came from a defect in the filter, so that number
+does not measure what it claims to.
 
 ## Low-pass: the filter removed signal, not noise
 
 The premise was that an IMU at 100 Hz carries sensor noise well above the
 bandwidth of hand motion, so a 15 Hz cutoff should discard noise and keep the
-writing. Measuring the spectrum says otherwise.
+writing. The measured spectrum says otherwise.
 
 Power above the cutoff, averaged over 3,000 sequences:
 
@@ -29,8 +29,8 @@ Power above the cutoff, averaged over 3,000 sequences:
 
 More than half the accelerometer energy sits above the cutoff. That alone
 does not prove it is signal, so the next question is whether the discarded
-band predicts the class. Splitting each sequence into its low and high bands
-and fitting a logistic regression on per-channel summary statistics:
+band predicts the class. Each sequence was split into its low and high bands,
+and a logistic regression was fitted on per-channel summary statistics:
 
 | Band | Accuracy | Chance |
 |---|--:|--:|
@@ -42,9 +42,8 @@ features. It is not noise. Pen-tip friction against paper, the impact of a
 pen-down, and the sharp reversals at stroke corners are all fast events, and
 they are exactly the events that distinguish one letterform from another.
 
-This is the expected outcome once stated plainly: the CNN trunk already
-learns its own filters, and a fixed cutoff can only remove what the model
-might otherwise have used. **-0.93 is the cost of discarding half the
+The CNN trunk already learns its own filters, and a fixed cutoff can only
+remove what the model might otherwise have used. **-0.93 is the cost of discarding half the
 accelerometer bandwidth**, and the model recovers most of it because the low
 band is also informative.
 
@@ -55,16 +54,16 @@ the sensor frame and appears as a per-writer nuisance in every channel.
 Estimating the orientation with a Madgwick filter and re-expressing
 acceleration in a fixed earth frame should cancel it.
 
-The -3.56 does not test that premise. The filter had a units defect.
+The -3.56 does not test that premise, because the filter had a units defect.
 
 **The archives store raw sensor counts, not physical units.** The filter
 converted the gyroscope with `np.deg2rad(gyro)`, treating a reading of 1,917
 as 1,917 deg/s. The observed 99th-percentile gyroscope value is 1,917 counts,
-so the integrator was fed up to 33.5 rad/s, which is a rotation of about 0.33
-radians - 19 degrees - **per 10 ms timestep**.
+so the integrator was fed up to 33.5 rad/s, a rotation of about 0.33 radians
+(19 degrees) **per 10 ms timestep**.
 
-The symptom was visible before the cause. Tracking how far the quaternion
-moves per step, a converging filter settles; this one did not:
+The symptom was visible before the cause. A converging filter's per-step
+quaternion change settles; this one did not:
 
 | | step 0 | step 4 | step 9 | step 19 | step 38 |
 |---|--:|--:|--:|--:|--:|
@@ -78,10 +77,10 @@ scrambles the channels, and -3.56 is the cost of scrambling them.
 
 One hypothesis was checked and did **not** hold: that removing the gravity
 term discards discriminative tilt information. The steady component of the
-acceleration vector predicts the class at 2.56% against 1.92% chance, which
-is barely above chance. Loss of tilt information is not what caused the drop.
+acceleration vector predicts the class at 2.56% against 1.92% chance, barely
+above chance, so loss of tilt information did not cause the drop.
 
-A second check confirmed Madgwick's core assumption is otherwise sound here.
+A second check confirmed that Madgwick's core assumption holds here.
 The filter assumes the accelerometer reads gravity plus a small perturbation.
 The ratio of the moving component to the steady one has a median of 0.13, and
 in no sampled sequence did the motion exceed the steady term. Gravity does
@@ -94,7 +93,7 @@ The archive settles the first half of the question. `readme.txt` inside
 
 > The OnHW-chars dataset does not contain or consider any sensor calibration.
 
-So the values are raw counts, confirmed by the publisher rather than inferred.
+So the values are raw counts, as stated by the publisher.
 The pen is a STABILO DigiPen whose front accelerometer and gyroscope are an
 STM LSM6DSL (Ott et al., IMWUT 2020), but neither the paper nor the readme
 records the configured full-scale ranges.
@@ -110,8 +109,7 @@ and the p10-p90 range is 16,313 to 17,050. Against the LSM6DSL's options:
 | +/-8 g | 4,096 | 4.040 g |
 | +/-16 g | 2,048 | 8.081 g |
 
-A pen spends most of its time reading 1 g, so the range is +/-2 g. That is a
-derivation, not a guess.
+A pen spends most of its time reading 1 g, so the range is +/-2 g.
 
 **The gyroscope scale has to be inferred**, since no comparable constant is
 available. The signal never approaches the int16 limit (max 18,987 of 32,767),
@@ -132,13 +130,13 @@ inferred rather than documented, and `--gyro-scale` overrides it.
 ## What to take from this
 
 - **A filter that silently does nothing looks exactly like a filter that does
-  not help.** The first version of this experiment returned three identical
+  not help.** An earlier run of this experiment returned three identical
   accuracies to the decimal because `apply_filter` was never called, and that
-  was read as a result rather than a bug. `tests/test_pipeline.py` now pins
+  was read as a result instead of a bug. `tests/test_pipeline.py` now checks
   that each filter changes the data.
 - **Units are part of the interface.** These archives ship raw counts with no
-  datasheet. Any code that assumes physical units needs to say so where it
-  makes the assumption, and preferably check it.
+  datasheet. Code that assumes physical units should say so where it makes
+  the assumption, and check it where possible.
 - **A filter that fails to converge is visible without knowing why.** The
   per-step quaternion change was diagnostic on its own, before the cause was
   found. Physics-based preprocessing should report whether it converged.

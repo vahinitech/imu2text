@@ -1,176 +1,74 @@
 # Benchmark results
 
-Full results, error analysis and the accuracy ceiling for the OnHW-chars
-task. The short version lives in the README.
+Results, error analysis and the accuracy ceiling for the OnHW tasks; the README
+has the short version. WI is writer-independent (whole writers held out), WD is
+writer-dependent, CRR is character recognition rate. CER and WER are error
+rates, so lower is better. Quote the official benchmark (72.5% WI) against the
+literature; the bundled-subset and OnHW-chars_L figures only track changes
+within this repo.
 
-## CTC sequence benchmark: alignment and writer validation
+## At a glance
 
-This experiment uses the downloaded right-handed **OnHW-Words500** archive
-`Words500_indep_02`, its **published writer-independent fold 0**, and **59
-character symbols** plus the CTC blank. It contains 25,218 raw recordings from
-53 writers. After the loader drops three empty training recordings and eight
-empty test recordings, the official halves contain 19,915 and 5,292 recordings.
-The 11 test writers are absent from every fitting partition below.
+"Published" is the CNN+BiLSTM row of Ott et al., ACM MM 2022, Tables 2 and 3,
+right-handed writers.
 
-All word runs use seed 0, deterministic TensorFlow operations, single-threaded
-execution, 15 epochs, batch 32, and a CNN with one 32-unit bidirectional LSTM.
-This is a limited CPU experiment, not the larger CLI default or a converged
-five-fold result. CER and WER are error rates; exact word accuracy measures
-complete matches and is not character-classification accuracy.
+| Task | Split | Ours | Published | Details |
+|---|---|--:|--:|---|
+| OnHW-chars, 52 classes | official WI, fold 0 | **72.46** | 68.06 | [OnHW-chars](#onhw-chars-official-benchmark) |
+| OnHW-chars, 26 lower / upper | official WI | 82.45 / 86.78 | 79.48 / 85.60 | [OnHW-chars](#onhw-chars-official-benchmark) |
+| OnHW-chars, 52 classes, case-insensitive | official WI | 84.34 | n/a | [Error analysis](#where-the-remaining-error-is) |
+| OnHW-symbols, 15 classes | official WI | 72.83 | 79.51 | [Symbols and equations](#onhw-symbols-and-onhw-equations) |
+| OnHW-equations (split), 15 classes | official WI | **87.04** | 83.88 | [Symbols and equations](#onhw-symbols-and-onhw-equations) |
+| OnHW-words500, 30 epochs, lexicon | official WI | CER 32.65 / WER 40.23 | not in these tables | [Words](#onhw-words500) |
+| OnHW-words500, 15 epochs, refit, greedy | `Words500_indep_02` fold 0 | CER 53.95% / WER 91.10% | n/a | [Words](#onhw-words500) |
+| Bundled subset, 52 classes | WI, 45 writers | 71.6 | n/a | [Bundled subset](#bundled-subset) |
 
-| Pipeline | Fitting / validation recordings | CER ↓ | WER ↓ | Exact word accuracy ↑ |
-|---|---:|---:|---:|---:|
-| Parent `03d1c8f`, random inner validation | 16,927 / 2,988 | 59.30% | 94.46% | 5.54% |
-| Corrected, same random inner validation | 16,927 / 2,988 | 55.70% | 92.23% | 7.77% |
-| Corrected, writer-disjoint inner validation | 16,416 / 3,499 | 59.31% | 94.50% | 5.50% |
-| Same writer-validation model, training-only lexicon | 16,416 / 3,499 | 65.35% | 77.23% | 22.77% |
-| Final refit on all official training writers, greedy | 19,915 / — | 53.95% | 91.10% | 8.90% |
-| Same final refit, training-only lexicon | 19,915 / — | 56.85% | 67.27% | 32.73% |
+The 52-class ceiling is the sensor: 43.1% of the remaining errors are a letter
+read as its own other case.
 
-The same-split comparison reduces CER by **3.60 percentage points**. Holding out
-seven complete training writers for validation leaves 35 fitting writers and
-removes that aggregate gain at this budget. The initial parent-versus-grouped
-comparison therefore does **not** support a greedy-accuracy improvement claim.
-The lexicon recovers more complete words but increases character edits when it
-chooses the wrong word or abstains; its lower WER must not be described as lower
-CER. The strict decoder returned 1,817 empty outputs, versus 243 for greedy.
+## Coverage by dataset
 
-Both the parent and the grouped-validation configuration were run twice at the
-same seed. Each pair had identical loss histories and **zero changed test
-predictions**, giving a measured repeat spread of 0.00 percentage points in CER
-on this archive and environment. This does not measure variation across seeds,
-folds, or hardware. The same-split ablation has one run.
-A paired bootstrap over the 11 test writers gives a 95% interval of 1.52–5.67
-CER percentage points of reduction for the same-split comparison; the grouped
-comparison spans −1.40–1.40 points.
+| Dataset | Task | Classes | Samples | Model trained | Split | Ours | Published |
+|---|---|--:|--:|---|---|--:|--:|
+| OnHW-chars, right | classification | 52 | 31,275 | CNN+BiLSTM+attn, aug, LS, LR sched | official WD | 80.07 | 78.17 |
+| OnHW-chars, right | classification | 52 | 31,275 | same | official WI | **72.46** | 68.06 |
+| OnHW-chars, right | classification | 26 lower | 15,625 | same | official WD | 88.25 | 88.85 |
+| OnHW-chars, right | classification | 26 lower | 15,625 | same | official WI | 82.45 | 79.48 |
+| OnHW-chars, right | classification | 26 upper | 15,650 | same | official WD | 91.43 | 92.15 |
+| OnHW-chars, right | classification | 26 upper | 15,650 | same | official WI | 86.78 | 85.60 |
+| OnHW-chars, left | classification | 52 | 2,270 | same | constructed random | 72.91 | 82.80 |
+| OnHW-chars, left | classification | 52 | 2,270 | same | constructed WI | 26.86 | 32.00 |
+| OnHW-chars, left | classification | 26 lower | ~1,135 | same | constructed random | 77.78 | 94.70 |
+| OnHW-chars, left | classification | 26 lower | ~1,135 | same | constructed WI | 25.96 | 43.60 |
+| OnHW-chars, left | classification | 26 upper | ~1,135 | same | constructed random | 77.39 | 91.90 |
+| OnHW-chars, left | classification | 26 upper | ~1,135 | same | constructed WI | 34.93 | 43.62 |
+| OnHW-symbols | classification | 15 | 2,326 | same | official WD | 95.77 | 96.20 |
+| OnHW-symbols | classification | 15 | 2,326 | same | official WI | 72.83 | 79.51 |
+| OnHW-equations, split | classification | 15 | 39,643 | CNN+BiLSTM+attn | official WD | 95.33 | 95.70 |
+| OnHW-equations, split | classification | 15 | 39,643 | CNN+BiLSTM+attn | official WI | **87.04** | 83.88 |
+| OnHW-words500 | seq2seq, CTC | 59 charset | 25,207 | CNN+BiLSTM+CTC, greedy | official WI | CER 38.08 / WER 73.17 | not in these tables |
+| OnHW-words500 | seq2seq, CTC | 59 charset | 25,207 | same, lexicon-constrained | official WI | **CER 32.65 / WER 40.23** | not in these tables |
+| OnHW-wordsRandom | seq2seq, CTC | 59 charset | 14,641 | none | n/a | n/a | n/a |
+| OnHW-wordsTraj | seq2seq + trajectory | 59 charset | 16,752 | none | n/a | n/a | n/a |
 
-The final refit uses the grouped-validation minimum at epoch 15 and starts a
-fresh model on all 42 official training writers. Epoch 15 is also the last
-epoch of the budget: validation loss was still falling (11.14 to 10.79 over the
-last two epochs of `fixed_seed0_run1.json`), so validation selection did not
-shorten training, and every word model here is under-trained at 15 epochs. It reduces greedy CER by
-**5.35 percentage points** against the parent (paired writer-bootstrap 95%
-interval **2.77–7.76 points**). This combines the pipeline changes with more
-training examples, writer coverage, and optimizer updates. It is one additional
-run, planned after the initial grouped result; it is not a repeated or isolated
-test of masking. Training CER is 23.70% and training exact word accuracy is
-32.57%, leaving a substantial gap to unseen writers. The final lexicon uses 501
-training strings and returns 1,348 empty results. It raises exact accuracy to
-32.73% but increases CER relative to greedy decoding.
+Left-handed rows are indicative only. OnHW-chars_L is 2,270 samples from 9
+writers as flat pickles with **no official splits**; Ott et al. built their own
+and ours are built separately, so no cell is like-for-like. Our "random" column
+is not a writer-dependent split, and run-to-run spread is about 5 points against
+0.2 on the right-handed archive. `imu2text/chars.py` loads real writer IDs, so
+`make_split(mode="writer")` works on it.
 
-The runs used an AMD EPYC 9354P host with four available logical CPUs, 7.75 GiB
-RAM, Python 3.10.21, TensorFlow 2.15.1, and NumPy 1.26.4. The final refit and
-evaluation took 1,627 seconds. See [environment.json](../results/ctc/environment.json).
+Loaders exist for every dataset above except wordsRandom and wordsTraj.
+wordsTraj also needs a trajectory error metric and has 2 writers, so it has no
+WI split. `imu2text/words.py` loads OnHW-words500 and implements
+lexicon-constrained CTC decoding. Open work: issue
+[#11](https://github.com/vahinitech/imu2text/issues/11) and the trajectory
+thread in [roadmap.md](roadmap.md).
 
-The [root-cause analysis](rca_ctc_lengths.md) explains the alignment defects,
-validation changes, and remaining limits. Machine-readable configurations,
-histories, and paired predictions are in [results/ctc](../results/ctc/), including
-the [protocol and archive checksums](../results/ctc/protocol.json).
+## OnHW-chars, official benchmark
 
-To reproduce the word study, run from the repository root with the right-handed
-archive extracted under `data/Words500_indep_02`. The benchmark runner sets seed
-0, deterministic operations, and one TensorFlow thread itself. Run these jobs
-sequentially: full padded CTC arrays and a concurrent real-data test run exceeded
-this machine's memory in an excluded attempt.
-
-```bash
-python -m scripts.benchmark_ctc --data data/Words500_indep_02 --implementation parent --output results/ctc/parent_seed0_run1.json
-python -m scripts.benchmark_ctc --data data/Words500_indep_02 --implementation fixed --lexicon --output results/ctc/fixed_seed0_run1.json
-python -m scripts.benchmark_ctc --data data/Words500_indep_02 --implementation parent --output results/ctc/parent_seed0_run2.json
-python -m scripts.benchmark_ctc --data data/Words500_indep_02 --implementation fixed --output results/ctc/fixed_seed0_run2.json
-python -m scripts.benchmark_ctc --data data/Words500_indep_02 --implementation fixed-random --output results/ctc/fixed_random_seed0_run1.json
-python -m scripts.summarize_ctc --data data/Words500_indep_02
-python -m scripts.refit_ctc --data data/Words500_indep_02 --selection results/ctc/fixed_seed0_run1.json --output results/ctc/refit_seed0.json
-python -m scripts.summarize_ctc --data data/Words500_indep_02
-```
-
-The final command audits metrics against saved predictions and reports paired
-writer-bootstrap intervals. The refit command selects its epoch count from
-writer-validation loss, trains a fresh model on the whole official training
-partition, and exports weights and normalization statistics locally. Those
-binary model files are ignored by Git; the report records their filenames and
-the weight checksum. Weight reload is checked before a successful result is
-written. The published alphabet and duration bounds are stored in the report.
-
-## Character-classification benchmarks
-
-The new checkpoint regression reran `cnn_bilstm_attn` before and after the fix on
-the published right-handed OnHW-chars `both/indep/fold0` partition: 31,275 raw
-recordings, 23,316 nonempty official training recordings, 7,956 test recordings,
-and 52 classes. Inner fitting/validation sizes are 19,819/3,497; two augmented
-copies expand fitting to 59,457 examples. Both seed-0 deterministic runs score
-**72.26%**, with **zero changed test predictions**. Train/validation accuracy is
-91.24%/81.41% in both. This checks the evaluation fix; it does not improve this
-character configuration. [Run metadata](../results/ctc/character_runs.json) and
-[error breakdowns](../results/ctc/chars_fixed_seed0.txt) preserve the evidence.
-The historical experiments below remain separate from this deterministic pair.
-
-`imu2text/models.py` implements the OnHW baselines and the CNN+BiLSTM: a real
-train/val/test split, normalization fitted on train only, and early stopping
-with best-weight restore. `legacy/cnn_gnn.py` is kept for reference and its
-self-reported accuracy is not a held-out figure.
-
-Two evaluation protocols are supported:
-
-- `--split writer` (default) - **writer-independent (WI)**: whole writers are
-  held out, so test writers are entirely unseen. This is the protocol the OnHW
-  papers report. Writer IDs are reconstructed from the recording order (the pen
-  records one writer's full alphabet at a time - see `infer_writer_ids`).
-- `--split random` - stratified random (easier; a writer's style can leak into
-  both train and test).
-
-```bash
-python -m imu2text.models                 # writer-independent, all 4 models
-python -m imu2text.models --split random  # easier random split
-```
-
-Writer-independent results on the bundled subset (2,270 samples, 45 writers,
-52 classes; 1×BiLSTM-64, seq len 100 - CPU-friendly config):
-
-| Model       | Train % | WI Test % |
-|-------------|--------:|----------:|
-| **cnn_bilstm** (SOTA) | 96.1 | **64.8** |
-| bilstm      | 88.7 | 56.2 |
-| cnn         | 90.8 | 48.7 |
-| lstm        | 75.7 | 43.8 |
-| majority baseline | - | 2.2 |
-
-The ordering matches the literature (CNN+BiLSTM > BiLSTM > CNN > LSTM), and
-CNN+BiLSTM's 64.8% WI is close to the 52-class OnHW baseline of the IMWUT 2020
-paper (~64%) - on only 27 training writers. The stronger published figure for
-the same architecture is 68.06% (Ott et al., ACM MM 2022, Table 3); see the
-official-benchmark section below, where the comparison is like for like.
-
-Architectures
-
-![Model architectures](results/architecture.png)
-
-Both stacks are drawn by introspecting the Keras models, so the figure cannot
-drift from `imu2text/models.py`. The attention variant differs only after the
-BiLSTM: instead of reading out the final state, it keeps every timestep and
-learns which ones matter, for 13k extra parameters (145,000 to 157,928).
-
-Transfer learning to OnHW-symbols reuses that trunk:
-
-![Transfer learning](results/transfer_learning.png)
-
-`imu2text.symbols.build_transfer_model` clones the trunk, freezes it, and
-attaches a new head, so during the warmup phase 1,515 of 141,263 parameters
-train. `unfreeze_trunk()` then releases the rest at a lower learning rate. The
-figure reads each layer's `trainable` flag off the model the function actually
-returns, so what it labels frozen is frozen. Layout after Figure 6 of Ott et
-al., ACM MM 2022 (`data/ACMMM_2022.pdf`); the drawing code is our own.
-
-```bash
-python scripts/plot_architecture.py            # both figures
-```
-
-Official OnHW-chars benchmark
-
-The bundled subset is a convenience sample. The comparable number comes from
-the published dataset and its own splits: 31,275 samples, 119 writers, 52
-classes, evaluated on `both/indep/fold0` - the writer-independent protocol the
-papers report. Download it once (896 MB) and pass `--onhw-chars`:
+The published dataset and splits: 31,275 samples, 119 writers, 52 classes,
+`both/indep/fold0`. The download is 896 MB.
 
 ```bash
 python -m imu2text.download onhw_chars --out ./data
@@ -193,263 +91,24 @@ CNN+BiLSTM, 30 epochs, seed 0, official train/test partition:
 | 2×BiLSTM-100 + those + augmentation ×2 | 99.2 | 70.4 |
 | 1×BiLSTM-64, attention pooling + augmentation ×2 | 89.5 | 70.9 |
 | **the same + label smoothing 0.1 + LR schedule** | 92.1 | **72.5** |
-| majority baseline | - | 1.9 |
+| majority baseline | n/a | 1.9 |
 
-**72.5% writer-independent on 52 classes**, 3.3 points above this repo's
-previous best configuration, on a model with a third of the parameters of the
-2×BiLSTM-100 variants.
+Single seed, fold 0. With `--deterministic` the baseline and best rows give
+69.29% and 72.26%, both within 0.2 points. The best row is 3.3 points above
+1×BiLSTM-64 with a third of the parameters of 2×BiLSTM-100.
 
+The train column tells the story. Capacity buys +0.4 (2×100 over 1×64) while
+train accuracy climbs from 90% to 95%. Stack every regulariser on the big model
+and it memorises the augmented copies too: 99.2% train, 70.4% test. The small
+model with every lever on holds train to 92.1%, eight points below the 2×100
+models, and that restraint becomes test accuracy. Attention pooling alone was a
+wash (69.0 against 69.2); with augmentation it adds +0.9, and label smoothing
+plus the LR schedule add another +1.6 (`--models cnn_bilstm_attn`).
 
-The train column explains why. Capacity alone buys almost nothing (+0.4 for
-2×100 over 1×64) while pushing train accuracy from 90% to 95%: the extra
-parameters go into memorising faster. Stacking the same regularisers onto that
-capacity makes it worse rather than better - 2×100 with label smoothing, the LR
-schedule *and* augmentation reaches 99.2% train for 70.4% test, below the same
-model without augmentation. Given enough capacity the model simply memorises
-the augmented copies too, and the augmentation stops constraining anything.
+### Against Ott et al., Table 3
 
-The winning configuration is the small one with every lever on: attention
-pooling, augmentation, label smoothing and the LR schedule at 1×BiLSTM-64. It
-holds train accuracy to 92.1% - eight points below the 2×100 models - and
-converts that restraint into test accuracy. What is scarce on this task is
-generalisation, not capacity, and the levers only compose while the model is
-small enough to still be constrained by them.
-
-Attention pooling is worth singling out because it would have been discarded on
-its own evidence: alone it was a wash (69.0 against 69.2). It only pays once
-augmentation is on, where it adds +0.9 over the equivalent CNN+BiLSTM, and
-another +1.6 arrives when label smoothing and the LR schedule join it. Reach
-for it via `--models cnn_bilstm_attn`.
-
-Single seed, fold 0. The baseline and best rows re-run with `--deterministic`
-give 69.29% and 72.26%, both within 0.2 points of the values above.
-
-Machine these numbers were measured on
-
-All figures are CPU-only. TensorFlow reports no GPU visible on this machine.
-A CUDA box runs several times faster; the accuracies do not change.
-
-| | |
-|---|---|
-| CPU | AMD EPYC 9354P, 4 vCPU allocated (1 thread/core, no SMT) |
-| RAM | 7.8 GiB total, ~4.5 GiB available during runs |
-| GPU | none (`tf.config.list_physical_devices('GPU')` is empty) |
-| OS | Ubuntu 24.04.3 LTS, kernel 6.8.0 |
-| Python | 3.10.21 (CI pins 3.10; TensorFlow 2.15.1 has no 3.12 wheels) |
-| Key pins | tensorflow 2.15.1, numpy 1.26.4, scikit-learn 1.5.2 |
-
-Wall-clock for the official OnHW-chars split (19,819 train / 7,956 test,
-`maxlen` 100, batch 64), measured on the runs in the table above:
-
-| Configuration | Epochs | Time |
-|---|--:|--:|
-| 1×BiLSTM-64 | 30 | 305 s |
-| 1×BiLSTM-64, attention pooling | 30 | 322 s |
-| 2×BiLSTM-100 | 30 | 598 s |
-| attention pooling + augmentation ×2 + label smoothing + LR schedule | 30 | 913 s |
-| the same with `--deterministic` | 30 | 1181 s |
-
-`--deterministic` pins single-threaded execution, so it costs roughly 30-50%
-more wall-clock. Augmentation multiplies the training set (`--augment 2` makes
-it 3×) and the time with it.
-
-Memory: a non-augmented run was observed at about 1.3 GB resident. The padded
-input tensor is 31,272 × 100 × 13 float32 ≈ 163 MB, so `--augment 2` adds
-roughly 0.3 GB of tensor on top; the whole set of runs above fitted in the
-7.8 GiB available, but peak usage for the augmented configurations was not
-measured directly.
-
-Storage: the OnHW-chars `.npy` archive is 896 MB compressed and about 3.0 GB
-extracted, so budget ~4 GB for it. `.gitignore` excludes `data/OnHW-*/`,
-`data/onhw-*/` and `*.zip` so downloads are never committed.
-
-Comparing against the published OnHW numbers
-
-The OnHW papers report several tables measuring different tasks.
-
-**Table 3 (ACM MM 2022) is the comparable one.** CRR for right-handed writers
-over the same six official splits this repo trains on: {lower, upper,
-combined} x {writer-dependent, writer-independent}. Their CNN+BiLSTM row is
-the direct competitor.
-
-**Table 4 is not.** Its figures run to 100.00, which is the tell. That table
-is a *domain adaptation* benchmark: a model trained on right-handed writers,
-carried onto **left-handed** writers using labelled samples from those
-writers, and scored on a small left-handed validation set. Its own baseline is
-25.19% combined, and the paper's point is that adaptation lifts that to ~96%.
-So 85.09 (kMMD, OnHW-symbols) or 100.00 (OnHW-chars lower) answer "how well
-does supervised adaptation close a left/right-handed domain gap", not "how
-well are characters recognised from an unseen writer". Nothing in this repo
-does domain adaptation yet, so we have no number that
-belongs in Table 4 at all.
-
-### Coverage and results at a glance
-
-Every OnHW dataset, what was trained on it, and where the number came from.
-CRR is character recognition rate; CER/WER are error rates, so lower is
-better. "Published" is the CNN+BiLSTM row of Ott et al., ACM MM 2022, Tables 2
-and 3, right-handed writers.
-
-| Dataset | Task | Classes | Samples | Model trained | Split | Ours | Published |
-|---|---|--:|--:|---|---|--:|--:|
-| OnHW-chars, right | classification | 52 | 31,275 | CNN+BiLSTM+attn, aug, LS, LR sched | official WD | 80.07 | 78.17 |
-| OnHW-chars, right | classification | 52 | 31,275 | same | official WI | **72.46** | 68.06 |
-| OnHW-chars, right | classification | 26 lower | 15,625 | same | official WD | 88.25 | 88.85 |
-| OnHW-chars, right | classification | 26 lower | 15,625 | same | official WI | 82.45 | 79.48 |
-| OnHW-chars, right | classification | 26 upper | 15,650 | same | official WD | 91.43 | 92.15 |
-| OnHW-chars, right | classification | 26 upper | 15,650 | same | official WI | 86.78 | 85.60 |
-| OnHW-chars, left | classification | 52 | 2,270 | same | constructed random | 72.91 | 82.80 |
-| OnHW-chars, left | classification | 52 | 2,270 | same | constructed WI | 26.86 | 32.00 |
-| OnHW-chars, left | classification | 26 lower | ~1,135 | same | constructed random | 77.78 | 94.70 |
-| OnHW-chars, left | classification | 26 lower | ~1,135 | same | constructed WI | 25.96 | 43.60 |
-| OnHW-chars, left | classification | 26 upper | ~1,135 | same | constructed random | 77.39 | 91.90 |
-| OnHW-chars, left | classification | 26 upper | ~1,135 | same | constructed WI | 34.93 | 43.62 |
-| OnHW-symbols | classification | 15 | 2,326 | same | official WD | 95.77 | 96.20 |
-| OnHW-symbols | classification | 15 | 2,326 | same | official WI | 72.83 | 79.51 |
-| OnHW-equations, split | classification | 15 | 39,643 | CNN+BiLSTM+attn | official WD | 95.33 | 95.70 |
-| OnHW-equations, split | classification | 15 | 39,643 | CNN+BiLSTM+attn | official WI | **87.04** | 83.88 |
-| OnHW-words500 | seq2seq, CTC | 59 charset | 25,207 | CNN+BiLSTM+CTC, greedy | official WI | CER 38.08 / WER 73.17 | not in these tables |
-| OnHW-words500 | seq2seq, CTC | 59 charset | 25,207 | same, lexicon-constrained | official WI | **CER 32.65 / WER 40.23** | not in these tables |
-| OnHW-wordsRandom | seq2seq, CTC | 59 charset | 14,641 | none | - | - | - |
-| OnHW-wordsTraj | seq2seq + trajectory | 59 charset | 16,752 | none | - | - | - |
-
-Reading the table:
-
-- **Right-handed chars.** Ahead on all three writer-independent cells and on
-  combined WD; behind by 0.6-0.7 on the two writer-dependent single-case
-  cells.
-- **Left-handed chars.** Behind everywhere, by a lot. The archive ships no
-  official splits, so ours are constructed and the writers land differently
-  from theirs; the published column is included for scale, not as a like-for-
-  like comparison. The run-to-run spread here is about 5 points against 0.2 on
-  the right-handed archive, and the WD column is a random split rather than a
-  writer-dependent one, which is not the same thing. Treat this block as
-  indicative only.
-- **Symbols.** Close on WD, 6.7 behind on WI. 1,575 training samples across 15
-  classes is too little for the regularisation in this branch to pay: it adds
-  1.3 points on WI against 5.3 on WD.
-- **Equations.** Ahead on WI by 3.2. Largest training set here, and the only
-  split where the plain configuration beats the tuned one.
-- **wordsRandom and wordsTraj.** No loader written. wordsTraj also needs a
-  trajectory error metric rather than accuracy, and has 2 writers, so no
-  writer-independent split exists for it.
-
-### Coverage details
-
-The table below is **OnHW-chars only**, and only the right-handed archive.
-What each dataset has here today:
-
-| Dataset | Task | Loader | Benchmarked |
-|---|---|---|---|
-| OnHW-chars (right-handed) | 52/26-class classification | yes | yes, all six splits |
-| OnHW-chars_L (left-handed) | same | yes | no |
-| OnHW-symbols | 15-class classification | yes | yes, WD and WI |
-| OnHW-equations (split) | 15-class, per-symbol slices | yes | yes, WD and WI |
-| OnHW-words500 | seq2seq, closed 500-word vocab | yes | no |
-| OnHW-wordsRandom | seq2seq, open vocab | no | no |
-| OnHW-wordsTraj | seq2seq + trajectory regression | no | no |
-
-Two gaps worth naming.
-
-**Left-handed columns.** Ott et al. report right- and left-handed columns side
-by side. The left-handed OnHW-chars archive ships **no official splits**: it is
-2,270 samples from 9 writers as flat pickles. Their left-handed WD/WI columns
-come from splits they constructed. Any left-handed row here would come from
-splits we construct, so it would not be cell-for-cell comparable to theirs
-even when the protocol matches. `imu2text/chars.py` loads the archive with real
-writer IDs, so `make_split(mode="writer")` can build one.
-
-**Words and trajectories.** `imu2text/words.py` loads OnHW-words500 and
-implements lexicon-constrained CTC decoding, but no model has been trained on
-it. OnHW-wordsTraj has no loader at all. These are issues
-[#11](https://github.com/vahinitech/imu2text/issues/11) and the trajectory
-thread in [onhw_research_threads.md](onhw_research_threads.md).
-
-### OnHW-words500
-
-25,207 samples, 53 writers, the archive's own writer-disjoint split (42 train
-writers, 11 val). CNN+BiLSTM encoder with a CTC head, 30 epochs, `--max-len
-400`, single seed.
-
-| Decoding | CER | WER |
-|---|--:|--:|
-| Greedy | 38.08 | 73.17 |
-| Lexicon-constrained beam search | **32.65** | **40.23** |
-
-The vocabulary is closed: all 500 val words appear in train, so a decode can
-be restricted to them. Doing so cuts WER by 32.9 points, from 73.17 to 40.23,
-which is a 45% relative reduction for no change to the model. The greedy
-errors are mostly one or two edits from a real word (`ging` read as `sing`,
-`wir` as `nir`), and that is precisely what the constraint repairs.
-
-This is the first measurement of `LexiconDecoder` against a trained model
-rather than synthetic posteriors.
-
-Two things it does not settle. The constraint only helps when the vocabulary
-really is closed: on the synthetic open-vocabulary demo it made CER worse,
-69.81 against 0.00, because it forces an answer into a vocabulary the target
-is not in. And no published words500 figure is available here for comparison,
-since the IJDAR 2022 benchmark paper is not among the PDFs in
-`/home/vishnu/datasets/papers`.
-
-### OnHW-symbols
-
-15 classes (digits 0-9 and + - · : =), 2,326 samples from 27 writers, using
-each archive's own train/val split. Published row is Ott et al., ACM MM 2022,
-Table 2, right-handed writers.
-
-| Method | WD | WI |
-|---|--:|--:|
-| CNN+BiLSTM [60] | 96.20 | 79.51 |
-| InceptionTime [25] | 91.97 | 76.92 |
-| ResNet [86] | 94.50 | 77.41 |
-| CNN+BiLSTM+attn (this repo) | 90.49 | 71.52 |
-| CNN+BiLSTM+attn, aug x2, LS, LR sched | **95.77** | **72.83** |
-
-Close on writer-dependent (-0.43) and 6.7 points behind on
-writer-independent. With 1,575 training samples across 15 classes the WI split
-leaves little to generalise from, and the tuned configuration adds only 1.3
-points there against 5.3 on WD. The transfer-learning path in
-`imu2text/symbols.py` exists for this case and has not been measured.
-
-### OnHW-equations (split)
-
-The `_e` files: 39,643 per-symbol slices cut from 10,713 equations, same
-15-symbol charset. Published row is Table 2, right-handed writers.
-
-| Method | WD | WI |
-|---|--:|--:|
-| CNN+BiLSTM [60] | 95.70 | 83.88 |
-| InceptionTime [25] | 94.87 | 84.35 |
-| ResNet [86] | 94.68 | 83.45 |
-| CNN+BiLSTM+attn (this repo) | 95.33 | **87.04** |
-| CNN+BiLSTM+attn, aug x2, LS, LR sched | **96.25** | 86.12 |
-
-The tuned configuration is 0.92 points *behind* the plain one on WI here, the
-only split where that happens. With 26,942 training samples this is the largest
-classification set in the repo, and augmentation stops paying once the data is
-sufficient, matching what the 2xBiLSTM-100 rows show on OnHW-chars.
-
-### Across the three datasets
-
-Writer-independent, ours against the published CNN+BiLSTM row:
-
-| Dataset | Train samples | Published WI | Ours WI | Delta |
-|---|--:|--:|--:|--:|
-| OnHW-symbols | 1,575 | 79.51 | 72.83 | -6.68 |
-| OnHW-chars (52-class) | 19,819 | 68.06 | 72.46 | +4.40 |
-| OnHW-equations (split) | 26,942 | 83.88 | 87.04 | +3.16 |
-
-Ahead on the two larger sets, behind on the small one. The changes here are
-regularisation, and regularisation needs enough data to regularise: on 1,575
-samples across 15 classes it adds 1.3 points where it adds 5.3 on the same
-dataset's writer-dependent split. Transfer learning from OnHW-chars is the
-path that exists for the small-dataset case and has not been measured.
-
-### OnHW-chars
-
-Six official OnHW-chars splits, fold 0, 30 epochs, single seed. Published rows
-are Ott et al., ACM MM 2022, Table 3, right-handed writers.
+Six official splits, fold 0, 30 epochs, single seed. Published rows are Ott et
+al., ACM MM 2022, Table 3, right-handed writers.
 
 | Method | Lower WD | Lower WI | Upper WD | Upper WI | Comb WD | Comb WI |
 |---|--:|--:|--:|--:|--:|--:|
@@ -460,22 +119,32 @@ are Ott et al., ACM MM 2022, Table 3, right-handed writers.
 | CNN+BiLSTM (this repo) | 85.35 | 80.24 | 88.29 | 82.98 | 75.79 | 67.32 |
 | **CNN+BiLSTM+attn, aug x2, LS, LR sched** | 88.25 | **82.45** | 91.43 | **86.78** | **80.07** | **72.46** |
 
-Our plain CNN+BiLSTM reproduces theirs to within 0.7-3.9 points across the six
-cells, above on lower WI. The tuned configuration is ahead on all three
-writer-independent cells (+2.97, +1.18, +4.40) and on combined WD (+1.90), and
-behind by 0.60 and 0.72 on the two writer-dependent single-case cells.
-
-Reproduce our side of Table 3 with:
-
 ```bash
 python scripts/make_comparison_table.py --config best --epochs 30
 ```
 
-Where the remaining error actually is
+Our plain CNN+BiLSTM is within 0.7-3.9 points of theirs, above on lower WI. The
+tuned one leads on all three WI cells (+2.97, +1.18, +4.40) and combined WD
+(+1.90), and trails by 0.60 and 0.72 (0.6-0.7) on the two single-case WD cells.
 
-The 52-class figure stopped responding to modelling effort, so the errors were
-counted rather than guessed at. `--error-analysis` breaks the test set down by
-confusion pair:
+Table 4 of the same paper is not comparable. It measures supervised domain
+adaptation from right- to **left-handed** writers, scored on a small
+left-handed validation set: its baseline is 25.19% combined and adaptation
+lifts it to ~96%, hence 85.09 (kMMD, OnHW-symbols) and 100.00 (OnHW-chars
+lower). This repo does no domain adaptation.
+
+### Checkpoint regression
+
+`cnn_bilstm_attn` was rerun before and after the evaluation fix on
+`both/indep/fold0`: 31,275 raw recordings, 23,316 nonempty official training
+recordings, 7,956 test recordings, 52 classes, inner fitting/validation
+19,819/3,497, two augmented copies giving 59,457 fitting examples. Both seed-0
+deterministic runs score **72.26%** with **zero changed test predictions** and
+91.24%/81.41% train/validation accuracy. See the
+[run metadata](../results/ctc/character_runs.json) and
+[error breakdowns](../results/ctc/chars_fixed_seed0.txt).
+
+## Where the remaining error is
 
 ```bash
 python -m imu2text.models --models cnn_bilstm_attn \
@@ -492,13 +161,12 @@ top 12 confusions: 's'->'S' 'o'->'O' 'w'->'W' 'v'->'V' 'z'->'Z' 'u'->'U'
                    'x'->'X' 'c'->'C' 'p'->'P' 'W'->'w' 'Y'->'y' 'y'->'Y'
 ```
 
-That is the 72.5% model. The weaker 20-epoch baseline had 38.4% of its errors
-in case; improving the model from 68.0% to 72.5% pushed the share *up* to
-43.1%, because the fixable errors are the ones that got fixed.
+All twelve top confusions of the 72.5% model are a letter read as its own other
+case; folding case gives 84.3%, so about twelve points of error is upper versus
+lower. The 20-epoch baseline had 38.4% of its errors in case; going from 68.0%
+to 72.5% raised the share to 43.1% because the fixable errors got fixed.
 
-![Where the OnHW-chars errors are](results/error_analysis.png)
-
-Rebuild the figure with:
+![Where the OnHW-chars errors are](../results/error_analysis.png)
 
 ```bash
 python -m imu2text.models --models cnn_bilstm_attn \
@@ -512,35 +180,25 @@ python scripts/plot_error_analysis.py \
     --onhw-chars data/onhw-chars_2021-06-30
 ```
 
-Panel A drops the diagonal so only errors are drawn, and the two red lines mark
-where a letter confused with its own other case has to land: 26 off the
-diagonal. Almost all of the mass sits on them. Every value is also in
-`results/error_analysis_confusions.csv`, so nothing here is readable only by
-colour.
+Panel A drops the diagonal; the two red lines, 26 off it, are where same-letter
+case errors land, and almost all the mass is there. Values are in
+`results/error_analysis_confusions.csv`.
 
-Every one of the twelve most common confusions is a letter mistaken for its own
-other case. Fold case away and the same model scores 84.3% instead of 72.5%: about twelve
-points of the error is nothing but upper-versus-lower.
-
-**The sensor cannot resolve it.** For pairs that share a glyph shape - C/c,
-O/o, S/s, U/u, V/v, W/w, X/x, Z/z, K/k, P/p - the only distinguishing feature
-is size, and an IMU measures acceleration, not position. Measuring how
-separable the two cases actually are (AUC over the test set, 0.5 = a coin
-flip):
+**The sensor cannot resolve it.** For same-shape pairs (C/c, O/o, S/s, U/u, V/v,
+W/w, X/x, Z/z, K/k, P/p) only size differs, and an IMU measures acceleration,
+not position. AUC over the test set (0.5 = a coin flip):
 
 | Cue | Same-shape pairs | Differently-shaped pairs (A/a, E/e, R/r, B/b, H/h) |
 |---|--:|--:|
-| Acceleration RMS | 0.541 | 0.36 - 0.54 |
-| Sequence duration | 0.590 | 0.83 - 0.95 |
+| Acceleration RMS | 0.541 | 0.36–0.54 |
+| Sequence duration | 0.590 | 0.83–0.95 |
 
-Acceleration scales as size / time², and writers form capitals both larger and
-proportionally faster, so the two effects cancel; duration does not rescue it
-either, since same-shape case pairs differ in length by a factor of 1.08
-against 1.31 for differently-shaped pairs. The cue is not weakly represented in
-the signal, it is close to absent.
+Acceleration scales as size / time², and capitals are written both larger and
+proportionally faster, so the two cancel. Duration does not help either:
+same-shape pairs differ in length by a factor of 1.08, against 1.31 for
+differently-shaped pairs.
 
-Running the 26-class splits, where the ambiguity does not exist, confirms it
-(same model, 20 epochs, `indep/fold0`):
+Removing case confirms it (same model, 20 epochs, `indep/fold0`):
 
 | Task | WI Test % |
 |---|--:|
@@ -549,91 +207,167 @@ Running the 26-class splits, where the ambiguity does not exist, confirms it
 | 26-class lowercase (`--case lower`) | 78.5 |
 | 26-class uppercase (`--case upper`) | 81.8 |
 
-The three ways of removing case all land near 80%, and 81.8% sits alongside the
-published uppercase WI state of the art (~83%) from an un-augmented baseline
-model.
+All three land near 80%, and the un-augmented 81.8% is near the published
+uppercase WI figure (85.60, CNN+BiLSTM, Ott et al., ACM MM 2022, Table 3). Wehbi et al., "Towards an IMU-based Pen Online
+Handwriting Recognizer" (FAU Erlangen, their own word dataset) found 26% of a
+CTC word model's errors were substitutions "between characters that look
+similar in both uppercase and lowercase, such as 'P-p', 'K-k', and 'S-s'"; the
+other 68% were cursive segmentation errors.
 
-Wehbi et al., "Towards an IMU-based Pen Online Handwriting Recognizer" (FAU
-Erlangen, on their own word dataset rather than OnHW) report the same pattern
-from a CTC word model: 26% of their errors were substitutions "between
-characters that look similar in both uppercase and lowercase, such as 'P-p',
-'K-k', and 'S-s'". Three of those are in the same-shape set measured above.
-Their remaining 68% were missing characters from cursive writing, which is a
-segmentation problem rather than this one.
+So capacity bought +0.4, and regularisation, which works on the 61.6% of the 68.0% baseline's
+errors that are not case, bought more. A bigger model will not move the ceiling. These
+would: score a 26-class split (they ship for this reason; say which you ran),
+give the model word context so case follows position ("cat" and "Cat"), as a
+word-level CTC model with a lexicon does (`imu2text/seq2seq.py`,
+`docs/roadmap.md`), or add a sensor that sees position, like the
+tablet-and-camera rig behind OnHW-wordsTraj.
 
-So the 52-class ceiling is a property of the label set and the sensor,
-not of the architecture - which is why capacity bought +0.4 and regularisation,
-which works on the 61.6% of errors that are not case, bought rather more.
+## OnHW-symbols and OnHW-equations
 
-Three things would move it, and none of them is a bigger model:
+Published rows: Ott et al., ACM MM 2022, Table 2, right-handed writers. Each
+archive's own train/val split. **Symbols:** 15 classes (digits 0-9 and `+`,
+`-`, `·`, `:`, `=`), 2,326 samples from 27 writers. **Equations (split):** the
+`_e` files, 39,643 per-symbol slices from 10,713 equations, same charset.
 
-- **Score the task the ambiguity allows.** The 26-class splits ship with the
-  dataset for this reason. Report which one you ran.
-- **Give the model context.** Case in real writing is decided by position in a
-  word, not by glyph shape - "cat" and "Cat" differ in where the letter sits.
-  A word-level CTC model with a lexicon recovers most of it for free, which is
-  a concrete reason the OnHW-words500 and equations datasets exist. See
-  `imu2text/seq2seq.py` and `docs/onhw_research_threads.md`.
-- **Add a sensing modality that sees position** - the tablet-and-camera rig
-  behind OnHW-wordsTraj.
+| Method | Symbols WD | Symbols WI | Equations WD | Equations WI |
+|---|--:|--:|--:|--:|
+| CNN+BiLSTM [60] | 96.20 | 79.51 | 95.70 | 83.88 |
+| InceptionTime [25] | 91.97 | 76.92 | 94.87 | 84.35 |
+| ResNet [86] | 94.50 | 77.41 | 94.68 | 83.45 |
+| CNN+BiLSTM+attn (this repo) | 90.49 | 71.52 | 95.33 | **87.04** |
+| CNN+BiLSTM+attn, aug x2, LS, LR sched | **95.77** | **72.83** | **96.25** | 86.12 |
 
-Improving accuracy - the available levers
+| Dataset | Train samples | Published WI | Ours WI | Delta |
+|---|--:|--:|--:|--:|
+| OnHW-symbols | 1,575 | 79.51 | 72.83 | -6.68 |
+| OnHW-chars (52-class) | 19,819 | 68.06 | 72.46 | +4.40 |
+| OnHW-equations (split) | 26,942 | 83.88 | 87.04 | +3.16 |
 
-Every configuration below overfits: train accuracy runs 20-30 points above
-held-out accuracy on all three datasets below. That gap, not model
-capacity, is what limits the numbers. The levers are described here once, and
-the sections after measure them, on the official benchmark above and on
-OnHW-chars_L further down.
+Ahead on the two larger sets, behind on the small one: regularisation needs
+data. On symbols the tuned config is -0.43 on WD and 6.7 behind on WI, adding
+1.3 points on WI against 5.3 on WD. On equations, the largest set, it is 0.92
+*behind* the plain config on WI (3.2 ahead of published), the only split where
+that happens, like the 2xBiLSTM-100 rows on OnHW-chars. Transfer learning from
+OnHW-chars (`imu2text/symbols.py`) targets the small case and is unmeasured.
 
-Three datasets appear in this file and their numbers are not
-interchangeable. Quote the official benchmark (72.5% WI) against the
-literature; the bundled-subset and OnHW-chars_L figures track changes within
-this repo.
+## OnHW-words500
 
-- **IMU data augmentation** (`--augment N`): each training sample gets `N`
-  randomly transformed copies. The transform policy lives in `imu2text/augment.py`
-  and combines the legacy jitter / per-channel-scale / magnitude-warp /
-  time-warp with three new transforms that are physically meaningful for IMU
-  sensor data:
+### 30-epoch run
 
-  - **`random_rotation`** - small 3D rotation applied independently to each
-    Acc/Gyro/Mag triad. A pen grip change rotates the sensor frame, which
-    redistributes energy across the three axes while preserving each
-    vector's magnitude (acceleration norm, gyro rate, and so on).
-  - **`channel_dropout`** - zero out a channel for the whole sample,
-    simulating a sensor dropout failure mode. The Force channel is always
-    kept (it signals pen-on-paper contact).
-  - **`random_crop`** - random sub-window of the stroke; the start and end
-    of a recording often contain little useful signal (pen approaching/
-    leaving the paper).
+25,207 samples, 53 writers, the archive's writer-disjoint split (42 train
+writers, and 11 held-out writers in the archive's `val` half, scored here as
+the test set). CNN+BiLSTM with a CTC head, 30 epochs, `--max-len 400`,
+single seed.
 
-  Those three are **opt-in** via `--aug-policy extended`. The default
-  `legacy` policy is jitter + scale + magnitude warp + time warp, the exact
-  policy behind the measured 71.6% below; turning the others on by default
-  would silently change what `--augment N` means and make that figure
-  irreproducible. The transforms have not been ranked against each other -
-  only the two policies have been compared.
+| Decoding | CER | WER |
+|---|--:|--:|
+| Greedy | 38.08 | 73.17 |
+| Lexicon-constrained beam search | **32.65** | **40.23** |
 
-  Augmentation is applied to training samples only; val/test never see it
-  (see `augment_training`).
-- **Paper-scale capacity** (`--rnn-units 100 --rnn-layers 2`): the two-layer,
-  100-unit BiLSTM the OnHW papers use.
-- **Normalization mode** (`--norm`): `global` (default) fits one scaler on
-  the train timesteps - leak-free, symmetric, and what every number above was
-  measured with. `per_sample` standardizes each sample by its own timesteps,
-  also leak-free and needing no writer IDs. `per_writer` standardizes each
-  writer by their own timesteps, test writers included: it uses no labels,
-  but it is **transductive** - it needs several samples from a test writer
-  before any of them can be normalized, so it does not describe single-shot
-  inference on a fresh writer, and any number measured under it has to be
-  reported as transductive rather than compared to a standard WI figure.
-- **Label smoothing** (`--label-smoothing 0.1`): mixes the one-hot target
-  with a uniform distribution, calibrating softmax confidence. Unmeasured
-  here.
-- **LR schedule** (`--lr-schedule`): halves the learning rate on validation
-  plateau (factor 0.5, patience 3, min LR 1e-5).
+All 500 val words appear in train, so decoding can be restricted to them. That
+cuts WER by 32.9 points (73.17 to 40.23), a 45% relative reduction with the same
+model: greedy errors are mostly one or two edits from a real word (`ging` read
+as `sing`, `wir` as `nir`). This is the first test of `LexiconDecoder` on a
+trained model. On the synthetic open-vocabulary demo it made CER worse, 69.81
+against 0.00, because the target is outside the vocabulary. No published
+words500 figure is available: the IJDAR 2022 paper is not among the PDFs in
+`/home/vishnu/datasets/papers`.
 
-Best writer-independent CNN+BiLSTM result (this repo, bundled subset):
+### Alignment and writer-validation study (15 epochs)
+
+`Words500_indep_02`, **published WI fold 0**, **59 character symbols** plus the
+CTC blank: 25,218 raw recordings from 53 writers. Dropping three empty training
+and eight empty test recordings leaves 19,915 and 5,292. The 11 test writers
+are in no fitting partition. Seed 0, deterministic TensorFlow ops,
+single-threaded, 15 epochs, batch 32, a CNN with one 32-unit bidirectional
+LSTM. A limited CPU experiment, not the CLI default or a converged five-fold
+result. Exact word accuracy counts whole-word matches.
+
+| Pipeline | Fitting / validation recordings | CER ↓ | WER ↓ | Exact word accuracy ↑ |
+|---|---:|---:|---:|---:|
+| Parent `03d1c8f`, random inner validation | 16,927 / 2,988 | 59.30% | 94.46% | 5.54% |
+| Corrected, same random inner validation | 16,927 / 2,988 | 55.70% | 92.23% | 7.77% |
+| Corrected, writer-disjoint inner validation | 16,416 / 3,499 | 59.31% | 94.50% | 5.50% |
+| Same writer-validation model, training-only lexicon | 16,416 / 3,499 | 65.35% | 77.23% | 22.77% |
+| Final refit on all official training writers, greedy | 19,915 / n/a | 53.95% | 91.10% | 8.90% |
+| Same final refit, training-only lexicon | 19,915 / n/a | 56.85% | 67.27% | 32.73% |
+
+- **Same split:** the fix cuts CER by **3.60 percentage points** (paired
+  bootstrap over the 11 test writers, 95% interval 1.52–5.67). One run.
+- **Writer-disjoint validation** (seven training writers held out, 35 left)
+  removes that gain at this budget (interval −1.40–1.40), so this does **not**
+  support a greedy-accuracy improvement claim.
+- **Repeats:** parent and grouped-validation configs each ran twice at the same
+  seed with identical loss histories and **zero changed test predictions**, a
+  spread of 0.00 percentage points in CER. Seeds, folds and hardware were not
+  varied.
+- **Final refit:** a fresh model on all 42 official training writers for the
+  validation-selected epoch 15, which is also the last epoch of the budget;
+  validation loss was still falling (11.14 to 10.79 over the last two epochs of
+  `fixed_seed0_run1.json`), so every word model here is under-trained. Greedy
+  CER drops **5.35 percentage points** against the parent (95% interval
+  **2.77–7.76**), mixing the pipeline changes with more data, writers and
+  updates. One run, not an isolated test of masking. Training CER is 23.70% and
+  training exact word accuracy 32.57%.
+- **Lexicon:** more whole words, more character edits when it picks wrong or
+  abstains, so lower WER is not lower CER. Empty outputs: 1,817 strict against
+  243 greedy. The final lexicon has 501 training strings (the 500 words plus
+  `Stabilo`), returns 1,348 empty results, and reaches 32.73% exact accuracy
+  with higher CER than greedy. In the 30-epoch run the lexicon lowered CER
+  instead (38.08 to 32.65); the two runs differ in epochs and training data,
+  and this study did not isolate why.
+
+Host: AMD EPYC 9354P, four logical CPUs, 7.75 GiB RAM, Python 3.10.21,
+TensorFlow 2.15.1, NumPy 1.26.4; refit plus evaluation took 1,627 seconds
+([environment.json](../results/ctc/environment.json)). The
+[root-cause analysis](rca_ctc_lengths.md) covers the alignment defects and
+limits; configs, histories and paired predictions are in
+[results/ctc](../results/ctc/) with the
+[protocol and archive checksums](../results/ctc/protocol.json).
+
+Reproduce from the repo root with the archive under `data/Words500_indep_02`.
+The runner sets seed 0, deterministic ops and one thread. Run jobs one at a
+time; a concurrent real-data test run exceeded this machine's memory.
+
+```bash
+python -m scripts.benchmark_ctc --data data/Words500_indep_02 --implementation parent --output results/ctc/parent_seed0_run1.json
+python -m scripts.benchmark_ctc --data data/Words500_indep_02 --implementation fixed --lexicon --output results/ctc/fixed_seed0_run1.json
+python -m scripts.benchmark_ctc --data data/Words500_indep_02 --implementation parent --output results/ctc/parent_seed0_run2.json
+python -m scripts.benchmark_ctc --data data/Words500_indep_02 --implementation fixed --output results/ctc/fixed_seed0_run2.json
+python -m scripts.benchmark_ctc --data data/Words500_indep_02 --implementation fixed-random --output results/ctc/fixed_random_seed0_run1.json
+python -m scripts.summarize_ctc --data data/Words500_indep_02
+python -m scripts.refit_ctc --data data/Words500_indep_02 --selection results/ctc/fixed_seed0_run1.json --output results/ctc/refit_seed0.json
+python -m scripts.summarize_ctc --data data/Words500_indep_02
+```
+
+`refit_ctc` exports weights and normalization statistics locally (ignored by
+Git); the report records filenames, weight checksum, alphabet and duration
+bounds, and checks weight reload first. The last `summarize_ctc` audits metrics
+against saved predictions and reports the writer-bootstrap intervals.
+
+## Bundled subset
+
+`imu2text/models.py` uses a real train/val/test split, train-only
+normalization, and early stopping with best-weight restore. `legacy/cnn_gnn.py`
+is reference only; its self-reported accuracy is not held out. `--split writer`
+(default) holds out whole writers, with IDs rebuilt from recording order (see
+`infer_writer_ids`). `--split random` is stratified and easier, since a writer's
+style leaks into both sides.
+
+```bash
+python -m imu2text.models                 # writer-independent, all 4 models
+python -m imu2text.models --split random  # easier random split
+```
+
+WI, 2,270 samples, 45 writers, 52 classes, 1×BiLSTM-64, seq len 100:
+
+| Model       | Train % | WI Test % |
+|-------------|--------:|----------:|
+| **cnn_bilstm** | 96.1 | **64.8** |
+| bilstm      | 88.7 | 56.2 |
+| cnn         | 90.8 | 48.7 |
+| lstm        | 75.7 | 43.8 |
+| majority baseline | n/a | 2.2 |
 
 | Configuration | WI Test % |
 |---|---:|
@@ -641,54 +375,61 @@ Best writer-independent CNN+BiLSTM result (this repo, bundled subset):
 | + augmentation ×3 | 69.4 |
 | **+ augmentation ×4, 2×BiLSTM-100** | **71.6** |
 
-The rotation / channel-dropout / crop transforms, the normalization modes,
-label smoothing and the LR schedule are all **off by default and unmeasured on
-this subset**. Treat the 71.6% row as the current best measured
-writer-independent figure here. The extended augmentation policy has been
-measured on a different dataset - see below.
-
-Reproduce the best measured config:
-
 ```bash
 python -m imu2text.models --models cnn_bilstm --split writer \
     --augment 4 --rnn-units 100 --rnn-layers 2 --epochs 60
 ```
 
-**71.6% writer-independent on 52 classes** (27 training writers) - a +6.8 point
-gain over the un-augmented model and above the published 52-class OnHW baseline
-(~64%). More writers (full 31k dataset) push further, per the projection below.
+The ordering matches the literature (CNN+BiLSTM > BiLSTM > CNN > LSTM). With 27
+training writers, 64.8% is near the IMWUT 2020 52-class baseline (~64%) and
+71.6% is +6.8 above it; the like-for-like figure is the official benchmark's
+68.06%. More writers (full 31k dataset) should push higher (see the
+[projection](#accuracy-projection)).
 
-Augmentation policies, measured on OnHW-chars_L
+### Training options
 
-Separate dataset, so these numbers are **not comparable to the 71.6% above**:
-OnHW-chars_L is the small left-handed release (2,270 samples, 9 writers, 52
-classes), against the bundled right-handed subset used for the table above.
-CNN+BiLSTM 1x64, 30 epochs, writer-independent split, three seeds:
+Every configuration overfits, with train 20-30 points above held-out accuracy
+on all three datasets. Extended augmentation, the normalization modes, label
+smoothing and the LR schedule are **off by default and unmeasured on this
+subset**.
 
-| Seed | `--aug-policy` off | `legacy` ×4 | `extended` ×4 |
-|---|---:|---:|---:|
-| 0 | 21.6 | 28.4 | **28.9** |
-| 1 | 15.4 | 18.2 | **24.3** |
-| 2 | 17.9 | 18.5 | **22.9** |
-| mean | 18.3 | 21.7 | **25.3** |
+- `--augment N`: `N` transformed copies per training sample, never applied to
+  val/test (`augment_training`). The default `legacy` policy (jitter,
+  per-channel scale, magnitude warp, time warp) produced the 71.6%.
+  `--aug-policy extended` adds three transforms from `imu2text/augment.py`:
+  `random_rotation` (small 3D rotation per Acc/Gyro/Mag triad, as a grip change
+  does), `channel_dropout` (zeroes one channel, never Force), and `random_crop`
+  (a sub-window, since recording edges carry little signal). Only the two
+  policies have been compared.
+- `--rnn-units 100 --rnn-layers 2`: the OnHW papers' BiLSTM.
+- `--norm`: `global` (default, one scaler on train timesteps) and `per_sample`
+  are leak-free. `per_writer` scales each writer by their own timesteps, test
+  writers included; it is **transductive** (needs several samples from a test
+  writer first) and must be reported as such, not as standard WI.
+- `--label-smoothing 0.1`: mixes the one-hot target with a uniform
+  distribution. Not measured on its own; it is part of the 72.5% configuration.
+- `--lr-schedule`: halves the LR on validation plateau (factor 0.5, patience 3,
+  min LR 1e-5).
 
-Read the columns, not the rows. With only 9 writers, the seed decides which
-writers land in the test split, and that alone swings the absolute number by
-six points - the seed-to-seed spread says nothing about the policies. The
-comparison that holds is within a seed, where the split is identical. There
-both orderings are consistent: `legacy` beat no augmentation on all three
-(+6.7, +2.7, +0.6) and `extended` beat `legacy` on all three (+0.5, +6.2,
-+4.3).
+### OnHW-chars_L: augmentation and normalization
 
-Every run above used `--deterministic`, so each cell is reproducible. Without
-it the same config and seed varied by about five points, which is larger than
-the effects being compared - see the reproducibility note below.
+**Not comparable to the 71.6% above**: 2,270 left-handed samples, 9 writers,
+52 classes. CNN+BiLSTM 1x64, 30 epochs, WI split, three seeds, `--deterministic`.
 
-Three seeds on one small dataset is still weak evidence. It justifies
-`extended` being available; it does not justify making it the default, which
-is why `legacy` still is.
+| Seed | `--aug-policy` off | `legacy` ×4 | `extended` ×4 | `global` norm | `per_sample` | `per_writer` |
+|---|---:|---:|---:|---:|---:|---:|
+| 0 | 21.6 | 28.4 | **28.9** | 21.6 | 20.0 | 28.6 |
+| 1 | 15.4 | 18.2 | **24.3** | 15.4 | 16.5 | 3.7 |
+| 2 | 17.9 | 18.5 | **22.9** | 17.9 | 23.3 | 23.1 |
+| mean | 18.3 | 21.7 | **25.3** | 18.3 | 19.9 | 18.5 |
 
-Reproduce any cell:
+With 9 writers the seed decides the test writers and swings the result by six
+points, so compare within a row. `legacy` beats no augmentation on every seed
+(+6.7, +2.7, +0.6) and `extended` beats `legacy` on every seed (+0.5, +6.2,
++4.3). Three seeds justify offering `extended`, not making it the default.
+Neither normalization alternative helps consistently; `per_writer` collapses to
+3.7% on seed 1, barely above the 1.9% majority baseline, because a thin test
+writer gives its scaler too little data. `global` stays the default.
 
 ```bash
 python -m imu2text.download onhw_chars_L --out ./data
@@ -699,49 +440,80 @@ python -m imu2text.models --models cnn_bilstm --split writer \
     --augment 4 --aug-policy extended --epochs 30 --seed 0 --deterministic
 ```
 
-Normalization modes, same protocol:
+## Architectures
 
-| Seed | `global` | `per_sample` | `per_writer` |
-|---|---:|---:|---:|
-| 0 | 21.6 | 20.0 | 28.6 |
-| 1 | 15.4 | 16.5 | 3.7 |
-| 2 | 17.9 | 23.3 | 23.1 |
-| mean | 18.3 | 19.9 | 18.5 |
+![Model architectures](../results/architecture.png)
 
-Neither alternative shows a consistent effect, and `per_writer` is erratic -
-seed 1 collapses to 3.7%, barely above the 1.9% majority-class baseline. With
-9 writers a per-writer scaler is fit from very little data, and when the split
-leaves a test writer thin the normalization does more harm than the bias
-removal is worth. Both modes stay available; neither is recommended on
-evidence this shaky, and `global` remains the default.
+Drawn by introspecting the Keras models in `imu2text/models.py`. The attention
+variant keeps every BiLSTM timestep instead of the final state, for 13k extra
+parameters (145,000 to 157,928).
 
-Reproducibility
+![Transfer learning](../results/transfer_learning.png)
 
-`--seed` on its own does not pin a run. It fixes the split and the
-augmentation RNG, but `tf.random.set_seed` does not reach the Keras layer
-initialisers, so two runs at the same seed started from different weights and
-landed roughly five points apart on this dataset - enough to swamp any of the
-effects above. The seeding now goes through `keras.utils.set_random_seed`, and
-`--deterministic` additionally pins op determinism and single-threaded
-execution, which makes a run bit-reproducible. It is slower, so it is opt-in -
-but use it for any before/after comparison, and treat differences smaller than
-a few points from non-deterministic runs as noise.
+`imu2text.symbols.build_transfer_model` clones and freezes that trunk and adds
+a head, so 1,515 of 141,263 parameters train during warmup; `unfreeze_trunk()`
+then releases the rest at a lower learning rate. Frozen labels come from each
+layer's `trainable` flag. Layout after Figure 6 of Ott et al., ACM MM 2022; the
+drawing code is our own.
 
-Accuracy projection (smart-pen platform)
+```bash
+python scripts/plot_architecture.py            # both figures
+```
 
-WI accuracy scales with the number of enrolled writers. `scripts/make_learning_curve.py`
-measures that curve; `scripts/onhw_projection.m` fits a logistic model
-`acc(W) = L / (1 + exp(-a (W - w0)))` and extrapolates:
+## Reproducibility
+
+`--seed` fixes the split and augmentation RNG, but `tf.random.set_seed` does not
+reach the Keras initialisers, so two same-seed runs landed roughly five points
+apart on OnHW-chars_L. Seeding now uses `keras.utils.set_random_seed`, and
+`--deterministic` also pins op determinism and single-threaded execution for
+bit-reproducible runs. Use it for any before/after comparison; treat gaps under
+a few points between non-deterministic runs as noise.
+
+## Hardware and cost
+
+CPU only; TensorFlow sees no GPU. A CUDA box is several times faster with the
+same accuracies.
+
+| | |
+|---|---|
+| CPU | AMD EPYC 9354P, 4 vCPU allocated (1 thread/core, no SMT) |
+| RAM | 7.75 GiB total, ~4.5 GiB available during runs |
+| GPU | none (`tf.config.list_physical_devices('GPU')` is empty) |
+| OS | Ubuntu 24.04.3 LTS, kernel 6.8.0 |
+| Python | 3.10.21 (CI pins 3.10; TensorFlow 2.15.1 has no 3.12 wheels) |
+| Key pins | tensorflow 2.15.1, numpy 1.26.4, scikit-learn 1.5.2 |
+
+Official OnHW-chars split (19,819 train / 7,956 test, `maxlen` 100, batch 64):
+
+| Configuration | Epochs | Time |
+|---|--:|--:|
+| 1×BiLSTM-64 | 30 | 305 s |
+| 1×BiLSTM-64, attention pooling | 30 | 322 s |
+| 2×BiLSTM-100 | 30 | 598 s |
+| attention pooling + augmentation ×2 + label smoothing + LR schedule | 30 | 913 s |
+| the same with `--deterministic` | 30 | 1181 s |
+
+`--deterministic` costs roughly 30-50% more; `--augment 2` makes the training
+set 3× and the time with it. A non-augmented run used about 1.3 GB resident;
+the padded input is 31,272 × 100 × 13 float32 ≈ 163 MB, so `--augment 2` adds
+roughly 0.3 GB. Everything fitted in 7.75 GiB; augmented peak usage was not
+measured. The `.npy` archive is 896 MB compressed, about 3.0 GB extracted
+(budget ~4 GB). `.gitignore` excludes `data/OnHW-*/`, `data/onhw-*/` and
+`*.zip`.
+
+## Accuracy projection
+
+`scripts/make_learning_curve.py` measures WI accuracy against enrolled writers;
+`scripts/onhw_projection.m` fits `acc(W) = L / (1 + exp(-a (W - w0)))`.
 
 ```bash
 python scripts/make_learning_curve.py     # -> results/learning_curve.csv
 matlab -batch scripts/onhw_projection     # or: octave scripts/onhw_projection.m  -> results/onhw_projection.png
 ```
 
-Fitted from the bundled subset (un-augmented learning curve): ceiling
-**L ≈ 76%**, projecting **~76% WI** at full-dataset scale (~71 training writers)
-- between the 52-class baseline (~64%) and the uppercase WI state of the art
-(~83%). Augmentation shifts every point on this curve up (the 27-writer point
-rises 64.8 → 71.6%), so the augmented projection ceiling is correspondingly
-higher (~80%). This is the expected accuracy envelope for the regular-paper IMU
-ballpoint pen as writer enrollment grows.
+On the un-augmented bundled-subset curve the ceiling is **L ≈ 76%**, projecting
+**~76% WI** at full-dataset scale (~71 training writers), between the 52-class
+baseline (~64%) and the published uppercase WI figure (85.60, Table 3). Augmentation
+lifts every point (the 27-writer point rises 64.8 → 71.6%), so the augmented
+ceiling is higher (~80%). That is the expected range for the regular-paper IMU
+ballpoint pen as enrollment grows.

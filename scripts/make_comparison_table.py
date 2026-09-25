@@ -34,7 +34,7 @@ CASES = ("lower", "upper", "both")
 DEPENDENCIES = ("dep", "indep")
 
 # Ott et al., ACM MM 2022, Table 3, right-handed writers (U_Tv). CRR in %.
-# Transcribed from data/ACMMM_2022.pdf; these are their numbers, not ours.
+# Transcribed from Ott et al., ACM MM 2022, Table 3; these are their numbers, not ours.
 PUBLISHED = {
     "CNN+BiLSTM [60]": {
         ("lower", "dep"): 88.85,
