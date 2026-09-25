@@ -1,0 +1,11 @@
+{
+  "cpu": "AMD EPYC 9354P 32-Core Processor",
+  "logical_cpus_available": 4,
+  "memory_gib": 7.75,
+  "python": "3.10.21",
+  "numpy": "1.26.4",
+  "tensorflow": "2.15.1",
+  "tensorflow_inter_op_threads": 1,
+  "tensorflow_intra_op_threads": 1,
+  "physical_gpus": []
+}
