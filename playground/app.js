@@ -6,26 +6,28 @@ const PUB = window.PLAYGROUND_PUBLIC;
 const LOCAL = window.PLAYGROUND_LOCAL || null;
 const STAGES = window.PLAYGROUND_STAGES;
 const SVG_NS = "http://www.w3.org/2000/svg";
+const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// ---------- tasks and the samples each one offers ----------
+// ---------- words shown to people (plain English; the glossary explains) ----------
 const TASKS = {
-  chars: { label: "Characters", note: "52 classes: A to Z and a to z, one letter per recording." },
-  symbols: { label: "Symbols", note: "15 classes: the digits 0 to 9 and + - · : =, one per recording." },
-  equations: { label: "Equations", note: "15 classes: single symbols cut out of handwritten equations." },
-  words: { label: "Words", note: "OnHW-Words500: whole German words, spelled out of 59 characters." },
+  chars: { label: "Letters", note: "One letter per recording: A to Z and a to z." },
+  symbols: { label: "Numbers and symbols", note: "One per recording: 0 to 9 and + - · : =" },
+  equations: { label: "Maths symbols", note: "Numbers and signs cut out of handwritten sums." },
+  words: { label: "Words", note: "Whole German words, written in one go." },
 };
 const KIND_TITLES = {
-  clear: "The model is sure, and right",
-  case: "Split between a letter and its other case",
-  disagree: "The five models disagree",
-  unsure: "The model is unsure (top choice below 50%)",
-  wrong: "Sure, and wrong",
-  right: "Plain decoding already spells the word",
-  fixed: "The word list fixes it",
-  abstain: "No word from the list fits",
+  clear: "Easy: the model is sure and right",
+  case: "Tricky: small letter or capital?",
+  disagree: "Tricky: the 5 models disagree",
+  unsure: "Tricky: the model is unsure",
+  wrong: "Fooled: sure, but wrong",
+  right: "Read correctly",
+  fixed: "Fixed by the word list",
+  abstain: "No word in the list fits",
 };
 const WORD_KINDS = ["right", "fixed", "abstain", "wrong"];
-const WORD_TITLES = { wrong: "Both decodings wrong" };
+const WORD_TITLES = { wrong: "Read wrong" };
+const PEOPLE = { indep: "New people", dep: "Familiar people" };
 
 const SENSOR_PANELS = [
   { title: "Front accelerometer", channels: [0, 1, 2] },
@@ -40,9 +42,11 @@ const AXIS_NAMES = ["x", "y", "z"];
 const state = {
   task: "chars", protocol: "indep", hand: "right", sample: 0,
   filter: "none", model: "mean", group: "right", t: null,
+  revealed: false, busy: false,
 };
+const score = { tried: 0, right: 0, seen: new Set() };
 
-// What the current task, protocol and hand select. `mode` decides how step 3
+// What the current task, people and hand select. `mode` decides how step 3
 // draws: an ensemble with its members, a single model, or words.
 function current() {
   if (state.task === "words") {
@@ -84,6 +88,9 @@ function svgEl(tag, attrs = {}, text) {
 function repoLink(path, label) {
   return el("a", { href: `${STAGES.repo}/blob/main/${path}`, target: "_blank", rel: "noopener" }, label || path);
 }
+function termLink(id, label) {
+  return el("a", { href: `#term-${id}`, class: "term" }, label);
+}
 function radioGroup(container, options, current, onPick) {
   container.replaceChildren();
   for (const opt of options) {
@@ -116,6 +123,7 @@ function readHash() {
   if (model === "mean") state.model = "mean";
   else if (/^[0-9]$/.test(model || "")) state.model = Number(model);
   if (PUB.groups[h.get("group")]) state.group = h.get("group");
+  if (h.get("show") === "1") state.revealed = true;
   if (!available(state.task, state.protocol)) state.protocol = "indep";
 }
 function writeHash() {
@@ -123,35 +131,41 @@ function writeHash() {
     task: state.task, protocol: state.protocol, hand: state.hand, sample: state.sample,
     filter: state.filter, model: state.model, group: state.group,
   });
+  if (state.revealed) h.set("show", "1");
   history.replaceState(null, "", `#${h}`);
+}
+
+// A new choice hides the old answer, so every sample is a fresh try.
+function choose(update) {
+  update();
+  state.revealed = false;
+  renderAll();
 }
 
 // ---------- step 1: task and sample ----------
 function renderTask() {
   radioGroup(document.getElementById("task"),
     Object.entries(TASKS).map(([id, t]) => ({ value: id, label: t.label })), state.task,
-    (v) => {
+    (v) => choose(() => {
       state.task = v; state.sample = 0;
       if (!available(v, state.protocol)) state.protocol = "indep";
-      renderAll();
-    });
+    }));
   document.getElementById("task-note").textContent = TASKS[state.task].note;
 
   const protoBox = document.getElementById("protocol");
   if (state.task === "words") {
-    protoBox.replaceChildren(el("span", { class: "hint" }, "Unseen writers only."));
+    protoBox.replaceChildren(el("span", { class: "hint" }, "New people only."));
   } else {
-    radioGroup(protoBox, [
-      { value: "indep", label: "Unseen writers", disabled: !available(state.task, "indep") },
-      { value: "dep", label: "Seen writers", disabled: !available(state.task, "dep"), title: "not run yet" },
-    ], state.protocol, (v) => { state.protocol = v; state.sample = 0; renderAll(); });
+    radioGroup(protoBox, ["indep", "dep"].map((p) => ({
+      value: p, label: PEOPLE[p], disabled: !available(state.task, p), title: "not run yet",
+    })), state.protocol, (v) => choose(() => { state.protocol = v; state.sample = 0; }));
   }
   const handBox = document.getElementById("hand");
   if (state.task === "chars" && state.protocol === "indep" && PUB.left_letters.length) {
     radioGroup(handBox, [
-      { value: "right", label: "Right-handed writers" },
-      { value: "left", label: "Left-handed writers" },
-    ], state.hand, (v) => { state.hand = v; state.sample = 0; renderAll(); });
+      { value: "right", label: "Right-handed" },
+      { value: "left", label: "Left-handed" },
+    ], state.hand, (v) => choose(() => { state.hand = v; state.sample = 0; }));
   } else {
     handBox.replaceChildren();
   }
@@ -160,7 +174,7 @@ function renderTask() {
   box.replaceChildren();
   const cur = current();
   if (!cur) {
-    box.append(el("p", { class: "note" }, "This combination has not been run yet."));
+    box.append(el("p", { class: "note" }, "Not run yet. This is one of the open tasks below."));
     return;
   }
   const order = cur.mode === "words" ? WORD_KINDS : Object.keys(KIND_TITLES);
@@ -170,40 +184,20 @@ function renderTask() {
     const group = el("div", { class: "letter-group" });
     const title = (cur.mode === "words" && WORD_TITLES[kind]) || KIND_TITLES[kind];
     group.append(el("h3", {}, title));
-    const row = el("div", { class: "controls", role: "radiogroup", "aria-label": title });
+    const row = el("div", { class: "seg", role: "radiogroup", "aria-label": title });
     for (const [s, i] of items) {
       const text = cur.mode === "words" ? s.ref : s.label;
       const b = el("button", {
         class: cur.mode === "words" ? "word-btn" : "letter-btn", role: "radio",
         "aria-checked": String(i === state.sample),
       }, text);
-      b.addEventListener("click", () => { state.sample = i; renderAll(); });
+      b.addEventListener("click", () => choose(() => { state.sample = i; }));
       row.append(b);
     }
     group.append(row);
     box.append(group);
   }
-  renderWhyProtocol();
-}
-
-function renderWhyProtocol() {
-  const box = document.getElementById("why-protocol");
-  box.replaceChildren(el("p", {},
-    "Unseen writers means no one in the test set wrote any of the training data. " +
-    "That is the test that matters for a pen meant to work for a new writer. Seen writers " +
-    "means the same people appear in training and test, so the model has already " +
-    "learned their handwriting, and the score is higher."));
-  const rows = [];
-  for (const task of ["chars", "symbols", "equations"]) {
-    const dep = PUB.tasks[`${task}_dep`];
-    const indep = task === "chars" ? null : PUB.tasks[`${task}_indep`];
-    if (dep && indep) {
-      rows.push(`${TASKS[task].label}: ${indep.accuracy.toFixed(2)}% unseen, ${dep.accuracy.toFixed(2)}% seen`);
-    }
-  }
-  if (rows.length) {
-    box.append(el("p", {}, `On this page (one model, seed 0): ${rows.join("; ")}.`));
-  }
+  renderDev("dev-pick");
 }
 
 // ---------- step 2: signal and filter ----------
@@ -340,12 +334,12 @@ function renderSignal() {
   const note = document.getElementById("signal-note");
   if (sig.real) note.textContent = "";
   else if (LOCAL) {
-    note.textContent = "Synthetic signal. The local build holds real recordings for the " +
-      "right-handed characters only, so this sample shows the made-up signal.";
+    note.textContent = "Practice signal: real recordings are loaded only for right-handed letters, " +
+      "so this sample shows a made-up one.";
   } else {
-    note.textContent = "Synthetic signal. The OnHW recordings are not redistributed, so the " +
-      "published page shows a made-up signal to demonstrate the filters. Build locally with " +
-      "your own download to see real recordings (playground/README.md).";
+    note.textContent = "Practice signal: the real recordings belong to Fraunhofer IIS and are not " +
+      "shared on this page, so you see a made-up pen signal. Developers can load the real ones " +
+      "locally (see the developer notes below).";
   }
   radioGroup(document.getElementById("filters"),
     STAGES.filters.map((f) => ({ value: f.id, label: f.name })), state.filter,
@@ -355,8 +349,8 @@ function renderSignal() {
   box.replaceChildren();
   const showRaw = state.filter !== "none";
   for (const panel of SENSOR_PANELS) box.append(drawPanel(panel, sig.raw, sig.filtered, showRaw));
-  box.append(el("p", { class: "hint" }, (showRaw ? "Grey: before the filter. Colour: after. " : "") +
-    "Each line is drawn around its own average so its shape shows; exact values are under Raw sensor values."));
+  box.append(el("p", { class: "hint" }, (showRaw ? "Grey: before cleaning. Colour: after. " : "") +
+    "Lines are centred so you can see their shape; exact numbers are under Raw sensor values."));
   const n = sig.filtered[0].length;
   document.getElementById("time").max = String(n - 1);
   setTime(Math.min(state.t ?? Math.floor(n / 2), n - 1));
@@ -364,15 +358,14 @@ function renderSignal() {
   const f = STAGES.filters.find((s) => s.id === state.filter);
   const card = document.getElementById("filter-result");
   card.replaceChildren(
-    el("div", {}, "Test accuracy of a character model trained with this filter"),
-    el("div", { class: "big" }, `${f.accuracy.toFixed(2)}%`),
-    el("div", {}, f.conditions),
+    el("div", {}, "A letter model trained on signals cleaned this way reads"),
+    el("div", { class: "big" }, `${f.accuracy.toFixed(2)}% correctly`),
     el("p", {}, f.note),
   );
-  const src = el("div", {}, "Source: ");
-  src.append(repoLink(f.source), document.createTextNode(" · code: "), repoLink(f.code));
-  card.append(src, el("p", { class: "hint" },
-    "The models in step 3 were trained without a filter. Per-sample outputs of the filtered models are not exported yet."));
+  const src = el("p", { class: "hint" }, `${f.conditions}. Source: `);
+  src.append(repoLink(f.source));
+  card.append(src);
+  renderDev("dev-signal");
 }
 
 // ---------- step 3: the model's answer ----------
@@ -394,6 +387,18 @@ function currentProbs() {
   const g = groupData();
   return state.model === "mean" ? g.mean : g.members[state.model];
 }
+function modelName() {
+  const cur = current();
+  if (!cur) return "none";
+  if (cur.mode === "words") return "Word reader";
+  if (cur.mode === "single") return "One model";
+  return state.model === "mean" ? "All 5 together" : `Model ${state.model + 1}`;
+}
+// Bars start at zero width or height and grow when revealed (CSS transition).
+function grow(nodes) {
+  if (REDUCED_MOTION) { nodes.forEach((n) => n.classList.add("grown")); return; }
+  requestAnimationFrame(() => requestAnimationFrame(() => nodes.forEach((n) => n.classList.add("grown"))));
+}
 
 function renderBars() {
   const s = sample();
@@ -401,17 +406,21 @@ function renderBars() {
   const top = topK(currentProbs(), 5);
   const W = widthOf("bars", 460), rowH = 30, labelW = 34, valueW = 110;
   const svg = svgEl("svg", { viewBox: `0 0 ${W} ${rowH * top.length}`, role: "img",
-    "aria-label": "Top five classes with probabilities" });
+    "aria-label": "The five most likely answers with the model's confidence" });
+  const bars = [];
   top.forEach(([cls, p], r) => {
     const name = names[cls];
     const yMid = r * rowH + rowH / 2;
     const barW = Math.max(2, p * (W - labelW - valueW));
     svg.append(svgEl("text", { x: 4, y: yMid + 5, class: "label-strong" }, name));
-    svg.append(svgEl("rect", { x: labelW, y: yMid - 9, width: barW, height: 18, rx: 4,
-      fill: name === s.label ? "var(--series-3)" : "var(--series-1)" }));
+    const bar = svgEl("rect", { x: labelW, y: yMid - 9, width: barW, height: 18, rx: 4, class: "grow-x",
+      fill: name === s.label ? "var(--series-3)" : "var(--series-1)" });
+    bars.push(bar);
+    svg.append(bar);
     svg.append(svgEl("text", { x: labelW + barW + 6, y: yMid + 4 }, name === s.label ? `${pct(p)}  correct` : pct(p)));
   });
   document.getElementById("bars").replaceChildren(svg);
+  grow(bars);
 }
 
 function renderMembers() {
@@ -421,15 +430,18 @@ function renderMembers() {
   const groupW = S * (barW + gap);
   const groupGap = Math.max(16, Math.min(60, (W - 40 - 3 * groupW) / 2));
   const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img",
-    "aria-label": "Each model's probability for the three most likely letters" });
+    "aria-label": "What each of the five models answered for the three most likely letters" });
   svg.append(svgEl("line", { x1: 0, x2: W, y1: base, y2: base, stroke: "var(--grid)" }));
+  const bars = [];
   top.forEach((cls, gi) => {
     const x0 = 20 + gi * (groupW + groupGap);
     g.members.forEach((probs, s) => {
       const h = probs[cls] * (base - 10);
       const selected = state.model === s || state.model === "mean";
-      svg.append(svgEl("rect", { x: x0 + s * (barW + gap), y: base - h, width: barW, height: Math.max(h, 1),
-        rx: 2, fill: "var(--series-1)", opacity: selected ? 1 : 0.35 }));
+      const bar = svgEl("rect", { x: x0 + s * (barW + gap), y: base - h, width: barW, height: Math.max(h, 1),
+        rx: 2, fill: "var(--series-1)", opacity: selected ? 1 : 0.35, class: "grow-y" });
+      bars.push(bar);
+      svg.append(bar);
     });
     const meanY = base - g.mean[cls] * (base - 10);
     svg.append(svgEl("line", { x1: x0 - 3, x2: x0 + groupW, y1: meanY, y2: meanY,
@@ -437,167 +449,302 @@ function renderMembers() {
     svg.append(svgEl("text", { x: x0 + groupW / 2 - 4, y: base + 18, class: "label-strong" }, PUB.classes[cls]));
   });
   document.getElementById("members").replaceChildren(svg);
+  grow(bars);
+}
 
-  // Total uncertainty is the entropy of the average. The part caused by the
-  // models disagreeing is the mutual information: entropy of the average
-  // minus the average entropy. The rest is ambiguity in the signal itself.
+// Uncertainty split used by the reading (and shown in the developer notes):
+// total = entropy of the average; disagreement = mutual information.
+function uncertainty() {
+  const g = groupData();
   const entropy = (p) => -p.reduce((acc, v) => acc + (v > 0 ? v * Math.log2(v) : 0), 0);
   const total = entropy(g.mean);
-  const meanOwn = g.members.reduce((acc, p) => acc + entropy(p), 0) / g.members.length;
-  const disagreement = Math.max(0, total - meanOwn);
-  const [a, b] = topK(g.mean, 2);
-  const caseSplit = PUB.classes[a[0]].toLowerCase() === PUB.classes[b[0]].toLowerCase();
-  const first = PUB.classes[a[0]], second = PUB.classes[b[0]];
-  // Display thresholds for choosing a sentence, not measured results.
-  let read;
-  if (disagreement >= 0.5) {
-    read = "The models disagree with each other, so the model is unsure: this writer is unlike the training data (epistemic uncertainty)." +
-      (meanOwn >= 1 ? " Each model is also unsure on its own." : "");
-  } else if (a[1] >= 0.7) {
-    read = `The models agree on ${first} (${pct(a[1])} on average).`;
+  const own = g.members.reduce((acc, p) => acc + entropy(p), 0) / g.members.length;
+  return { total, own, disagreement: Math.max(0, total - own) };
+}
+
+function reading() {
+  const cur = current();
+  const s = sample();
+  const box = document.getElementById("members-read");
+  box.replaceChildren();
+  const probs = currentProbs();
+  const names = classNames();
+  const [a, b] = topK(probs, 2);
+  const first = names[a[0]], second = names[b[0]];
+  const add = (...parts) => parts.forEach((p) => box.append(typeof p === "string" ? document.createTextNode(p) : p));
+  if (cur.mode === "ensemble") {
+    const u = uncertainty();
+    const caseSplit = first.toLowerCase() === second.toLowerCase();
+    // Display thresholds for choosing a sentence, not measured results.
+    if (u.disagreement >= 0.5) {
+      add("The 5 models disagree: each reads something different. This person's writing is unlike what they learned from. ");
+    } else if (a[1] >= 0.7) {
+      add(`All 5 models agree on ${first}. `);
+    } else if (caseSplit) {
+      add(`Every model hesitates between ${first} and ${second}: the same shape at a different size, and the pen barely feels size. `);
+    } else {
+      add(`Every model hesitates between ${first} and ${second}: the pen movement fits both. `);
+    }
+    add("See ", termLink("uncertainty", "uncertainty"), ".");
+  } else if (a[1] < 0.5) {
+    add(`The model is unsure: its best guess, ${first}, gets only ${pct(a[1])}. `);
   } else {
-    read = `Each model is itself split between ${first} and ${second}, and they agree on that. ${caseSplit ? "The signal barely tells the two cases apart" : "The signal is ambiguous"} (aleatoric uncertainty).`;
+    add(`The model is ${pct(a[1])} sure it is ${first}. `);
   }
-  const truth = sample().label;
-  read += first === truth ? ` The top choice, ${first}, is right.` : ` The top choice, ${first}, is wrong: the letter is ${truth}.`;
-  read += ` Uncertainty ${total.toFixed(2)} bits: ${disagreement.toFixed(2)} from the models disagreeing, ${meanOwn.toFixed(2)} from each model's own doubt.`;
-  document.getElementById("members-read").textContent = `${read} Dashed line: the ensemble average.`;
+  return first === s.label;
 }
 
 function renderWords() {
-  const w = PUB.words;
   const s = sample();
-  const box = document.getElementById("words-view");
   const table = el("table", { class: "words-table" });
   const verdict = (hyp) => (hyp === s.ref ? "right" : hyp === "" ? "no answer" : "wrong");
   for (const [name, hyp, cer] of [
     ["Written", s.ref, null],
-    ["Plain decoding (greedy)", s.greedy, s.cer_greedy],
-    ["Decoding restricted to the word list", s.lexicon, s.cer_lexicon],
+    ["Read letter by letter", s.greedy, s.cer_greedy],
+    ["Read with the word list", s.lexicon, s.cer_lexicon],
   ]) {
     const tr = el("tr");
-    tr.append(el("th", { scope: "row" }, name), el("td", { class: "word" }, hyp || "(empty)"),
-      el("td", {}, cer === null ? "" : `${verdict(hyp)} · CER ${cer.toFixed(1)}%`));
+    tr.append(el("th", { scope: "row" }, name), el("td", { class: "word" }, hyp || "(no answer)"),
+      el("td", {}, cer === null ? "" : `${verdict(hyp)} · ${cer.toFixed(0)}% of letters wrong`));
     table.append(tr);
   }
-  box.replaceChildren(table, el("p", { class: "hint" },
-    "CER is the character error rate: edits needed to turn the output into the written word, " +
-    "divided by its length. The word list holds the 501 strings seen in training."));
+  const box = document.getElementById("words-view");
+  box.replaceChildren(table);
+  const note = el("p", { class: "hint" });
+  note.append("The ", termLink("word-list", "word list"), " holds the 501 words seen in training. ",
+    "Letters wrong is the ", termLink("cer", "character error rate"), ".");
+  box.append(note);
+  return s.lexicon === s.ref;
+}
+
+function resultCard() {
+  const cur = current();
   const card = document.getElementById("model-result");
+  if (cur.mode === "words") {
+    const w = PUB.words;
+    card.replaceChildren(
+      el("div", {}, `Over all ${w.n.toLocaleString()} test words from new people, the word list reads`),
+      el("div", { class: "big" }, `${w.exact_lexicon.toFixed(2)}% exactly right`),
+      el("div", {}, `Letter by letter: ${w.exact_greedy.toFixed(2)}% exactly right. This model is still ` +
+        "under-trained (15 rounds), which is why words are harder than letters here."),
+    );
+    return;
+  }
+  if (cur.mode === "single") {
+    const run = cur.run;
+    card.replaceChildren(
+      el("div", {}, `Over all ${run.n_test.toLocaleString()} test samples from ${PEOPLE[state.protocol].toLowerCase()}, one model reads`),
+      el("div", { class: "big" }, `${run.accuracy.toFixed(2)}% correctly`),
+    );
+    return;
+  }
+  const summary = cur.left ? cur.summary : (PUB.groups[state.group] || PUB.groups.right);
+  const acc = state.model === "mean" ? summary.ensemble_accuracy : summary.member_accuracy[state.model];
+  const who = cur.left ? "left-handed" : "right-handed";
   card.replaceChildren(
-    el("div", {}, `All ${w.n.toLocaleString()} test words from unseen writers`),
-    el("div", { class: "big" }, `CER ${w.cer_greedy.toFixed(2)}% · ${w.exact_greedy.toFixed(2)}% exact`),
-    el("div", {}, `With the word list: CER ${w.cer_lexicon.toFixed(2)}%, ${w.exact_lexicon.toFixed(2)}% exact, ` +
-      `${w.empty_lexicon.toLocaleString()} words left empty.`),
-    el("div", {}, "OnHW-Words500 right-handed, published fold 0, CNN+BiLSTM with a CTC head, " +
-      "15 epochs (under-trained), refit on all 42 training writers, seed 0."),
+    el("div", {}, `Over all ${summary.n_test.toLocaleString()} letters from new ${who} people, ${modelName().toLowerCase()} reads`),
+    el("div", { class: "big" }, `${acc.toFixed(2)}% correctly`),
   );
-  const src = el("div", {}, "Source: ");
-  src.append(repoLink(w.source), document.createTextNode(" · analysis: "), repoLink("docs/rca_ctc_lengths.md"));
-  card.append(src);
+}
+
+function renderScore() {
+  const box = document.getElementById("score");
+  box.textContent = score.tried
+    ? `This visit: the model got ${score.right} of your ${score.tried} tries right.`
+    : "";
 }
 
 function renderModel() {
   const cur = current();
   const intro = document.getElementById("model-intro");
-  document.getElementById("members-read").textContent = "";
-  show("class-view", cur && cur.mode !== "words");
-  show("words-view", cur && cur.mode === "words");
-  show("members-col", cur && cur.mode === "ensemble");
-  document.getElementById("models").replaceChildren();
-  document.getElementById("training").replaceChildren();
+  const models = document.getElementById("models");
+  const training = document.getElementById("training");
+  models.replaceChildren();
+  training.replaceChildren();
+  document.getElementById("members-read").replaceChildren();
+  const verdictBox = document.getElementById("verdict");
+  verdictBox.replaceChildren();
+  verdictBox.className = "";
+  document.getElementById("model-result").replaceChildren();
+  show("class-view", false);
+  show("words-view", false);
+  const button = document.getElementById("recognize");
+  button.disabled = !cur || state.busy;
   if (!cur) {
-    intro.textContent = "";
-    document.getElementById("model-result").replaceChildren();
+    intro.textContent = "Nothing to recognize yet for this choice.";
+    renderDev("dev-model");
     return;
   }
   if (cur.mode === "words") {
-    intro.textContent = "A network with a CTC head reads the whole recording and spells out " +
-      "characters. Plain decoding takes the likeliest character at each step; the word list " +
-      "only allows words seen in training.";
-    renderWords();
-    renderWhyModel();
+    intro.textContent = "A network reads the whole word as a stream of letters. It can read letter by letter, or pick the closest word from a list.";
+  } else if (cur.mode === "single") {
+    intro.textContent = "One trained model reads the signal and gives a score to every possible answer.";
+  } else {
+    intro.textContent = "Five copies of the same model were trained separately. Each gives a score to all 52 letters; together they vote.";
+    const g = groupData();
+    const options = g.seeds.map((s, i) => ({ value: i, label: `Model ${i + 1}` }));
+    options.push({ value: "mean", label: "All 5 together" });
+    radioGroup(models, options, state.model, (v) => { state.model = v; renderModel(); renderPipeline(); writeHash(); });
+    if (!cur.left && Object.keys(PUB.groups).length > 1) {
+      radioGroup(training, Object.keys(PUB.groups).map((k) => ({
+        value: k, label: k === "right" ? "Learned from right-handed people" : "Also learned from left-handed people",
+      })), state.group, (v) => { state.group = v; renderModel(); renderPipeline(); writeHash(); });
+    }
+  }
+  document.getElementById("waiting").hidden = state.revealed;
+  if (!state.revealed) {
+    renderDev("dev-model");
     return;
   }
-  if (cur.mode === "single") {
-    intro.textContent = "One network (seed 0). Only the right-handed character task has a " +
-      "five-seed ensemble so far.";
+  let correct;
+  if (cur.mode === "words") {
+    show("words-view", true);
+    correct = renderWords();
+  } else {
+    show("class-view", true);
+    show("members-col", cur.mode === "ensemble");
     renderBars();
-    const run = cur.run;
-    const card = document.getElementById("model-result");
-    card.replaceChildren(
-      el("div", {}, `Accuracy on all ${run.n_test.toLocaleString()} test samples`),
-      el("div", { class: "big" }, `${run.accuracy.toFixed(2)}%`),
-      el("div", {}, `${run.model}, ${run.split}, ${run.classes.length} classes, 30 epochs, seed ${run.seed}, deterministic`),
-    );
-    const src = el("div", {}, "Source: ");
-    src.append(repoLink(run.source), document.createTextNode(" · code: "), repoLink("imu2text/models.py"));
-    card.append(src);
-    renderWhyModel();
-    return;
+    if (cur.mode === "ensemble") renderMembers();
+    correct = reading();
   }
-  // Ensemble of five seeds (characters, unseen writers).
-  intro.textContent = "Five copies of the same network, trained with different random seeds. " +
-    "Each gives a probability for all 52 letters. The ensemble averages them.";
-  const g = groupData();
-  const options = g.seeds.map((s, i) => ({ value: i, label: `Seed ${s}` }));
-  options.push({ value: "mean", label: `Ensemble of ${g.seeds.length}` });
-  radioGroup(document.getElementById("models"), options, state.model,
-    (v) => { state.model = v; renderModel(); renderPipeline(); writeHash(); });
-  if (!cur.left && Object.keys(PUB.groups).length > 1) {
-    radioGroup(document.getElementById("training"), Object.keys(PUB.groups).map((k) => ({
-      value: k, label: k === "right" ? "Trained on right-handed writers" : "Plus left-handed writers",
-    })), state.group, (v) => { state.group = v; renderModel(); renderPipeline(); writeHash(); });
-  }
-  renderBars();
-  renderMembers();
-  const summary = cur.left ? cur.summary : (PUB.groups[state.group] || PUB.groups.right);
-  const acc = state.model === "mean" ? summary.ensemble_accuracy : summary.member_accuracy[state.model];
-  const who = cur.left ? "left-handed" : "right-handed";
-  const card = document.getElementById("model-result");
-  card.replaceChildren(
-    el("div", {}, `Accuracy of this choice on all ${summary.n_test.toLocaleString()} ${who} test letters`),
-    el("div", { class: "big" }, `${acc.toFixed(2)}%`),
-    el("div", {}, `${summary.model}, ${summary.split}, 52 classes, 30 epochs` +
-      (cur.left ? "; left-handed writers held out from a split built here" : "")),
-  );
-  const src = el("div", {}, "Source: ");
-  src.append(repoLink("results/ensemble/summary.md"), document.createTextNode(" · code: "),
-    repoLink("imu2text/models.py"), document.createTextNode(", "), repoLink("scripts/ensemble_chars.py"));
-  card.append(src);
-  renderWhyModel();
+  const s = sample();
+  const truth = cur.mode === "words" ? s.ref : s.label;
+  const verdict = document.getElementById("verdict");
+  verdict.className = `verdict ${correct ? "verdict--right" : "verdict--wrong"}`;
+  verdict.textContent = correct ? `Correct: it is ${truth}` : `Not quite: it was ${truth}`;
+  resultCard();
+  renderDev("dev-model");
 }
 
-function renderWhyModel() {
-  const title = document.getElementById("why-model-title");
-  const box = document.getElementById("why-model");
-  box.replaceChildren();
-  const p = (text) => box.append(el("p", {}, text));
+// ---------- the Recognize run ----------
+const RUN_STEPS = [
+  { pipe: 1, text: () => "Reading 13 sensor channels" },
+  { pipe: 2, text: () => (state.filter === "none" ? "Keeping the raw signal"
+    : `Cleaning the signal: ${STAGES.filters.find((f) => f.id === state.filter).name.toLowerCase()}`) },
+  { pipe: 3, text: () => (current().mode === "ensemble" && state.model === "mean" ? "5 models are reading it" : "The model is reading it") },
+  { pipe: 4, text: () => "Deciding" },
+];
+function recognize() {
+  if (state.busy || !current()) return;
+  state.busy = true;
+  state.revealed = false;
+  renderModel();
+  const button = document.getElementById("recognize");
+  const status = document.getElementById("run-status");
+  const items = document.querySelectorAll(".pipeline li");
+  const stepMs = REDUCED_MOTION ? 0 : 520;
+  button.disabled = true;
+  button.textContent = "Recognizing…";
+  RUN_STEPS.forEach((step, i) => {
+    setTimeout(() => {
+      items.forEach((li) => li.classList.remove("active"));
+      items[step.pipe].classList.add("active");
+      status.textContent = `${step.text()}…`;
+    }, i * stepMs);
+  });
+  setTimeout(() => {
+    items.forEach((li) => li.classList.remove("active"));
+    status.textContent = "";
+    state.busy = false;
+    state.revealed = true;
+    button.textContent = "Recognize again";
+    renderModel();
+    renderPipeline();
+    writeHash();
+    const key = [state.task, state.protocol, state.hand, state.sample, state.model, state.group].join("|");
+    if (!score.seen.has(key)) {
+      score.seen.add(key);
+      score.tried += 1;
+      if (document.querySelector("#verdict.verdict--right")) score.right += 1;
+      renderScore();
+    }
+    document.getElementById("answer-card").scrollIntoView({ behavior: REDUCED_MOTION ? "auto" : "smooth", block: "nearest" });
+  }, RUN_STEPS.length * stepMs + (REDUCED_MOTION ? 0 : 200));
+}
+
+// ---------- developer notes: the code behind each step ----------
+const TUNED = "--models cnn_bilstm_attn --augment 2 --aug-policy extended --label-smoothing 0.1 --lr-schedule --epochs 30 --seed 0 --deterministic";
+function devData() {
+  const cur = current();
   if (state.task === "words") {
-    title.textContent = "Why a word list helps, and when it hurts";
-    p("Plain decoding often lands one or two characters away from a real word. Restricting " +
-      "the answer to known words turns many of those into exact matches, which is why exact " +
-      "accuracy rises. When no known word fits well, the decoder returns nothing, and every " +
-      "character of the word counts as an error, which is why CER goes up.");
-    return;
+    return {
+      pick: ["python -m imu2text.download onhw_words500_indep --out ./data",
+        "from imu2text.words import load_onhw_words500",
+        'ds = load_onhw_words500("data/Words500_indep_02", fold=0)'],
+      model: ["python -m scripts.refit_ctc --data data/Words500_indep_02 \\",
+        "    --selection results/ctc/fixed_seed0_run1.json --output results/ctc/refit_seed0.json"],
+      files: ["imu2text/words.py", "imu2text/seq2seq.py", "docs/rca_ctc_lengths.md"],
+    };
   }
-  if (state.task === "chars") {
-    title.textContent = "Why some letters are hard";
-    p("Most mistakes are a letter read as its own other case: 43% of the errors of the 72.5% " +
-      "model (docs/benchmarks.md). A small o and a capital O are the same movement at a " +
-      "different size, and the sensors see size poorly: writers form capitals larger and " +
-      "faster at once, so the accelerations come out alike. Scored without case, the same " +
-      "model reads 84.3%.");
-    p("Left-handed writers hold and move the pen differently. With only right-handed and a " +
-      "few left-handed writers in training, left-handed letters are read far less reliably.");
-    return;
+  if (state.task === "symbols" || state.task === "equations") {
+    const dir = `data/OnHW-symbols_equations_${state.protocol}`;
+    const fn = state.task === "symbols" ? "load_onhw_symbols" : "load_onhw_equations";
+    return {
+      pick: [`python -m imu2text.download onhw_symbols_${state.protocol} --out ./data`,
+        `from imu2text.symbols import ${fn}`, `ds = ${fn}("${dir}")`],
+      model: [`python -m imu2text.models --onhw-symbols ${dir} --symbols-kind ${state.task} \\`,
+        `    ${TUNED} \\`, `    --save-predictions results/tasks/${state.task}_${state.protocol}.npz`],
+      files: ["imu2text/symbols.py", "imu2text/models.py"],
+    };
   }
-  title.textContent = "Why symbols and equations differ";
-  p("Symbols are written one at a time; equation symbols are cut out of whole written " +
-    "equations. The equation set is about 17 times larger (39,643 against 2,326 " +
-    "samples). Against the published figures, the tuned model is ahead on the two " +
-    "larger sets and behind on symbols, the smallest: regularisation needs data " +
-    "(docs/benchmarks.md).");
+  const left = cur && cur.left || state.group === "with_left";
+  return {
+    pick: ["python -m imu2text.download onhw_chars" + (left ? " onhw_chars_L" : "") + " --out ./data",
+      "from imu2text.models import load_official_split",
+      'x, y, classes, (train, val, test) = load_official_split(',
+      `    "data/onhw-chars_2021-06-30", "both", "${state.protocol}", 0, 0)`],
+    model: ["# one model per seed (0 to 4), then average them",
+      `python -m imu2text.models --onhw-chars data/onhw-chars_2021-06-30 --case both --dependency ${state.protocol} \\`,
+      ...(left ? ["    --onhw-chars-l data/OnHW-chars_L --both-hands \\"] : []),
+      `    ${TUNED} --split-seed 0 \\`,
+      `    --save-predictions results/ensemble/${left ? "both" : "right"}_seed0.npz`,
+      `python -m scripts.ensemble_chars --out results/ensemble/summary \\`,
+      `    --group ${left ? "with_left 'results/ensemble/both_seed*.npz'" : "right 'results/ensemble/right_seed*.npz'"}`],
+    files: ["imu2text/models.py", "scripts/ensemble_chars.py", "docs/uncertainty.md"],
+  };
+}
+function codeBlock(lines) {
+  const wrap = el("div", { class: "code" });
+  const pre = el("pre");
+  pre.append(el("code", {}, lines.join("\n")));
+  const copy = el("button", { type: "button", class: "copy" }, "Copy");
+  copy.addEventListener("click", () => {
+    navigator.clipboard?.writeText(lines.join("\n")).then(() => {
+      copy.textContent = "Copied";
+      setTimeout(() => { copy.textContent = "Copy"; }, 1400);
+    });
+  });
+  wrap.append(copy, pre);
+  return wrap;
+}
+function renderDev(id) {
+  const box = document.querySelector(`#${id} .dev__body`);
+  if (!box) return;
+  box.replaceChildren();
+  const d = devData();
+  const s = sample();
+  if (id === "dev-pick") {
+    box.append(el("p", {}, "Download the data and load the same split the page uses:"), codeBlock(d.pick));
+    if (s && s.test_index !== undefined) box.append(el("p", { class: "hint" }, `This sample is test item ${s.test_index}.`));
+  } else if (id === "dev-signal") {
+    box.append(el("p", {}, "Apply a filter to a list of recordings (arrays of shape time × 13):"),
+      codeBlock(["from imu2text.filters import apply_filter",
+        `cleaned = apply_filter(recordings, "${state.filter}")`,
+        `# or when training: python -m imu2text.models ... --filter ${state.filter}`]));
+    const p = el("p", { class: "hint" }, "Code: ");
+    p.append(repoLink("imu2text/filters.py"), document.createTextNode(" · why filtering cost accuracy: "), repoLink("docs/rca_filters.md"));
+    box.append(p);
+  } else {
+    box.append(el("p", {}, "Train and evaluate what you see here:"), codeBlock(d.model));
+    if (state.revealed && current() && current().mode === "ensemble") {
+      const u = uncertainty();
+      box.append(el("p", { class: "hint" }, `Uncertainty for this letter: ${u.total.toFixed(2)} bits in total, ` +
+        `${u.disagreement.toFixed(2)} from the models disagreeing (mutual information), ${u.own.toFixed(2)} within each model.`));
+    }
+    const p = el("p", { class: "hint" }, "Read: ");
+    d.files.forEach((f, i) => { if (i) p.append(document.createTextNode(" · ")); p.append(repoLink(f)); });
+    box.append(p);
+  }
 }
 
 // ---------- step 4: open work ----------
@@ -620,25 +767,20 @@ function renderPipeline() {
   const cur = current();
   const s = sample();
   const set = (id, text) => { document.getElementById(id).textContent = text; };
-  const writers = state.task === "words" ? "unseen" : state.protocol === "indep" ? "unseen" : "seen";
-  set("pipe-task", `${TASKS[state.task].label} · ${writers}`);
+  const people = state.task === "words" ? "new people" : PEOPLE[state.protocol].toLowerCase();
+  set("pipe-task", `${TASKS[state.task].label} · ${people}`);
   set("pipe-filter", STAGES.filters.find((f) => f.id === state.filter).name);
+  set("pipe-model", modelName());
   const answer = document.getElementById("pipe-answer");
   answer.className = "";
-  if (!cur || !s) {
-    set("pipe-sample", "not run yet"); set("pipe-model", "none"); answer.textContent = "none";
-    return;
-  }
+  if (!cur || !s) { set("pipe-sample", "not run yet"); answer.textContent = "none"; return; }
+  set("pipe-sample", cur.mode === "words" ? s.ref : s.label);
+  if (!state.revealed) { answer.textContent = "press Recognize"; answer.className = "pending"; return; }
   if (cur.mode === "words") {
-    set("pipe-sample", s.ref);
-    set("pipe-model", "CTC + word list");
     answer.textContent = s.lexicon || "(no answer)";
     answer.className = s.lexicon === s.ref ? "right" : "wrong";
     return;
   }
-  set("pipe-sample", s.label);
-  set("pipe-model", cur.mode === "single" ? "One model" :
-    state.model === "mean" ? "Ensemble of 5" : `Seed ${state.model}`);
   const probs = currentProbs();
   const top = classNames()[probs.indexOf(Math.max(...probs))];
   answer.textContent = `${top} · ${pct(Math.max(...probs))}`;
@@ -654,6 +796,20 @@ function bindNumbers() {
   }
 }
 
+// The Vahini logo is supplied by the deployment, not this repository. Show
+// it when present; otherwise the drawn mark stays.
+function showLogo() {
+  const logo = document.getElementById("brand-logo");
+  const reveal = () => {
+    if (logo.naturalWidth > 0) {
+      logo.hidden = false;
+      document.querySelector(".brand__mark").hidden = true;
+    }
+  };
+  logo.addEventListener("load", reveal);
+  if (logo.complete) reveal();
+}
+
 function renderAll() {
   renderTask();
   renderSignal();
@@ -663,8 +819,10 @@ function renderAll() {
 }
 
 bindNumbers();
+showLogo();
 document.getElementById("time").addEventListener("input", (e) => setTime(Number(e.target.value)));
 document.getElementById("download-csv").addEventListener("click", downloadCsv);
+document.getElementById("recognize").addEventListener("click", recognize);
 readHash();
 renderAll();
 renderOpen();
