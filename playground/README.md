@@ -71,7 +71,7 @@ The cards in step 4 of the page are the open tasks. Each links to an issue.
 |---|---|
 | `index.html`, `style.css`, `app.js` | the page; plain JavaScript, no dependencies |
 | `charts.js` | "Compare the algorithms" and "How sure is the AI?" charts |
-| `write.js` | "Draw a letter": your drawing picks a real OnHW recording of that character and shows the model's answer (the drawing and shape guess are simulated) |
+| `write.js` | card 1: your drawing picks a real OnHW recording of that character, then Recognize runs (the drawing and shape guess are simulated) |
 | `stages.js` | the methods shown, with measured accuracies and sources |
 | `data/public.js` | generated model outputs and the synthetic signal |
 | `data/local.js` | generated real recordings, local only |

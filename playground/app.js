@@ -181,26 +181,23 @@ function renderTask() {
     box.append(el("p", { class: "note" }, "Not run yet. This is one of the open tasks below."));
     return;
   }
+  // One compact row: the kind (easy, tricky, fooled) shows as the chip's
+  // colour mark and its tooltip.
   const order = cur.mode === "words" ? WORD_KINDS : Object.keys(KIND_TITLES);
+  const row = el("div", { class: "seg seg--small sample-row", role: "radiogroup", "aria-label": "Real recordings" });
   for (const kind of order) {
-    const items = cur.samples.map((s, i) => [s, i]).filter(([s]) => s.kind === kind);
-    if (!items.length) continue;
-    const group = el("div", { class: "letter-group" });
     const title = (cur.mode === "words" && WORD_TITLES[kind]) || KIND_TITLES[kind];
-    group.append(el("h3", {}, title));
-    const row = el("div", { class: "seg", role: "radiogroup", "aria-label": title });
-    for (const [s, i] of items) {
-      const text = cur.mode === "words" ? s.ref : s.label;
+    cur.samples.forEach((smp, i) => {
+      if (smp.kind !== kind) return;
       const b = el("button", {
-        class: cur.mode === "words" ? "v-chip word-btn" : "v-chip letter-btn", role: "radio",
-        "aria-checked": String(i === state.sample),
-      }, text);
+        class: `v-chip sample-chip sample-chip--${kind}`, role: "radio", title,
+        "aria-checked": String(i === state.sample), "aria-label": `${cur.mode === "words" ? smp.ref : smp.label}: ${title}`,
+      }, cur.mode === "words" ? smp.ref : smp.label);
       b.addEventListener("click", () => choose(() => { state.sample = i; }));
       row.append(b);
-    }
-    group.append(row);
-    box.append(group);
+    });
   }
+  box.append(row);
   renderDev("dev-pick");
 }
 
@@ -338,17 +335,17 @@ function renderSignal() {
   const note = document.getElementById("signal-note");
   if (sig.real) note.textContent = "";
   else if (LOCAL) {
-    note.textContent = "Practice signal: real recordings are loaded only for right-handed letters, " +
-      "so this sample shows a made-up one.";
+    note.textContent = "Practice signal: real recordings are loaded only for right-handed letters.";
   } else {
-    note.textContent = "Practice signal: the real recordings belong to Fraunhofer IIS and are not " +
-      "shared on this page, so you see a made-up pen signal. Developers can load the real ones " +
-      "locally (see the developer notes below).";
+    note.textContent = "Practice signal: the OnHW recordings are Fraunhofer's and not shared here, " +
+      "so this line is made up. The answer is real.";
   }
   radioGroup(document.getElementById("filters"),
     STAGES.filters.map((f) => ({ value: f.id, label: f.name })), state.filter,
     (v) => { state.filter = v; renderSignal(); renderPipeline(); writeHash(); });
 
+  document.getElementById("signal-tag").textContent = sig.real ? "real recording" : "practice signal";
+  renderMini(sig);
   const box = document.getElementById("signal");
   box.replaceChildren();
   const showRaw = state.filter !== "none";
@@ -370,6 +367,22 @@ function renderSignal() {
   src.append(repoLink(f.source));
   card.append(src);
   renderDev("dev-signal");
+}
+
+// The front accelerometer (x, y, z) as a small strip for the one-screen view;
+// the full panels are under "Everything about this recording".
+function renderMini(sig) {
+  const box = document.getElementById("signal-mini");
+  const W = 300, H = 90, chans = [0, 1, 2];
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "none", "aria-hidden": "true" });
+  const series = chans.map((c) => sig.filtered[c]);
+  const all = series.flat();
+  const lo = Math.min(...all), hi = Math.max(...all), span = hi - lo || 1;
+  series.forEach((vals, k) => {
+    const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * W},${H - 6 - ((v - lo) / span) * (H - 12)}`).join(" ");
+    svg.append(svgEl("polyline", { points: pts, fill: "none", stroke: AXIS_COLORS[k], "stroke-width": 1.6 }));
+  });
+  box.replaceChildren(svg);
 }
 
 // ---------- step 3: the model's answer ----------
@@ -407,10 +420,10 @@ function grow(nodes) {
 function renderBars() {
   const s = sample();
   const names = classNames();
-  const top = topK(currentProbs(), 5);
+  const top = topK(currentProbs(), 3);
   const W = widthOf("bars", 460), rowH = 30, labelW = 34, valueW = 110;
   const svg = svgEl("svg", { viewBox: `0 0 ${W} ${rowH * top.length}`, role: "img",
-    "aria-label": "The five most likely answers with the model's confidence" });
+    "aria-label": "The three most likely answers with the model's confidence" });
   const bars = [];
   top.forEach(([cls, p], r) => {
     const name = names[cls];
@@ -648,16 +661,15 @@ function renderModel() {
     intro.replaceChildren("The AI is a ", termLink("cnn-bilstm", NET),
       " with attention, trained once (seed 0). It gives a score to every possible answer.");
   } else {
-    intro.replaceChildren("The AI is a ", termLink("cnn-bilstm", NET),
-      " with attention. We trained it 5 times, each from a different ", termLink("seed", "random start"),
-      ", so #1 to #5 are the same design with slightly different habits. ×5 vote averages their scores.");
+    intro.replaceChildren("A ", termLink("cnn-bilstm", NET), " with attention, trained 5 times from different ",
+      termLink("seed", "random starts"), "; the ×5 vote averages them.");
     const g = groupData();
-    const options = g.seeds.map((s, i) => ({ value: i, label: memberName(i) }));
-    options.push({ value: "mean", label: `${NET} ×5 vote` });
+    const options = g.seeds.map((s, i) => ({ value: i, label: `#${i + 1}` }));
+    options.push({ value: "mean", label: "×5 vote" });
     radioGroup(models, options, state.model, (v) => { state.model = v; renderModel(); renderPipeline(); writeHash(); });
     if (!cur.left && Object.keys(PUB.groups).length > 1) {
       radioGroup(training, Object.keys(PUB.groups).map((k) => ({
-        value: k, label: k === "right" ? "Learned from right-handed people" : "Also learned from left-handed people",
+        value: k, label: k === "right" ? "Right-handed people" : "+ left-handed people",
       })), state.group, (v) => { state.group = v; renderModel(); renderPipeline(); writeHash(); });
     }
   }
@@ -702,19 +714,18 @@ function recognize() {
   renderModel();
   const button = document.getElementById("recognize");
   const status = document.getElementById("run-status");
-  const items = document.querySelectorAll(".pipeline li");
+  const cards = [...document.querySelectorAll("[data-steps]")];
   const stepMs = REDUCED_MOTION ? 0 : 520;
   button.disabled = true;
   button.textContent = "Recognizing…";
   RUN_STEPS.forEach((step, i) => {
     setTimeout(() => {
-      items.forEach((li) => li.classList.remove("active"));
-      items[step.pipe].classList.add("active");
+      cards.forEach((c) => c.classList.toggle("active", c.dataset.steps.split(" ").includes(String(step.pipe))));
       status.textContent = `${step.text()}…`;
     }, i * stepMs);
   });
   setTimeout(() => {
-    items.forEach((li) => li.classList.remove("active"));
+    cards.forEach((c) => c.classList.remove("active"));
     status.textContent = "";
     state.busy = false;
     state.revealed = true;
@@ -837,6 +848,7 @@ function renderOpen() {
 function renderPipeline() {
   const cur = current();
   const s = sample();
+  if (!document.getElementById("pipe-task")) return;   // the one-screen layout has no step strip
   const set = (id, text) => { document.getElementById(id).textContent = text; };
   const people = state.task === "words" ? "new people" : PEOPLE[state.protocol].toLowerCase();
   set("pipe-task", `${TASKS[state.task].label} · ${people}`);

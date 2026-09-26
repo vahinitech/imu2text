@@ -1,14 +1,12 @@
-// Vahini playground: "Draw a letter", the first step of the page.
+// Vahini playground: card 1, "How the pen works".
 //
 // The mouse (or a finger) stands in for the sensor pen that recorded the
 // Fraunhofer OnHW dataset. While you draw, five sensor groups animate (an
 // animation, not data). A small shape matcher then guesses which character
 // you drew, using the closed-form best-rotation distance of the Protractor
 // recogniser (Y. Li, "Protractor: a fast and accurate gesture recognizer",
-// CHI 2010). That guess picks a REAL recording of the same character from
-// the OnHW test set (data/public.js), and the page shows the real model's
-// answer and scores for it, with the same hand, writer, model and training
-// choices as the rest of the page (app.js state).
+// CHI 2010). The guess selects a REAL recording of that character from the
+// OnHW test set, and the page's own Recognize (app.js) runs the model on it.
 //
 // Drawing code written by Vahini Technologies for vahinitech.com and released
 // here under Apache-2.0 with the owner's approval (2026-09-26). Colours come
@@ -19,100 +17,48 @@
   const root = document.getElementById("write");
   if (!root) return;
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const css = getComputedStyle(document.documentElement);
-  const token = (name) => css.getPropertyValue(`--v-${name}`).trim();
+  const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(`--v-${name}`).trim();
   const INK = token("pen-ink");
-  const GLOW = token("engine-glow");
-  const GRID = token("engine-border");
-
   const $ = (id) => document.getElementById(id);
-  const draw = $("w-draw"), recon = $("w-recon");
+  const draw = $("w-draw"), pad = draw.parentNode, pen = $("w-pen"), hint = $("w-hint"), shapeEl = $("w-shape");
   function fit(cv) {
     const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
     cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d);
     const g = cv.getContext("2d"); g.scale(d, d); return g;
   }
-  let gD = fit(draw), gR = fit(recon);
-  // A resize (or a phone turning) resets both canvases, so redraw what they held.
-  window.addEventListener("resize", () => { gD = fit(draw); gR = fit(recon); repaint(); if (rebuilt) drawRebuilt(); });
+  let gD = fit(draw);
+  window.addEventListener("resize", () => { gD = fit(draw); repaint(); });
 
-  // ---------- sensor bus: six channels of the Vahini pen ----------
-  // Accelerometer, gyroscope and magnetometer axes oscillate while the hand
-  // writes, so they draw as waves; tip force is one analog reading, so it
-  // scrolls like a strip chart instead of repeating.
-  // The OnHW pen's sensor groups: 13 channels in all.
-  const CH = [
-    ["Front accelerometer", "chart-1", "wave"], ["Rear accelerometer", "chart-2", "wave"], ["Gyroscope", "chart-3", "wave"],
-    ["Magnetometer", "chart-1", "wave"], ["Pen-tip force", "warning", "level"],
-  ];
+  // ---------- sensor lines: the OnHW pen's five groups (13 channels) ----------
+  // Colours go through the CSSOM: the page's CSP blocks inline style attributes.
+  const CH = [["Front acc.", "chart-1", "wave"], ["Rear acc.", "chart-2", "wave"], ["Gyro", "chart-3", "wave"],
+    ["Magnet", "chart-1", "wave"], ["Force", "warning", "level"]];
   const bus = $("w-bus");
-  // Colours go through the CSSOM: the page's CSP (style-src 'self') blocks
-  // inline style attributes.
   bus.innerHTML = CH.map((c) => `<div class="w-chan"><em>${c[0]}</em>` +
     '<svg class="w-wave" viewBox="0 0 100 16" preserveAspectRatio="none"><polyline points="0,8 100,8"/></svg></div>').join("");
   [...bus.children].forEach((el, i) => el.style.setProperty("--ch", `var(--v-${CH[i][1]})`));
   const waveEls = [...bus.querySelectorAll("polyline")];
-  const LEVEL_STEPS = 21;
-  const levelHistory = CH.map((c) => (c[2] === "level" ? new Array(LEVEL_STEPS).fill(8) : null));
-  let samples = 0;
-  function wavePoints(speed, idx) {
-    const amp = Math.min(6.5, 1 + speed * 0.42), pts = [];
-    for (let x = 0; x <= 100; x += 5) pts.push(`${x},${(8 + Math.sin(x * 0.24 + samples * 0.14 + idx * 1.7) * amp).toFixed(1)}`);
-    return pts.join(" ");
-  }
-  function levelPoints(speed, idx) {
-    const hist = levelHistory[idx];
-    hist.shift(); hist.push(8 - Math.min(6.5, 1 + speed * 0.42));
-    return hist.map((y, i) => `${i * 5},${y.toFixed(1)}`).join(" ");
-  }
+  const levelHistory = CH.map((c) => (c[2] === "level" ? new Array(21).fill(8) : null));
+  let tick = 0;
   function pulseBus(speed) {
-    waveEls.forEach((el, i) => el.setAttribute("points", CH[i][2] === "level" ? levelPoints(speed, i) : wavePoints(speed, i)));
+    tick += 1;
+    const amp = Math.min(6.5, 1 + speed * 0.42);
+    waveEls.forEach((el, i) => {
+      let pts;
+      if (CH[i][2] === "level") {
+        const h = levelHistory[i]; h.shift(); h.push(8 - amp);
+        pts = h.map((y, x) => `${x * 5},${y.toFixed(1)}`);
+      } else {
+        pts = [];
+        for (let x = 0; x <= 100; x += 5) pts.push(`${x},${(8 + Math.sin(x * 0.24 + tick * 0.3 + i * 1.7) * amp).toFixed(1)}`);
+      }
+      el.setAttribute("points", pts.join(" "));
+    });
   }
   function calmBus() {
     levelHistory.forEach((h) => { if (h) h.fill(8); });
     waveEls.forEach((el) => el.setAttribute("points", "0,8 100,8"));
   }
-
-  // ---------- live waveform on the engine page while the pen moves ----------
-  const WCH = [["chart-1", 1.0, 0], ["chart-2", 1.4, 1.1], ["chart-3", 0.8, 2.3], ["warning", 1.7, 3.6]].map(([t, f, p]) => [token(t), f, p]);
-  let waveT = 0, waveAmp = 0, waveTarget = 0, waveRaf = null;
-  function waveFrame() {
-    waveRaf = requestAnimationFrame(waveFrame);
-    waveT += 0.09; waveAmp += (waveTarget - waveAmp) * 0.12;
-    const r = recon.getBoundingClientRect(), w = r.width, h = r.height;
-    gR.clearRect(0, 0, recon.width, recon.height);
-    gR.save();
-    gR.strokeStyle = GRID; gR.lineWidth = 1;
-    gR.beginPath(); gR.moveTo(0, h / 2); gR.lineTo(w, h / 2); gR.stroke();
-    WCH.forEach((c, i) => {
-      const amp = (9 + i * 3.5) * (0.3 + waveAmp);
-      const midY = h / 2 + (i - (WCH.length - 1) / 2) * (h * 0.1);
-      gR.beginPath(); gR.strokeStyle = c[0]; gR.lineWidth = 2; gR.lineCap = "round";
-      gR.shadowColor = c[0]; gR.shadowBlur = 5;
-      for (let x = 0; x <= w; x += 4) {
-        const y = midY + Math.sin(x * 0.045 * c[1] + waveT * (1 + i * 0.12) + c[2]) * amp;
-        if (x === 0) gR.moveTo(x, y); else gR.lineTo(x, y);
-      }
-      gR.stroke();
-    });
-    gR.restore();
-  }
-  function waveStart() { waitLay.classList.add("off"); if (!waveRaf && !reduce) waveFrame(); }
-  function waveStop() { cancelAnimationFrame(waveRaf); waveRaf = null; waveT = 0; waveAmp = 0; waveTarget = 0; }
-
-  // ---------- state ----------
-  let strokes = [], cur = null, lastPt = null, drawing = false, sendTimer = null, replayRaf = null, rebuilt = false;
-  // Every template is one unbroken shape, so after one stroke the demo has
-  // what it needs; further strokes wait for Clear.
-  let locked = false;
-  const hint = $("w-hint"), waitLay = $("w-wait");
-  const sampleEl = $("w-samples"), pktEl = $("w-pkts"), eqEl = $("w-eq"), ble = $("w-ble");
-  const statusEl = $("w-status"), statusTx = $("w-status-tx");
-  const verdict = $("w-verdict"), glyphEl = $("w-glyph"), guessEl = $("w-guess"), guessSub = $("w-guess-sub");
-  const steps = [...root.querySelectorAll(".w-step")];
-  const pen = $("w-pen"), pad = draw.parentNode;
-  const setStep = (n) => steps.forEach((s, i) => s.classList.toggle("on", i === n));
-  function setStatus(mode, text) { statusEl.className = `w-status${mode ? ` ${mode}` : ""}`; statusTx.textContent = text; }
 
   // ---------- the drawn pen follows a mouse ----------
   if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
@@ -125,108 +71,45 @@
   }
 
   // ---------- drawing ----------
+  let strokes = [], cur = null, lastPt = null, drawing = false, timer = null, locked = false;
   function pos(e) { const r = draw.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, t: performance.now() }; }
-  function line(g, a, b, w, col, glow) {
-    g.strokeStyle = col; g.lineWidth = w; g.lineCap = "round"; g.lineJoin = "round";
-    g.shadowColor = glow ? col : "transparent"; g.shadowBlur = glow ? 7 : 0;
+  function line(g, a, b, w) {
+    g.strokeStyle = INK; g.lineWidth = w; g.lineCap = "round"; g.lineJoin = "round";
     g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+  }
+  function repaint() {
+    gD.clearRect(0, 0, draw.width, draw.height);
+    strokes.forEach((st) => { for (let j = 1; j < st.length; j++) line(gD, st[j - 1], st[j], 3.2); });
   }
   draw.addEventListener("pointerdown", (e) => {
     if (locked) return;
     e.preventDefault(); draw.setPointerCapture(e.pointerId);
     drawing = true; cur = [pos(e)]; lastPt = cur[0];
-    hint.classList.add("off"); clearTimeout(sendTimer);
-    setStep(0); setStatus("busy", "Capturing motion…");
-    waveStart();
+    hint.classList.add("off"); clearTimeout(timer);
+    shapeEl.textContent = "Feeling the movement…";
   });
   draw.addEventListener("pointermove", (e) => {
     if (!drawing) return;
     const p = pos(e), dt = Math.max(1, p.t - lastPt.t);
     const speed = Math.hypot(p.x - lastPt.x, p.y - lastPt.y) / dt * 16;
-    samples += Math.max(1, Math.round(dt * 0.1)); // the OnHW pen samples at 100 Hz
-    sampleEl.textContent = samples.toLocaleString();
     pulseBus(speed);
-    waveTarget = Math.min(1, speed / 42);
-    line(gD, lastPt, p, Math.max(2.1, 4.6 - Math.min(2.4, speed * 0.3)), INK, false);
+    line(gD, lastPt, p, Math.max(2.1, 4.6 - Math.min(2.4, speed * 0.3)));
     cur.push(p); lastPt = p;
   });
   function endStroke() {
     if (!drawing) return;
-    drawing = false; calmBus(); waveTarget = 0.18;
+    drawing = false; calmBus();
     if (cur && cur.length > 2) strokes.push(cur);
     cur = null;
-    clearTimeout(sendTimer);
-    if (strokes.length) {
-      locked = true; pad.classList.add("locked");
-      setStatus("", "Character captured. Sending…");
-      sendTimer = setTimeout(transmit, 1100);
-    }
+    if (strokes.length) { locked = true; pad.classList.add("locked"); timer = setTimeout(recognise, reduce ? 0 : 500); }
   }
   draw.addEventListener("pointerup", endStroke);
   draw.addEventListener("pointercancel", endStroke);
   draw.addEventListener("pointerleave", endStroke);
-  $("w-go").addEventListener("click", () => { clearTimeout(sendTimer); transmit(); });
-  function repaint() {
-    gD.clearRect(0, 0, draw.width, draw.height);
-    strokes.forEach((s) => { for (let j = 1; j < s.length; j++) line(gD, s[j - 1], s[j], 3.2, INK, false); });
-  }
-
-  // ---------- send → clean → rebuild → match ----------
-  function transmit() {
-    if (!strokes.length) return;
-    setStep(0); setStatus("busy", "Sending the samples…");
-    ble.classList.add("streaming"); verdict.classList.remove("on"); realBox.hidden = true;
-    const total = Math.max(1, samples);
-    let sent = 0;
-    eqEl.textContent = `${samples.toLocaleString()} samples × 13 channels = ${(samples * 13).toLocaleString()} numbers`;
-    const tick = setInterval(() => {
-      sent = Math.min(total, sent + Math.max(1, Math.round(total / 14)));
-      pktEl.textContent = sent;
-      if (sent >= total) clearInterval(tick);
-    }, reduce ? 8 : 55);
-    setTimeout(() => {
-      ble.classList.remove("streaming");
-      setStep(1); setStatus("busy", "Guessing the shape…");
-      setTimeout(reconstruct, reduce ? 40 : 620);
-    }, reduce ? 60 : 950);
-  }
-  // The strokes scaled and centred on the engine screen.
-  function rebuiltPoints() {
-    const all = strokes.flat();
-    const xs = all.map((p) => p.x), ys = all.map((p) => p.y);
-    const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
-    // On wide screens the result box covers the bottom of the screen; keep
-    // the path above it. On phones the box sits below the screen.
-    const below = getComputedStyle(verdict).position === "absolute" ? 92 : 24;
-    const rb = recon.getBoundingClientRect(), padding = 24;
-    const w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
-    const s = Math.min((rb.width - padding * 2) / w, (rb.height - padding - below) / h, 2.2);
-    const ox = (rb.width - w * s) / 2 - minX * s, oy = padding + (rb.height - padding - below - h * s) / 2 - minY * s;
-    const pts = [];
-    strokes.forEach((st, si) => st.forEach((p, pi) => pts.push({ x: p.x * s + ox, y: p.y * s + oy, brk: pi === 0 && si > 0 })));
-    return pts;
-  }
-  function drawRebuilt() {
-    const pts = rebuiltPoints();
-    gR.clearRect(0, 0, recon.width, recon.height);
-    for (let j = 1; j < pts.length; j++) if (!pts[j].brk) line(gR, pts[j - 1], pts[j], 3.2, GLOW, true);
-  }
-  function reconstruct() {
-    waveStop();
-    rebuilt = true;
-    setStatus("busy", "Guessing the shape…");
-    waitLay.classList.add("off");
-    gR.clearRect(0, 0, recon.width, recon.height);
-    const pts = rebuiltPoints();
-    if (reduce) { drawRebuilt(); recognise(); return; }
-    let n = 1;
-    const per = Math.max(1, Math.round(pts.length / 52));
-    cancelAnimationFrame(replayRaf);
-    (function step() {
-      for (let c = 0; c < per && n < pts.length; c++, n++) if (!pts[n].brk) line(gR, pts[n - 1], pts[n], 3.2, GLOW, true);
-      if (n < pts.length) replayRaf = requestAnimationFrame(step); else recognise();
-    })();
-  }
+  $("w-clear").addEventListener("click", () => {
+    strokes = []; cur = null; locked = false; pad.classList.remove("locked"); clearTimeout(timer);
+    gD.clearRect(0, 0, draw.width, draw.height); hint.classList.remove("off"); shapeEl.textContent = ""; calmBus();
+  });
 
   // ---------- the shape matcher ----------
   const N = 48;
@@ -326,126 +209,38 @@
     1: "the number 1", 2: "the number 2", 3: "the number 3", 7: "the number 7",
     triangle: "a triangle", star: "a star", heart: "a heart", check: "a check mark" };
   const GLYPH = { triangle: "△", star: "☆", heart: "♡", check: "✓" };
+  // ---------- shape → a real recording → the page's Recognize ----------
   const DIGITS = new Set(["1", "2", "3", "7"]);
   const LETTERS = new Set(["O", "C", "S", "U", "V", "W", "M", "N", "L", "Z"]);
   function recognise() {
     const flat = strokes.flat().map((p) => ({ x: p.x, y: p.y }));
-    if (flat.length < 8) { setStatus("", "Waiting for a character…"); return; }
+    if (flat.length < 8) { shapeEl.textContent = ""; return; }
     const v = toVector(resample(flat));
     let best = null;
     VEC.forEach((t) => { const sc = bestMatch(v, t); if (!best || sc > best.sc) best = { name: t.name, sc }; });
-    const pct100 = Math.round(Math.max(0, Math.min(0.999, best.sc)) * 100);
-    verdict.classList.add("on");
-    glyphEl.textContent = GLYPH[best.name] || best.name;
     const name = NICE[best.name] || best.name;
-    guessEl.textContent = `${best.sc > 0.72 ? "Looks like" : "Best guess:"} ${name} · ${pct100}% shape match`;
-    guessSub.textContent = "A shape guess from your drawing, not the AI.";
-    if (DIGITS.has(best.name) || LETTERS.has(best.name)) {
-      setStep(2); setStatus("busy", "Picking a real recording…");
-      setTimeout(() => pickReal(best.name), reduce ? 0 : 450);
-    } else {
-      setStatus("done", "Not an OnHW character");
-      drawn = null;
-      realBox.hidden = false;
-      realBox.replaceChildren(el("p", {}, `${name[0].toUpperCase()}${name.slice(1)} is not in the OnHW dataset, which holds letters, digits and maths symbols. Try O, S, Z or 7.`));
+    if (!DIGITS.has(best.name) && !LETTERS.has(best.name)) {
+      shapeEl.textContent = `Looks like ${name}. OnHW has letters, digits and maths symbols; try O, S, Z or 7.`;
+      return;
     }
-  }
-
-  // ---------- a real recording of the drawn character ----------
-  // Uses app.js: state, current(), sample(), available(), currentProbs(),
-  // classNames(), topK(), modelName(), whyLines(), radioGroup(), renderAll().
-  const realBox = $("w-real");
-  let drawn = null;
-  function writerText(cur) {
-    const who = state.protocol === "indep" ? "a new" : "a familiar";
-    return `${who} ${cur.left ? "left-handed" : "right-handed"} writer`;
-  }
-  function pickReal(ch) {
-    drawn = ch;
+    const ch = best.name;
     state.task = DIGITS.has(ch) ? "symbols" : "chars";
     if (state.task === "symbols") state.hand = "right";
     if (state.task === "chars") state.protocol = "indep";
     if (!available(state.task, state.protocol)) state.protocol = "indep";
-    renderOpts();
-    const cur = current();
-    let i = cur ? cur.samples.findIndex((s) => s.label === ch) : -1;
-    if (cur && i < 0) i = cur.samples.findIndex((s) => s.label.toLowerCase() === ch.toLowerCase());
-    if (i < 0) { showMissing(ch, cur); return; }
+    const curData = current();
+    let i = curData ? curData.samples.findIndex((smp) => smp.label === ch) : -1;
+    if (curData && i < 0) i = curData.samples.findIndex((smp) => smp.label.toLowerCase() === ch.toLowerCase());
+    if (i < 0) {
+      renderAll();
+      shapeEl.textContent = `Looks like ${ch}, but there is no recording of it for this hand. Pick one below, or switch hand.`;
+      return;
+    }
+    const other = curData.samples[i].label !== ch;
     state.sample = i;
-    state.revealed = true;
     renderAll();
-    showReal(ch);
+    shapeEl.textContent = `Looks like ${ch} · picked a real recording of “${curData.samples[i].label}”${other ? " (its other case)" : ""}.`;
+    recognize();
   }
-  function showReal(ch) {
-    const cur = current(), s = sample(), names = classNames();
-    const [a] = topK(currentProbs(), 1);
-    const read = names[a[0]], correct = read === s.label;
-    setStep(3); setStatus("done", "Read a real recording");
-    realBox.hidden = false;
-    const head = el("p", { class: "engine__real-head" });
-    head.append(`Real OnHW recording of “${s.label}”, written by ${writerText(cur)}.`);
-    if (s.label !== ch) head.append(` There is no “${ch}” in the exported samples, so this is its other case.`);
-    const line = el("p", { class: "engine__real-read" });
-    line.append(`${modelName()} read `, el("b", {}, read), ` · ${pct(a[1])} `,
-      el("span", { class: `v-badge ${correct ? "v-badge--live" : "v-badge--dev"}` }, correct ? "right" : "wrong"));
-    const why = el("ul", { class: "engine__why" });
-    whyLines(correct).forEach((t) => why.append(el("li", {}, t)));
-    const more = el("a", { href: "#workspace" }, "See its sensors and every score ↓");
-    realBox.replaceChildren(head, line, why, more);
-  }
-  function showMissing(ch, cur) {
-    setStatus("done", "No recording of that character");
-    realBox.hidden = false;
-    const p = el("p", {}, cur
-      ? `No recording of “${ch}” by ${writerText(cur)} in the exported samples. Pick another hand or writer, or one of these:`
-      : "Nothing exported for this choice yet.");
-    const row = el("div", { class: "seg seg--small" });
-    if (cur) {
-      [...new Set(cur.samples.map((s) => s.label))].slice(0, 20).forEach((label) => {
-        const b = el("button", { class: "v-chip", type: "button" }, label);
-        b.addEventListener("click", () => pickReal(label));
-        row.append(b);
-      });
-    }
-    realBox.replaceChildren(p, row);
-  }
-  function redo() { if (drawn) pickReal(drawn); else renderOpts(); }
-  function renderOpts() {
-    const cur = current();
-    const hand = $("w-opt-hand"), who = $("w-opt-who"), model = $("w-opt-model"), train = $("w-opt-train");
-    if (state.task === "chars") {
-      radioGroup(hand, [{ value: "right", label: "Right-handed" }, { value: "left", label: "Left-handed" }], state.hand,
-        (v) => { state.hand = v; state.sample = 0; redo(); });
-      who.replaceChildren(el("span", { class: "hint" }, "New people"));
-    } else {
-      hand.replaceChildren(el("span", { class: "hint" }, "Right-handed"));
-      radioGroup(who, ["indep", "dep"].map((p) => ({ value: p, label: PEOPLE[p], disabled: !available(state.task, p) })),
-        state.protocol, (v) => { state.protocol = v; state.sample = 0; redo(); });
-    }
-    if (cur && cur.mode === "ensemble") {
-      radioGroup(model, [...[0, 1, 2, 3, 4].map((i) => ({ value: i, label: `#${i + 1}` })), { value: "mean", label: "×5 vote" }],
-        state.model, (v) => { state.model = v; redo(); });
-    } else {
-      model.replaceChildren(el("span", { class: "hint" }, "One CNN-BiLSTM run"));
-    }
-    if (cur && cur.mode === "ensemble" && !cur.left) {
-      radioGroup(train, [{ value: "right", label: "Right-handed people" }, { value: "with_left", label: "+ left-handed" }],
-        state.group, (v) => { state.group = v; redo(); });
-    } else {
-      train.replaceChildren(el("span", { class: "hint" }, cur && cur.left ? "Right- and left-handed people" : "Right-handed people"));
-    }
-  }
-  renderOpts();
-
-  $("w-clear").addEventListener("click", () => {
-    strokes = []; cur = null; samples = 0; locked = false; rebuilt = false; pad.classList.remove("locked");
-    sampleEl.textContent = "0"; pktEl.textContent = "0"; eqEl.textContent = "";
-    clearTimeout(sendTimer); cancelAnimationFrame(replayRaf); waveStop();
-    gD.clearRect(0, 0, draw.width, draw.height); gR.clearRect(0, 0, recon.width, recon.height);
-    hint.classList.remove("off"); waitLay.classList.remove("off");
-    verdict.classList.remove("on"); ble.classList.remove("streaming");
-    realBox.hidden = true; drawn = null;
-    setStatus("", "Waiting for a character…"); setStep(-1); calmBus();
-  });
   calmBus();
 })();

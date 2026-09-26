@@ -59,7 +59,6 @@
         <span class="brand__mark" aria-hidden="true"></span>Vahini <span class="v-brand__product">Playground</span>
       </a>
       <nav aria-label="Page">
-        <a href="#write">Write</a>
         <a href="#workspace">Play</a>
         <a href="#how">How it works</a>
         <a href="#designs">AI designs</a>
@@ -70,182 +69,108 @@
     </div>
   </header>
 
-  <section class="hero">
-    <div class="wrap hero__in">
-      <div>
-        <h1>See how AI reads handwriting from a pen</h1>
-        <p class="hero__lead">This pen has motion sensors instead of a camera. Pick
-          a letter someone wrote, look at what the sensors recorded, and press
-          <strong>Recognize</strong> to see what the AI reads. Every answer comes
-          from a real test on people the AI never learned from.</p>
-        <div class="hero__cta">
-          <a class="v-btn" href="#write">Write a letter</a>
-          <a class="v-btn v-btn--on-dark" href="#workspace">Try real recordings</a>
-          <a class="v-btn v-btn--on-dark" href="#glossary">What do the words mean?</a>
-        </div>
-      </div>
-      <dl class="stats" aria-label="Key numbers">
-        <div><dt>5 models together</dt><dd data-bind="groups.right.ensemble_accuracy" data-fmt="pct">74.46%</dd><span>letters read right, from new people</span></div>
-        <div><dt>One model</dt><dd>72.5%</dd><span>the published CNN+BiLSTM: 68.06%</span></div>
-        <div><dt>Sensors</dt><dd>13</dd><span>readings, 100 times a second</span></div>
-        <div><dt>Things to read</dt><dd>4</dd><span>letters, symbols, maths, words</span></div>
-      </dl>
-    </div>
-  </section>
-
-  <section id="write" class="wrap section write" aria-labelledby="write-h">
-    <p class="v-eyebrow">Start here · draw a character</p>
-    <h2 id="write-h">Draw a letter. See what the AI reads.</h2>
-    <p class="hint">Your mouse or finger stands in for the sensor pen used to record the Fraunhofer
-      OnHW dataset. Draw one character: the page works out which one it is, picks a real recording of
-      that character from the OnHW test set, and shows what the AI read and why.</p>
-    <div class="v-note v-note--warn write__notice">
-      <strong>What is real here.</strong> The drawing, the moving sensor lines and the shape guess are a
-      simulation: the page only sees your mouse. The recording it picks, and the AI&rsquo;s answer and
-      scores for it, are real results from people the AI never learned from.
+  <main id="workspace" class="wrap stage-wrap">
+    <div class="stage-head">
+      <h1>How does a pen read handwriting?</h1>
+      <p class="hint">Draw a letter or pick a real one: see what the pen feels, what the AI does and what it
+        answers. Every answer is a real result on people the AI never learned from.</p>
     </div>
 
-    <div class="book">
-      <div class="book__paper">
-        <p class="book__label">Try it</p>
-        <h3 class="book__title">Draw one character</h3>
-        <p class="book__tip">It recognises: O, C, S, U, V, W, M, N, L, Z and 1, 2, 3, 7.</p>
-        <div class="book__pad">
-          <canvas id="w-draw" aria-label="Drawing area"></canvas>
-          <div class="book__hint" id="w-hint"><span>draw here…</span></div>
-          <svg class="book__pen" id="w-pen" viewBox="0 0 34 150" aria-hidden="true">
-            <path class="pen__body" d="M12 4 q10 0 10 14 v78 l-8 40 -2 0 -8 -40 V18 q0 -14 8 -14z"/>
-            <rect class="pen__shine" x="9" y="20" width="4" height="72" rx="2"/>
-            <circle class="pen__led" cx="15" cy="34" r="2.6"/>
-            <path class="pen__tip" d="M4 136 l8 -22 8 22 -6 8 -4 0z"/>
-          </svg>
-        </div>
-        <div class="book__buslab"><b>OnHW pen sensors · animation</b><span><span id="w-samples">0</span> samples · 100 Hz</span></div>
-        <div class="book__bus" id="w-bus"></div>
-        <div class="book__btns">
-          <button class="v-btn" id="w-go" type="button">Read it →</button>
-          <button class="v-btn v-btn--ghost" id="w-clear" type="button">Clear</button>
-        </div>
-      </div>
+    <div class="choices" id="pick">
+      <div class="choice"><span class="choice__label">Read</span><div class="seg seg--small" id="task" role="radiogroup" aria-label="What to read"></div></div>
+      <div class="choice"><span class="choice__label">Writer <a class="term" href="#term-new-people">?</a></span><div class="seg seg--small" id="protocol" role="radiogroup" aria-label="Written by"></div></div>
+      <div class="choice"><span class="choice__label">Hand</span><div class="seg seg--small" id="hand" role="radiogroup" aria-label="Hand"></div></div>
+      <p id="task-note" class="hint choices__note"></p>
+    </div>
 
-      <div class="book__engine">
-        <div class="engine__head">
-          <b>AI</b>
-          <span class="w-status" id="w-status"><i></i><em id="w-status-tx">Waiting for a character…</em></span>
-        </div>
-        <div class="engine__opts" id="w-opts">
-          <div class="engine__opt"><span>Hand</span><div class="seg seg--small" id="w-opt-hand" role="radiogroup" aria-label="Hand"></div></div>
-          <div class="engine__opt"><span>Writer</span><div class="seg seg--small" id="w-opt-who" role="radiogroup" aria-label="Writer"></div></div>
-          <div class="engine__opt"><span>Model</span><div class="seg seg--small" id="w-opt-model" role="radiogroup" aria-label="Model"></div></div>
-          <div class="engine__opt"><span>Learned from</span><div class="seg seg--small" id="w-opt-train" role="radiogroup" aria-label="Learned from"></div></div>
-        </div>
-        <div class="engine__ble" id="w-ble">
-          <div class="engine__line"><span>pen</span><span class="engine__dash"></span><span>computer</span></div>
-          <div class="engine__meta"><span>13 channels at 100 Hz</span><span><b id="w-pkts">0</b> samples sent</span></div>
-          <div class="engine__eq" id="w-eq"></div>
-        </div>
-        <div class="engine__screen">
-          <canvas id="w-recon" aria-label="Your drawing, redrawn"></canvas>
-          <div class="engine__wait" id="w-wait"><span>waiting for a character…</span></div>
-          <div class="engine__verdict" id="w-verdict" aria-live="polite">
-            <span class="engine__glyph" id="w-glyph"></span>
-            <span><b id="w-guess"></b><span id="w-guess-sub"></span></span>
+    <nav class="stage-tabs" aria-label="Steps">
+      <a href="#pen-card">1 Pen</a><a href="#signal-card">2 AI</a><a href="#answer-card">3 Answer</a>
+    </nav>
+
+    <div class="stage">
+      <section class="v-card stage-card" id="pen-card" data-steps="1" aria-labelledby="pen-h">
+        <h2 id="pen-h" class="stage-card__h"><span class="step">1</span>How the pen works <span class="stage-tag">simulation</span></h2>
+        <p class="hint">Draw a character. The pen feels movement, not ink.</p>
+        <section id="write" class="stage-pen" aria-label="Draw a character">
+          <div class="book__pad">
+            <canvas id="w-draw" aria-label="Drawing area"></canvas>
+            <div class="book__hint" id="w-hint"><span>draw O, S, Z, 7…</span></div>
+            <svg class="book__pen" id="w-pen" viewBox="0 0 34 150" aria-hidden="true">
+              <path class="pen__body" d="M12 4 q10 0 10 14 v78 l-8 40 -2 0 -8 -40 V18 q0 -14 8 -14z"/>
+              <rect class="pen__shine" x="9" y="20" width="4" height="72" rx="2"/>
+              <circle class="pen__led" cx="15" cy="34" r="2.6"/>
+              <path class="pen__tip" d="M4 136 l8 -22 8 22 -6 8 -4 0z"/>
+            </svg>
           </div>
+          <div class="book__bus" id="w-bus"></div>
+          <p class="w-shape" id="w-shape" aria-live="polite"></p>
+          <button class="v-btn v-btn--ghost v-btn--sm" id="w-clear" type="button">Clear</button>
+        </section>
+        <div class="stage-samples">
+          <span class="choice__label">Or pick a real recording</span>
+          <div id="samples"></div>
         </div>
-        <div class="engine__real" id="w-real" aria-live="polite" hidden></div>
-        <ol class="engine__steps">
-          <li class="w-step"><b>Capture</b><span>13 channels · 100 Hz</span></li>
-          <li class="w-step"><b>Guess the shape</b><span>your drawing → a character</span></li>
-          <li class="w-step"><b>Pick a recording</b><span>OnHW test set</span></li>
-          <li class="w-step"><b>Read it</b><span>CNN-BiLSTM</span></li>
+      </section>
+
+      <section class="v-card stage-card" id="signal-card" data-steps="2 3" aria-labelledby="signal-h">
+        <h2 id="signal-h" class="stage-card__h"><span class="step">2</span>How the AI works <span class="stage-tag" id="signal-tag">practice signal</span></h2>
+        <p id="model-intro" class="hint"></p>
+        <div class="signal-mini" id="signal-mini" role="img" aria-label="The pen signal, front accelerometer"></div>
+        <p id="signal-note" class="hint signal-mini__note"></p>
+        <ol class="flow">
+          <li class="flow__box"><b>Clean</b><div class="seg seg--small" id="filters" role="radiogroup" aria-label="Clean the signal"></div></li>
+          <li class="flow__box"><b>CNN</b><span>spots short strokes</span></li>
+          <li class="flow__box"><b>BiLSTM</b><span>reads them in order</span></li>
         </ol>
-      </div>
+        <div class="choice"><span class="choice__label">CNN-BiLSTM run</span><div class="seg seg--small" id="models" role="radiogroup" aria-label="Which model"></div></div>
+        <div class="choice"><span class="choice__label">Learned from</span><div class="seg seg--small" id="training" role="radiogroup" aria-label="What the model learned from"></div></div>
+        <button id="recognize" type="button" class="v-btn v-btn--lg v-btn--block btn--go">Recognize</button>
+        <p id="run-status" class="run-status" aria-live="polite"></p>
+      </section>
+
+      <section class="v-card stage-card" id="answer-card" data-steps="4" aria-labelledby="answer-h">
+        <h2 id="answer-h" class="stage-card__h"><span class="step">3</span>What it answers</h2>
+        <p id="waiting" class="waiting">Draw a character or press <strong>Recognize</strong>.</p>
+        <div id="verdict" aria-live="polite"></div>
+        <div id="class-view" hidden><div id="bars"></div></div>
+        <div id="why" class="why" hidden></div>
+        <div id="words-view" hidden></div>
+        <div id="model-result" class="result"></div>
+        <p id="score" class="score" aria-live="polite"></p>
+      </section>
     </div>
 
-    <p class="write__bridge">Every recording below comes from the same OnHW test set. Pick any of them,
-      look at what the sensors recorded, and press Recognize. <a href="#workspace">Explore the recordings ↓</a></p>
-  </section>
-
-  <nav class="pipeline wrap" aria-label="What happens, step by step">
-    <ol>
-      <li><a href="#pick"><span class="pipeline__k">1 · Choose</span><span id="pipe-task">Letters</span></a></li>
-      <li><a href="#pick"><span class="pipeline__k">2 · Sample</span><span id="pipe-sample">L</span></a></li>
-      <li><a href="#signal-card"><span class="pipeline__k">3 · Clean</span><span id="pipe-filter">Raw signal</span></a></li>
-      <li><a href="#answer-card"><span class="pipeline__k">4 · AI model</span><span id="pipe-model">All 5 together</span></a></li>
-      <li><a href="#answer-card"><span class="pipeline__k">5 · Answer</span><span id="pipe-answer">press Recognize</span></a></li>
-    </ol>
-  </nav>
-
-  <main id="workspace" class="wrap workspace">
-    <aside class="panel controls" id="pick" aria-labelledby="pick-h">
-      <h2 id="pick-h" class="panel__h"><span class="step">1</span>Choose what to read</h2>
-      <div class="field">
-        <div class="seg" id="task" role="radiogroup" aria-label="What to read"></div>
-        <p id="task-note" class="hint"></p>
-      </div>
-      <div class="field">
-        <span class="field__label">Written by <a class="term" href="#term-new-people">?</a></span>
-        <div class="seg" id="protocol" role="radiogroup" aria-label="Written by"></div>
-      </div>
-      <div class="field">
-        <div class="seg" id="hand" role="radiogroup" aria-label="Hand"></div>
-      </div>
-      <div id="samples"></div>
-      <details class="dev" id="dev-pick"><summary>For developers</summary><div class="dev__body"></div></details>
-    </aside>
-
-    <section class="panel" id="signal-card" aria-labelledby="signal-h">
-      <div class="panel__top">
-        <h2 id="signal-h" class="panel__h"><span class="step">2</span>What the pen felt</h2>
-        <div class="seg seg--small" id="filters" role="radiogroup" aria-label="Clean the signal"></div>
-      </div>
-      <p class="hint">Each line is one sensor reading over time. Try cleaning the signal with the
-        buttons above. <a class="term" href="#term-filter">What is a filter?</a></p>
-      <div id="signal-note" class="note"></div>
-      <div id="signal"></div>
-      <details class="raw" id="raw">
-        <summary>Raw sensor numbers <span class="hint" id="time-readout-short"></span></summary>
-        <label class="time-control">Time
-          <input id="time" type="range" min="0" max="0" value="0" aria-describedby="time-readout">
-          <output id="time-readout"></output>
-        </label>
-        <div class="table-wrap"><table id="raw-table"></table></div>
-        <p class="hint">Raw sensor counts; g and °/s use the conversions in
-          <code>imu2text/filters.py</code> (the gyroscope one is inferred).
-          <button id="download-csv" type="button" class="linkbtn">Download CSV</button></p>
-      </details>
-      <div id="filter-result" class="result"></div>
-      <details class="dev" id="dev-signal"><summary>For developers</summary><div class="dev__body"></div></details>
-    </section>
-
-    <section class="panel" id="answer-card" aria-labelledby="answer-h">
-      <div class="panel__top">
-        <h2 id="answer-h" class="panel__h"><span class="step">3</span>Ask the AI</h2>
-      </div>
-      <p id="model-intro" class="hint"></p>
-      <div class="seg seg--small" id="models" role="radiogroup" aria-label="Which model"></div>
-      <div class="seg seg--small" id="training" role="radiogroup" aria-label="What the model learned from"></div>
-      <button id="recognize" type="button" class="v-btn v-btn--lg v-btn--block btn--go">Recognize</button>
-      <p id="run-status" class="run-status" aria-live="polite"></p>
-      <p id="waiting" class="waiting">Press <strong>Recognize</strong> to see what the AI reads.</p>
-      <div id="verdict" aria-live="polite"></div>
-      <div id="why" class="why" hidden></div>
-      <div id="class-view" class="answer-grid" hidden>
+    <details class="stage-more" id="more">
+      <summary>Everything about this recording: all sensors, raw numbers, the 5 runs, the code</summary>
+      <div class="stage-more__grid">
         <div>
-          <h3 class="mini">Its top five guesses</h3>
-          <div id="bars"></div>
+          <h3 class="mini">What the pen felt</h3>
+          <div id="signal"></div>
+          <details class="raw" id="raw">
+            <summary>Raw sensor numbers <span class="hint" id="time-readout-short"></span></summary>
+            <label class="time-control">Time
+              <input id="time" type="range" min="0" max="0" value="0" aria-describedby="time-readout">
+              <output id="time-readout"></output>
+            </label>
+            <div class="table-wrap"><table id="raw-table"></table></div>
+            <p class="hint">Raw sensor counts; g and °/s use the conversions in
+              <code>imu2text/filters.py</code> (the gyroscope one is inferred).
+              <button id="download-csv" type="button" class="linkbtn">Download CSV</button></p>
+          </details>
+          <div id="filter-result" class="result"></div>
         </div>
-        <div id="members-col">
-          <h3 class="mini">What each of the 5 runs said</h3>
-          <div id="members"></div>
+        <div>
+          <div id="members-col">
+            <h3 class="mini">What each of the 5 runs said</h3>
+            <div id="members"></div>
+          </div>
+          <p id="members-read" class="reading"></p>
+          <details class="dev" id="dev-pick"><summary>For developers: choosing a recording</summary><div class="dev__body"></div></details>
+          <details class="dev" id="dev-signal"><summary>For developers: the signal</summary><div class="dev__body"></div></details>
+          <details class="dev" id="dev-model"><summary>For developers: the model</summary><div class="dev__body"></div></details>
         </div>
       </div>
-      <p id="members-read" class="reading"></p>
-      <div id="words-view" hidden></div>
-      <div id="model-result" class="result"></div>
-      <p id="score" class="score" aria-live="polite"></p>
-      <details class="dev" id="dev-model"><summary>For developers</summary><div class="dev__body"></div></details>
-    </section>
+    </details>
   </main>
 
   <section id="how" class="wrap section" aria-labelledby="how-h">
