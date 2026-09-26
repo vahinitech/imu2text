@@ -59,6 +59,25 @@ published split directories are 3 case settings × 2 protocols × 5 folds;
 average a task over its own 5 folds, never across all 30, which would mix
 26- and 52-class tasks and WD with WI.
 
+## Numbers on the playground
+
+`playground/` shows results to the public at playground.vahinitech.com, so
+the rules above apply there too.
+
+- Live figures come from `playground/data/public.js`, built by
+  `scripts/build_playground.py` from files in `results/`. Rebuild it after a
+  rerun instead of editing it.
+- A `public.js` number written into `index.html` for crawlers carries
+  `data-bind` to its path; `tests/test_playground_page.py` fails if they
+  differ. Any other figure in the page (the AI designs table, the cards)
+  must be in `docs/benchmarks.md` with its conditions, and changes with it.
+- Every table row and card says who wrote the test letters (new people or
+  familiar people), the dataset and, for the 5-run vote, that it is an
+  ensemble. A design nobody has run on OnHW here is "not measured", never an
+  estimate or a number from another dataset.
+- The page shows model outputs and a synthetic signal only. OnHW recordings
+  stay in the gitignored `data/local.js`.
+
 ## Pick the right published number to compare against
 
 The OnHW papers report tables that measure different things, and picking the

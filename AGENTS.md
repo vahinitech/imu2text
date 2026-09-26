@@ -100,6 +100,8 @@ Docs, comments, commit messages and PR bodies follow
 | `legacy/cnn_gnn.py` | old single-script example; do not extend |
 | `results/` | committed predictions, tables and figures |
 | `docs/` | benchmarks, datasets, roadmap, root-cause analyses |
+| `playground/` | the Vahini AI Playground page at playground.vahinitech.com; see `playground/README.md` |
+| `scripts/build_playground.py` | builds `playground/data/public.js` from committed results |
 | `tests/test_real_data.py` | loader tests on the real archives; needs `ONHW_DATA_DIR` |
 
 The package runs from the source tree. `pytest.ini` puts the repo root on

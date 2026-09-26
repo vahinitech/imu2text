@@ -41,6 +41,15 @@ python -m scripts.build_playground \
     --onhw-chars data/onhw-chars_2021-06-30   # leave out for public.js only
 ```
 
+The chart sections read the same file. "Compare the algorithms" shows the
+published OnHW-chars table (Ott et al., ACM MM 2022, Table 3) next to this
+repo's runs. Training curves, calibration and mix-ups per algorithm appear
+once each built-in design has a saved run in `results/algorithms/`:
+
+```bash
+bash scripts/run_algorithms.sh data/onhw-chars_2021-06-30   # hours on a CPU
+```
+
 The OnHW datasets are by Fraunhofer IIS, for non-commercial use, and are not
 covered by this repository's Apache-2.0 license. Do not commit `local.js`.
 
@@ -61,11 +70,36 @@ The cards in step 4 of the page are the open tasks. Each links to an issue.
 | File | What |
 |---|---|
 | `index.html`, `style.css`, `app.js` | the page; plain JavaScript, no dependencies |
+| `charts.js` | "Compare the algorithms" and "How sure is the AI?" charts |
 | `stages.js` | the methods shown, with measured accuracies and sources |
 | `data/public.js` | generated model outputs and the synthetic signal |
 | `data/local.js` | generated real recordings, local only |
 | `favicon.svg`, `og.png`, `robots.txt`, `sitemap.xml` | icon, social preview, crawler files |
 | `og.html` | source of `og.png`; regenerate with the command in its header |
+
+The Vahini design system (colours, type, spacing and shared components),
+fonts and logo are not in this repository. Every Vahini host serves them at
+the same paths, and the page links them there:
+
+| Path | What |
+|---|---|
+| `/site/design/v1/vahini.css` | `--v-*` tokens and the shared `v-*` classes |
+| `/site/assets/fonts/` | the font files |
+| `/site/assets/vahini-logo.png` | the logo; the page shows a drawn mark without it |
+
+`style.css` uses only `var(--v-*)` tokens and holds the layout specific to
+this page; `tests/test_playground_page.py` fails on a colour code. To work on
+the page outside the deployment, fetch the live stylesheet next to it (the
+`site/` folder is gitignored):
+
+```bash
+cd playground
+curl --create-dirs -o site/design/v1/vahini.css https://vahinitech.com/site/design/v1/vahini.css
+python -m http.server 8000
+```
+
+The name and logo belong to Vahini Technologies and are not covered by the
+Apache-2.0 license.
 
 The search and sharing metadata (title, description, canonical URL, Open
 Graph, JSON-LD) is in the head of `index.html`. `tests/test_playground_page.py`

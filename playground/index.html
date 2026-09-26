@@ -14,7 +14,7 @@
   <meta property="og:site_name" content="Vahini">
   <meta property="og:url" content="https://playground.vahinitech.com/">
   <meta property="og:title" content="Vahini Playground: see how AI reads handwriting from a sensor pen">
-  <meta property="og:description" content="Pick a letter, watch the 13 sensor signals, apply a filter, and compare five neural networks. 74.46% on writers the model has never seen.">
+  <meta property="og:description" content="Pick a letter, watch the pen's 13 sensor signals, clean them, and press Recognize to see what five neural networks read. 74.46% right on new people.">
   <meta property="og:image" content="https://playground.vahinitech.com/og.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -45,21 +45,26 @@
     }
   }
   </script>
+  <!-- The Vahini design system: served by every Vahini host, not in this repo (README.md) -->
+  <link rel="stylesheet" href="/site/design/v1/vahini.css">
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="v-page">
   <a class="skip" href="#workspace">Skip to the playground</a>
 
-  <header class="topbar">
-    <div class="wrap topbar__in">
-      <a class="brand" href="https://vahinitech.com/" aria-label="Vahini home">
-        <span class="brand__mark" aria-hidden="true"></span>Vahini <span class="brand__sub">Playground</span>
+  <header class="v-topbar">
+    <div class="wrap v-topbar__in">
+      <a class="v-brand" href="https://vahinitech.com/" aria-label="Vahini home">
+        <img id="brand-logo" class="v-brand__logo" src="/site/assets/vahini-logo.png" alt="" width="28" height="28" hidden>
+        <span class="brand__mark" aria-hidden="true"></span>Vahini <span class="v-brand__product">Playground</span>
       </a>
       <nav aria-label="Page">
-        <a href="#workspace">Explore</a>
+        <a href="#workspace">Play</a>
         <a href="#how">How it works</a>
-        <a href="#results">Results</a>
-        <a class="btn btn--small" id="repo-link" href="https://github.com/vahinitech/imu2text">Contribute</a>
+        <a href="#designs">AI designs</a>
+        <a href="#algos">Charts</a>
+        <a href="#glossary">Glossary</a>
+        <a class="v-btn v-btn--sm" id="repo-link" href="https://github.com/vahinitech/imu2text">Contribute</a>
       </nav>
     </div>
   </header>
@@ -68,61 +73,63 @@
     <div class="wrap hero__in">
       <div>
         <h1>See how AI reads handwriting from a pen</h1>
-        <p class="hero__lead">A pen with motion sensors records every stroke. Pick a letter,
-          a symbol or a word, watch its 13 sensor signals, try a filter, and see what
-          five neural networks read. Everything comes from real test runs on writers
-          the model never saw.</p>
+        <p class="hero__lead">This pen has motion sensors instead of a camera. Pick
+          a letter someone wrote, look at what the sensors recorded, and press
+          <strong>Recognize</strong> to see what the AI reads. Every answer comes
+          from a real test on people the AI never learned from.</p>
         <div class="hero__cta">
-          <a class="btn" href="#workspace">Start exploring</a>
-          <a class="btn btn--ghost" href="#open-work">Pick an open task</a>
+          <a class="v-btn" href="#workspace">Start playing</a>
+          <a class="v-btn v-btn--on-dark" href="#glossary">What do the words mean?</a>
         </div>
       </div>
       <dl class="stats" aria-label="Key numbers">
-        <div><dt>Five-model ensemble</dt><dd data-bind="groups.right.ensemble_accuracy" data-fmt="pct">74.46%</dd><span>characters, unseen writers</span></div>
-        <div><dt>Single model</dt><dd>72.5%</dd><span>published CNN+BiLSTM: 68.06%</span></div>
-        <div><dt>Sensors</dt><dd>13</dd><span>channels, 100 times a second</span></div>
-        <div><dt>Tasks</dt><dd>4</dd><span>letters, symbols, equations, words</span></div>
+        <div><dt>5 models together</dt><dd data-bind="groups.right.ensemble_accuracy" data-fmt="pct">74.46%</dd><span>letters read right, from new people</span></div>
+        <div><dt>One model</dt><dd>72.5%</dd><span>the published CNN+BiLSTM: 68.06%</span></div>
+        <div><dt>Sensors</dt><dd>13</dd><span>readings, 100 times a second</span></div>
+        <div><dt>Things to read</dt><dd>4</dd><span>letters, symbols, maths, words</span></div>
       </dl>
     </div>
   </section>
 
-  <nav class="pipeline wrap" aria-label="Pipeline">
+  <nav class="pipeline wrap" aria-label="What happens, step by step">
     <ol>
-      <li><a href="#pick"><span class="pipeline__k">Task</span><span id="pipe-task">Characters</span></a></li>
-      <li><a href="#pick"><span class="pipeline__k">Sample</span><span id="pipe-sample">L</span></a></li>
-      <li><a href="#signal-card"><span class="pipeline__k">Filter</span><span id="pipe-filter">No filter</span></a></li>
-      <li><a href="#answer-card"><span class="pipeline__k">Model</span><span id="pipe-model">Ensemble of 5</span></a></li>
-      <li><a href="#answer-card"><span class="pipeline__k">Answer</span><span id="pipe-answer">L</span></a></li>
+      <li><a href="#pick"><span class="pipeline__k">1 · Choose</span><span id="pipe-task">Letters</span></a></li>
+      <li><a href="#pick"><span class="pipeline__k">2 · Sample</span><span id="pipe-sample">L</span></a></li>
+      <li><a href="#signal-card"><span class="pipeline__k">3 · Clean</span><span id="pipe-filter">Raw signal</span></a></li>
+      <li><a href="#answer-card"><span class="pipeline__k">4 · AI model</span><span id="pipe-model">All 5 together</span></a></li>
+      <li><a href="#answer-card"><span class="pipeline__k">5 · Answer</span><span id="pipe-answer">press Recognize</span></a></li>
     </ol>
   </nav>
 
   <main id="workspace" class="wrap workspace">
     <aside class="panel controls" id="pick" aria-labelledby="pick-h">
-      <h2 id="pick-h" class="panel__h"><span class="step">1</span>Pick a sample</h2>
+      <h2 id="pick-h" class="panel__h"><span class="step">1</span>Choose what to read</h2>
       <div class="field">
-        <span class="field__label">Task</span>
-        <div class="seg" id="task" role="radiogroup" aria-label="Task"></div>
+        <div class="seg" id="task" role="radiogroup" aria-label="What to read"></div>
         <p id="task-note" class="hint"></p>
       </div>
       <div class="field">
-        <span class="field__label">Writers</span>
-        <div class="seg" id="protocol" role="radiogroup" aria-label="Writers"></div>
+        <span class="field__label">Written by <a class="term" href="#term-new-people">?</a></span>
+        <div class="seg" id="protocol" role="radiogroup" aria-label="Written by"></div>
       </div>
-      <div class="field" id="hand-field">
-        <div class="seg" id="hand" role="radiogroup" aria-label="Handedness"></div>
+      <div class="field">
+        <div class="seg" id="hand" role="radiogroup" aria-label="Hand"></div>
       </div>
       <div id="samples"></div>
+      <details class="dev" id="dev-pick"><summary>For developers</summary><div class="dev__body"></div></details>
     </aside>
 
     <section class="panel" id="signal-card" aria-labelledby="signal-h">
       <div class="panel__top">
-        <h2 id="signal-h" class="panel__h"><span class="step">2</span>Signal and filter</h2>
-        <div class="seg seg--small" id="filters" role="radiogroup" aria-label="Filter"></div>
+        <h2 id="signal-h" class="panel__h"><span class="step">2</span>What the pen felt</h2>
+        <div class="seg seg--small" id="filters" role="radiogroup" aria-label="Clean the signal"></div>
       </div>
+      <p class="hint">Each line is one sensor reading over time. Try cleaning the signal with the
+        buttons above. <a class="term" href="#term-filter">What is a filter?</a></p>
       <div id="signal-note" class="note"></div>
       <div id="signal"></div>
       <details class="raw" id="raw">
-        <summary>Raw sensor values <span class="hint" id="time-readout-short"></span></summary>
+        <summary>Raw sensor numbers <span class="hint" id="time-readout-short"></span></summary>
         <label class="time-control">Time
           <input id="time" type="range" min="0" max="0" value="0" aria-describedby="time-readout">
           <output id="time-readout"></output>
@@ -133,81 +140,297 @@
           <button id="download-csv" type="button" class="linkbtn">Download CSV</button></p>
       </details>
       <div id="filter-result" class="result"></div>
+      <details class="dev" id="dev-signal"><summary>For developers</summary><div class="dev__body"></div></details>
     </section>
 
     <section class="panel" id="answer-card" aria-labelledby="answer-h">
       <div class="panel__top">
-        <h2 id="answer-h" class="panel__h"><span class="step">3</span>The model's answer</h2>
+        <h2 id="answer-h" class="panel__h"><span class="step">3</span>Ask the AI</h2>
       </div>
       <p id="model-intro" class="hint"></p>
-      <div class="seg seg--small" id="models" role="radiogroup" aria-label="Model"></div>
-      <div class="seg seg--small" id="training" role="radiogroup" aria-label="Training data"></div>
-      <div id="class-view" class="answer-grid">
+      <div class="seg seg--small" id="models" role="radiogroup" aria-label="Which model"></div>
+      <div class="seg seg--small" id="training" role="radiogroup" aria-label="What the model learned from"></div>
+      <button id="recognize" type="button" class="v-btn v-btn--lg v-btn--block btn--go">Recognize</button>
+      <p id="run-status" class="run-status" aria-live="polite"></p>
+      <p id="waiting" class="waiting">Press <strong>Recognize</strong> to see what the AI reads.</p>
+      <div id="verdict" aria-live="polite"></div>
+      <div id="why" class="why" hidden></div>
+      <div id="class-view" class="answer-grid" hidden>
         <div>
-          <h3 class="mini">Top five</h3>
+          <h3 class="mini">Its top five guesses</h3>
           <div id="bars"></div>
         </div>
         <div id="members-col">
-          <h3 class="mini">Each of the five models</h3>
+          <h3 class="mini">What each of the 5 runs said</h3>
           <div id="members"></div>
         </div>
       </div>
       <p id="members-read" class="reading"></p>
-      <div id="words-view"></div>
+      <div id="words-view" hidden></div>
       <div id="model-result" class="result"></div>
+      <p id="score" class="score" aria-live="polite"></p>
+      <details class="dev" id="dev-model"><summary>For developers</summary><div class="dev__body"></div></details>
     </section>
   </main>
 
   <section id="how" class="wrap section" aria-labelledby="how-h">
     <h2 id="how-h">How it works</h2>
     <div class="grid4">
-      <article class="card">
-        <h3>What the sensors measure</h3>
-        <p>Two accelerometers, one at the front of the pen and one at the back,
-          measure acceleration along three axes, including gravity: a pen at rest
-          reads about 1 g. The gyroscope measures how fast the pen turns, the
-          magnetometer the Earth's field as the pen's heading changes, and a force
-          sensor how hard the tip presses. All 13 values arrive 100 times a
-          second. None of them says where the tip is.</p>
+      <article class="v-card">
+        <h3>1. The pen feels, it does not see</h3>
+        <p>Sensors in the pen record how it moves, turns and presses, 100 times a
+          second. Nothing records where the ink goes. The AI has to work out the
+          letter from movement alone.</p>
       </article>
-      <article class="card">
-        <h3>Seen and unseen writers</h3>
-        <div id="why-protocol"><p>Unseen writers means no one in the test set wrote any
-          of the training data. That is the test that matters for a pen meant to work
-          for a new writer. Seen writers score higher, because the model has already
-          learned their handwriting.</p></div>
+      <article class="v-card">
+        <h3>2. The AI learned from examples</h3>
+        <p>It was shown about 20,000 letters with the right answer, and
+          learned which movements go with which letter. Then it was tested on
+          people it had never seen, which is the fair test for a new pen owner.</p>
       </article>
-      <article class="card">
-        <h3 id="why-model-title">Why some letters are hard</h3>
-        <div id="why-model"><p>Most mistakes are a letter read as its own other case: 43%
-          of the errors of the 72.5% model. Scored without case, the same model
-          reads 84.3%.</p></div>
+      <article class="v-card">
+        <h3>3. Small or capital is hard</h3>
+        <p>A small o and a capital O are the same movement at a different size, and
+          the pen barely feels size. 43% of the AI's mistakes are exactly this.
+          Ignoring small and capital, it reads 84.3% right.</p>
       </article>
-      <article class="card">
-        <h3>Many models, one answer</h3>
-        <p>Five copies of the same network, trained from different random starts,
-          vote by averaging their probabilities. When they disagree, the writer is
-          unlike anyone in training; when they agree but split between two letters,
-          the signal itself is ambiguous. The ensemble reads 74.46% against 72.18%
-          for the average single model.</p>
+      <article class="v-card">
+        <h3>4. Five heads are better than one</h3>
+        <p>Five copies of the AI were trained separately and vote together. Together
+          they read 74.46% right; one alone reads 72.18% on average. When they
+          disagree, it is a sign the writing is unusual.</p>
       </article>
     </div>
   </section>
 
+  <section id="glossary" class="wrap section" aria-labelledby="gloss-h">
+    <h2 id="gloss-h">Glossary</h2>
+    <p class="hint">Short, plain meanings of the words on this page. More detail in
+      <a href="https://github.com/vahinitech/imu2text/blob/main/docs/glossary.md">docs/glossary.md</a>.</p>
+    <dl class="glossary">
+      <div id="term-imu"><dt>Sensor pen (IMU)</dt><dd>A pen with motion sensors inside. IMU means inertial measurement unit: sensors that feel movement.</dd></div>
+      <div id="term-accelerometer"><dt>Accelerometer</dt><dd>Feels speeding up, slowing down and gravity, in three directions (x, y, z). This pen has two, front and back.</dd></div>
+      <div id="term-gyroscope"><dt>Gyroscope</dt><dd>Feels how fast the pen turns.</dd></div>
+      <div id="term-magnetometer"><dt>Magnetometer</dt><dd>A compass: feels the Earth's magnetic field, which changes as the pen points another way.</dd></div>
+      <div id="term-force"><dt>Force sensor</dt><dd>Feels how hard the tip presses on the paper.</dd></div>
+      <div id="term-recording"><dt>Recording or sample</dt><dd>One letter, symbol or word as a table of sensor numbers over time.</dd></div>
+      <div id="term-filter"><dt>Filter</dt><dd>A way to clean a signal before the AI sees it, for example smoothing out fast wiggles.</dd></div>
+      <div id="term-model"><dt>Model or neural network</dt><dd>The AI: a program that learned from examples which movements mean which letter.</dd></div>
+      <div id="term-cnn"><dt>CNN</dt><dd>The part of the model that spots short movement patterns, like a quick upstroke.</dd></div>
+      <div id="term-bilstm"><dt>BiLSTM</dt><dd>The part that reads the movement in time order, forwards and backwards, to connect the strokes.</dd></div>
+      <div id="term-attention"><dt>Attention</dt><dd>Lets the model weigh the moments of a recording that matter most.</dd></div>
+      <div id="term-training"><dt>Training and testing</dt><dd>Training is learning from examples with answers. Testing is checking on examples the model never saw.</dd></div>
+      <div id="term-new-people"><dt>New people</dt><dd>Test writers who were not in the training data. Also called writer-independent. The fair test for a new pen owner.</dd></div>
+      <div id="term-familiar-people"><dt>Familiar people</dt><dd>The same people appear in training and test, so the model already knows their handwriting. Also called writer-dependent. Scores are higher.</dd></div>
+      <div id="term-cnn-bilstm"><dt>CNN-BiLSTM</dt><dd>The AI design used on this page. For letters and symbols: a CNN, then a BiLSTM, then attention. The word reader is a CNN and a BiLSTM.</dd></div>
+      <div id="term-gru"><dt>GRU</dt><dd>A simpler LSTM. It remembers what came before with fewer parts, so it is smaller and faster.</dd></div>
+      <div id="term-transformer"><dt>Transformer</dt><dd>A model where every moment of a recording looks at every other moment. It needs a lot of data.</dd></div>
+      <div id="term-autoencoder"><dt>Autoencoder</dt><dd>A model that learns to squeeze a recording and rebuild it. It learns without answers.</dd></div>
+      <div id="term-vae"><dt>VAE</dt><dd>Variational autoencoder: an autoencoder that can also make new, realistic recordings.</dd></div>
+      <div id="term-gnn"><dt>GNN</dt><dd>Graph neural network: treats things, here the 13 sensors, as points connected to each other.</dd></div>
+      <div id="term-moe"><dt>Mixture of experts</dt><dd>A team of small models. A router picks which of them answers each recording.</dd></div>
+      <div id="term-quantum"><dt>Hybrid quantum network</dt><dd>A network where a small quantum circuit, today usually simulated on a normal computer, does one step.</dd></div>
+      <div id="term-calibration"><dt>Calibration</dt><dd>Whether "80% sure" really means right 80% of the time. The calibration gap is how far off it is on average (ECE).</dd></div>
+      <div id="term-entropy"><dt>Entropy (bits)</dt><dd>How spread out the AI's scores are. 0 bits: all on one letter. Higher: it hesitates between several.</dd></div>
+      <div id="term-disagreement"><dt>Disagreement (mutual information)</dt><dd>The part of the doubt that comes from the 5 runs giving different answers.</dd></div>
+      <div id="term-confusion"><dt>Confusion matrix</dt><dd>A grid of which letter was written (rows) and what the AI read (columns). Off the diagonal are mistakes.</dd></div>
+      <div id="term-epoch"><dt>Epoch or training round</dt><dd>One pass over all training letters. Training here runs 30.</dd></div>
+      <div id="term-validation"><dt>Validation letters</dt><dd>Letters from training writers held back to check progress while training. The test people stay unseen.</dd></div>
+      <div id="term-seed"><dt>Seed</dt><dd>The random starting point of training. The same design trained from 5 seeds gives CNN-BiLSTM #1 to #5.</dd></div>
+      <div id="term-ensemble"><dt>Ensemble ("all 5 together")</dt><dd>Several models answer, and their scores are averaged into one answer.</dd></div>
+      <div id="term-confidence"><dt>Confidence</dt><dd>How much of its score the model gives to an answer. 90% means it is quite sure.</dd></div>
+      <div id="term-accuracy"><dt>Accuracy</dt><dd>The share of test samples read correctly.</dd></div>
+      <div id="term-uncertainty"><dt>Uncertainty</dt><dd>Two kinds. If the 5 models disagree, the writing is unlike what they learned from. If all hesitate between the same two answers, the movement itself fits both.</dd></div>
+      <div id="term-augmentation"><dt>Augmentation</dt><dd>Making extra training examples by slightly stretching or shaking real ones.</dd></div>
+      <div id="term-ctc"><dt>CTC</dt><dd>A training method that lets a model spell out a word without being told where each letter starts.</dd></div>
+      <div id="term-word-list"><dt>Word list (lexicon)</dt><dd>A list of allowed words. The model picks the closest one, or gives no answer if none fits.</dd></div>
+      <div id="term-cer"><dt>Character error rate (CER)</dt><dd>How many letters are wrong, as a share of the word's length. Lower is better.</dd></div>
+    </dl>
+  </section>
+
+  <section id="designs" class="wrap section" aria-labelledby="designs-h">
+    <h2 id="designs-h">Why a CNN-BiLSTM? The other AI designs</h2>
+    <p class="hint">A pen recording is a short time series: 13 numbers, 100 times a
+      second. Each design below reads it differently. Scores are letters from people
+      the model never saw, unless the row says otherwise; "not measured" means nobody
+      has run it on this data in this project yet.</p>
+    <div class="table-wrap">
+      <table class="results designs">
+        <thead><tr><th scope="col">Design</th><th scope="col">How it reads the pen</th><th scope="col">Good when</th><th scope="col">Here</th></tr></thead>
+        <tbody>
+          <tr><td><a class="term" href="#term-cnn">CNN</a></td><td>Slides small windows along the signal and spots short patterns, like a quick upstroke.</td><td>You need speed or a small chip.</td><td>48.7%*</td></tr>
+          <tr><td>LSTM, <a class="term" href="#term-bilstm">BiLSTM</a></td><td>Reads the signal in time order and remembers what came before. A BiLSTM also reads it backwards.</td><td>Order matters more than shape.</td><td>43.8%*, 56.2%*</td></tr>
+          <tr class="designs__ours"><td><strong>CNN-BiLSTM</strong> (this page)</td><td>The CNN finds the strokes, the BiLSTM joins them in order, attention picks the moments that matter.</td><td>Little data, short signals. The design Ott et al. benchmark on OnHW.</td><td>64.8%*; 72.46% on the official test, 74.46% as a 5-run vote</td></tr>
+          <tr><td>CNN-GRU</td><td>A GRU is an LSTM with fewer parts. It learns the same kind of order.</td><td>You want a smaller, faster model.</td><td>not measured</td></tr>
+          <tr><td>CNN-MLP</td><td>After the CNN, a plain layer looks at everything at once and forgets the order.</td><td>Very short, simple shapes.</td><td>not measured</td></tr>
+          <tr><td>CNN-GNN</td><td>Treats the 13 sensors as connected points and learns how they relate.</td><td>Sensors that move together carry the signal.</td><td>no fair test yet</td></tr>
+          <tr><td><a class="term" href="#term-transformer">Transformer</a></td><td>Every moment looks at every other moment through attention; no reading order.</td><td>Much more data than OnHW has.</td><td>built, not measured</td></tr>
+          <tr><td><a class="term" href="#term-autoencoder">Autoencoder</a></td><td>Learns to squeeze a recording and rebuild it, without any labels.</td><td>You have many recordings but few with answers.</td><td>not measured</td></tr>
+          <tr><td><a class="term" href="#term-vae">VAE</a> or GAN</td><td>Learns to make new, realistic recordings.</td><td>A group is rare in the data, like left-handed people.</td><td>not measured</td></tr>
+          <tr><td><a class="term" href="#term-moe">Mixture of experts</a></td><td>Several small models, the experts, plus a router that sends each recording to the experts that suit it.</td><td>Writers differ a lot, for example left- and right-handed.</td><td>built (<code>build_moe</code>), not measured</td></tr>
+          <tr><td><a class="term" href="#term-quantum">Hybrid quantum</a></td><td>A small quantum circuit does part of the work, for example the filter of a CNN, and a normal network does the rest.</td><td>Research only so far. <a href="https://arxiv.org/abs/2402.10540">Zaman et al. (2024)</a> compared three such designs on 4 handwritten digits, 100 to 500 training images, on a quantum simulator.</td><td>not measured</td></tr>
+          <tr><td>DBN</td><td>An older stack of layers trained one at a time, from before CNNs and LSTMs took over.</td><td>Mostly of historical interest.</td><td>not measured</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="hint">* Left-handed OnHW-chars_L, 2,270 letters, a split that shares writers
+      between training and test, so these four are only comparable with each other. The
+      official-test figures are right-handed OnHW-chars, 52 classes, seed 0. Details in
+      <a href="https://github.com/vahinitech/imu2text/blob/main/docs/benchmarks.md">docs/benchmarks.md</a>.</p>
+    <div class="grid3">
+      <article class="v-card">
+        <h3>Bigger is not better here</h3>
+        <p>A larger BiLSTM (2 layers of 100) scored 99.2% on its own training letters
+          and 70.4% on new people. It memorised. The smaller one with the same tricks
+          did better on new people.</p>
+      </article>
+      <article class="v-card">
+        <h3>Combine, then vote</h3>
+        <p>Training the same design 5 times and averaging lifts letters from new people
+          from 72.18% (one run, on average) to 74.46%. A vote of different designs,
+          say a CNN-BiLSTM and a Transformer, has not been tried.</p>
+      </article>
+      <article class="v-card">
+        <h3>Worth trying</h3>
+        <p>A CNN in front of a Transformer, as speech models do. An autoencoder trained on
+          unlabelled recordings first, then taught letters. A router that sends each
+          recording to one of several small experts (<code>build_moe</code> is in the code,
+          not measured).</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="algos" class="wrap section" aria-labelledby="algos-h">
+    <h2 id="algos-h">Compare the algorithms</h2>
+    <p class="hint">Hover or tap a bar for its source. Every score is letters read right on the same test.</p>
+    <div class="uq-grid">
+      <article class="v-card uq-card uq-wide">
+        <h3>Which algorithm reads best?</h3>
+        <div class="seg seg--small" id="algo-tests" role="radiogroup" aria-label="Which official test"></div>
+        <div id="algo-official" class="uq-chart"></div>
+        <p id="algo-official-note" class="uq-note"></p>
+      </article>
+      <article class="v-card uq-card">
+        <h3>Four designs, one small set</h3>
+        <div id="algo-left" class="uq-chart"></div>
+        <p class="uq-note">The left-handed OnHW-chars_L set, 2,270 letters, with writers shared
+          between training and test. Only good for comparing these four with each other.</p>
+      </article>
+      <article class="v-card uq-card" id="algo-runs-empty">
+        <h3>Training curves for every algorithm</h3>
+        <p class="uq-note">Curves, calibration and mix-ups per algorithm appear here once each
+          design is trained on the same test. That is an open task: it takes hours on a CPU.</p>
+        <div class="v-code"><pre><code>bash scripts/run_algorithms.sh data/onhw-chars_2021-06-30</code></pre></div>
+      </article>
+    </div>
+    <div id="algo-runs" hidden>
+      <div class="seg seg--small" id="algo-pick" role="radiogroup" aria-label="Which algorithm"></div>
+      <div class="table-wrap"><table id="algo-table" class="results"></table></div>
+      <div class="uq-grid">
+        <article class="v-card uq-card"><h3>Did it learn or memorise?</h3><div id="algo-curves" class="uq-chart"></div><p id="algo-curves-note" class="uq-note"></p></article>
+        <article class="v-card uq-card"><h3>Does its "sure" mean right?</h3><div id="algo-cal" class="uq-chart"></div></article>
+        <article class="v-card uq-card uq-wide"><h3>What it mixes up</h3><div id="algo-conf" class="uq-chart"></div><p id="algo-conf-note" class="uq-note"></p></article>
+      </div>
+    </div>
+  </section>
+
+  <section id="uq" class="wrap section" aria-labelledby="uq-h">
+    <h2 id="uq-h">How sure is the AI?</h2>
+    <p class="hint">The CNN-BiLSTM ×5 vote on all 7,956 test letters from new people.
+      Hover or tap a point to read it. Method and papers:
+      <a href="https://github.com/vahinitech/imu2text/blob/main/docs/uncertainty.md">docs/uncertainty.md</a>.</p>
+    <div class="uq-grid">
+      <article class="v-card uq-card"><h3>Does "80% sure" mean 80% right?</h3><div id="uq-cal" class="uq-chart"></div><p id="uq-cal-note" class="uq-note"></p></article>
+      <article class="v-card uq-card"><h3>Let it say "not sure"</h3><div id="uq-cov" class="uq-chart"></div><p id="uq-cov-note" class="uq-note"></p></article>
+      <article class="v-card uq-card uq-wide"><h3>Which letters is it least sure about?</h3><div id="uq-letters" class="uq-chart"></div><p id="uq-letters-note" class="uq-note"></p></article>
+      <article class="v-card uq-card"><h3>What gets mixed up with what?</h3><div id="uq-conf" class="uq-chart"></div><p id="uq-conf-note" class="uq-note"></p></article>
+      <article class="v-card uq-card" id="uq-hands-card"><h3>Left-handed writing puzzles the runs</h3><div id="uq-hands" class="uq-chart"></div><p id="uq-hands-note" class="uq-note"></p></article>
+    </div>
+  </section>
+
+  <section id="why-not-more" class="wrap section" aria-labelledby="whynot-h">
+    <h2 id="whynot-h">Why is it not 99%?</h2>
+    <div class="grid3">
+      <article class="v-card">
+        <h3>The pen cannot feel size</h3>
+        <p>A small c and a capital C are the same movement, bigger. The pen measures
+          speed and turning, not position, and capitals are also written faster, so
+          the signals nearly match. 43.1% of the mistakes are this mix-up; ignoring
+          small and capital, one CNN-BiLSTM reads 84.34% of letters from new people
+          right instead of 72.46%.</p>
+      </article>
+      <article class="v-card">
+        <h3>New people write differently</h3>
+        <p>Everyone has their own habits. For numbers and symbols, the same design
+          reads <span data-bind="tasks.symbols_dep.accuracy" data-fmt="pct">94.71%</span>
+          when it has seen the writer before and
+          <span data-bind="tasks.symbols_indep.accuracy" data-fmt="pct">71.03%</span>
+          for new people.</p>
+      </article>
+      <article class="v-card">
+        <h3>Few left-handed examples</h3>
+        <p>Most training letters come from right-handed people. For new left-handed
+          people the 5-run vote reads
+          <span data-bind="left_summary.ensemble_accuracy" data-fmt="pct">59.47%</span>,
+          against <span data-bind="groups.right.ensemble_accuracy" data-fmt="pct">74.46%</span>
+          for right-handed people.</p>
+      </article>
+      <article class="v-card">
+        <h3>Words run together</h3>
+        <p>In a word the model also has to find where each letter starts and ends.
+          The word model here trained for only 15 rounds and reads
+          <span data-bind="words.exact_lexicon" data-fmt="pct">32.73%</span> of words
+          exactly.</p>
+      </article>
+      <article class="v-card">
+        <h3>Be careful with 99%</h3>
+        <p>A model tested on the same people it learned from can score near 99% and
+          still fail on a new writer. Every score on this page is on people the model
+          never saw, unless it says "familiar people".</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="ideas" class="wrap section" aria-labelledby="ideas-h">
+    <h2 id="ideas-h">Questions to think about</h2>
+    <p class="hint">These are open in this repo. Pick one, try it, and
+      <a href="https://github.com/vahinitech/imu2text/issues/new">share what you find</a>.</p>
+    <ol class="ideas">
+      <li><strong>The pen cannot feel size. What else could tell c from C?</strong>
+        A capital often starts a word. Would reading the whole word help?
+        <span class="hint">Start: <code>imu2text/seq2seq.py</code></span></li>
+      <li><strong>Left-handed people often push the pen where right-handed people pull it.</strong>
+        Could flipped right-handed recordings work as left-handed practice data?
+        <span class="hint">Start: <code>imu2text/augment.py</code></span></li>
+      <li><strong>When the 5 runs disagree, should an app ask the writer to write again?</strong>
+        How much disagreement is too much?
+        <span class="hint">Start: the developer notes under step 3</span></li>
+      <li><strong>Which sensor matters most?</strong> Train without the magnetometer, or
+        without the force sensor, and compare.
+        <span class="hint">Start: <code>imu2text/models.py</code></span></li>
+      <li><strong>How many writers are enough?</strong> Does accuracy keep rising with
+        every new person, or does it level off?
+        <span class="hint">Start: <code>scripts/make_learning_curve.py</code></span></li>
+      <li><strong>Which cleaning filter would you design?</strong> Try it on step 2
+        and see if the AI reads better.
+        <span class="hint">Start: <code>playground/stages.js</code></span></li>
+    </ol>
+  </section>
+
   <section id="results" class="wrap section" aria-labelledby="results-h">
     <h2 id="results-h">Results behind the page</h2>
-    <p class="hint">Official OnHW splits, fold 0. Every number is in
+    <p class="hint">Every number is in
       <a href="https://github.com/vahinitech/imu2text/blob/main/docs/benchmarks.md">docs/benchmarks.md</a>
-      with its conditions.</p>
+      with how it was measured.</p>
     <div class="table-wrap">
       <table class="results">
-        <thead><tr><th scope="col">Task</th><th scope="col">Writers</th><th scope="col">Model</th><th scope="col">Result</th></tr></thead>
+        <thead><tr><th scope="col">What</th><th scope="col">Written by</th><th scope="col">AI</th><th scope="col">Read right</th></tr></thead>
         <tbody>
-          <tr><td>Characters, 52 classes</td><td>unseen</td><td>5-model ensemble</td><td data-bind="groups.right.ensemble_accuracy" data-fmt="pct">74.46%</td></tr>
-          <tr><td>Characters, 52 classes</td><td>unseen, left-handed</td><td>5-model ensemble, trained with left-handed writers</td><td data-bind="left_summary.ensemble_accuracy" data-fmt="pct">59.47%</td></tr>
-          <tr><td>Symbols, 15 classes</td><td>unseen</td><td>one model</td><td data-bind="tasks.symbols_indep.accuracy" data-fmt="pct">71.03%</td></tr>
-          <tr><td>Symbols, 15 classes</td><td>seen</td><td>one model</td><td data-bind="tasks.symbols_dep.accuracy" data-fmt="pct">94.71%</td></tr>
-          <tr><td>Words (OnHW-Words500)</td><td>unseen</td><td>CTC, word-list decoding</td><td><span data-bind="words.exact_lexicon" data-fmt="pct">32.73%</span> words exact</td></tr>
+          <tr><td>Letters (52: small and capital)</td><td>new people</td><td>5 models together</td><td data-bind="groups.right.ensemble_accuracy" data-fmt="pct">74.46%</td></tr>
+          <tr><td>Letters</td><td>new left-handed people</td><td>5 models, also learned from left-handed people</td><td data-bind="left_summary.ensemble_accuracy" data-fmt="pct">59.47%</td></tr>
+          <tr><td>Numbers and symbols (15)</td><td>new people</td><td>one model</td><td data-bind="tasks.symbols_indep.accuracy" data-fmt="pct">71.03%</td></tr>
+          <tr><td>Numbers and symbols (15)</td><td>familiar people</td><td>one model</td><td data-bind="tasks.symbols_dep.accuracy" data-fmt="pct">94.71%</td></tr>
+          <tr><td>Words</td><td>new people</td><td>word reader with a word list</td><td><span data-bind="words.exact_lexicon" data-fmt="pct">32.73%</span> of words exactly</td></tr>
         </tbody>
       </table>
     </div>
@@ -219,25 +442,27 @@
     <div id="open" class="grid3"></div>
   </section>
 
-  <footer class="footer">
+  <footer class="v-footer footer">
     <div class="wrap">
       <p><strong>Data.</strong> The OnHW datasets are by Fraunhofer IIS and are for
         non-commercial use. They are not covered by the code's Apache-2.0 license
         and are not redistributed here: this page shows model outputs and a
-        synthetic signal. Cite: Ott, Wehbi, Hamann, Barth, Eskofier and Mutschler,
+        practice signal. Cite: Ott, Wehbi, Hamann, Barth, Eskofier and Mutschler,
         "The OnHW Dataset: Online Handwriting Recognition from IMU-Enhanced
         Ballpoint Pens with Machine Learning", Proc. ACM IMWUT 4(3), 2020.</p>
       <p>Code: <a href="https://github.com/vahinitech/imu2text">vahinitech/imu2text</a>,
-        Apache-2.0. A <a href="https://vahinitech.com/">Vahini</a> project.</p>
+        Apache-2.0. The Vahini name and logo are Vahini Technologies' and are not
+        covered by that license. A <a href="https://vahinitech.com/">Vahini</a> project.</p>
     </div>
   </footer>
 
   <noscript><p class="wrap note">The interactive parts of this page need JavaScript.
-    The explanations and results above work without it.</p></noscript>
+    The explanations, glossary and results work without it.</p></noscript>
 
   <script src="stages.js"></script>
   <script src="data/public.js"></script>
   <script src="data/local.js"></script>
   <script src="app.js"></script>
+  <script src="charts.js"></script>
 </body>
 </html>

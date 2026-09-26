@@ -58,6 +58,7 @@ Usage
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import pickle
 import time
@@ -771,7 +772,7 @@ def train_eval(
             )
         )
     t0 = time.time()
-    model.fit(
+    fitted = model.fit(
         X[tr],
         Y[tr],
         validation_data=(X[va], Y[va]),
@@ -797,6 +798,9 @@ def train_eval(
         "test_proba": test_proba,
         "test_pred": np.argmax(test_proba, 1),
         "test_true": np.argmax(Y[te], 1),
+        # Per-epoch loss and accuracy (training and validation), so a saved
+        # run can draw its training curves without retraining.
+        "history": {k: [float(v) for v in vals] for k, vals in fitted.history.items()},
     }
     print(
         f"  [{name}] done: test={result['test_acc']:.2f}% "
@@ -1285,6 +1289,9 @@ def main() -> None:
             model=best["model"],
             test_acc=best["test_acc"],
             val_acc=best["val_acc"],
+            train_acc=best["train_acc"],
+            params=best["params"],
+            history=json.dumps(best["history"]),
             seed=args.seed,
             split_seed=split_seed,
             split=label,

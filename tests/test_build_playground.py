@@ -142,3 +142,65 @@ def test_task_records_summarise_a_single_model_run(tmp_path):
         ("unsure", "1"),
         ("wrong", "2"),
     }
+
+
+def test_uncertainty_charts_split_doubt_into_its_two_kinds():
+    """Case-split samples are ambiguous; the disagree block is disagreement."""
+    right = _members()
+    both = _members()
+    for m in both:
+        m["handedness"] = np.r_[np.ones(120, int), np.zeros(280, int)]
+    charts = B.uncertainty_charts({"right": right, "with_left": both})
+    assert charts["n"] == 400
+    assert sum(sum(row) for row in charts["confusion"]) == 400
+    assert len(charts["letters"]) == 52
+    cov = dict(charts["coverage"]["vote"])
+    assert cov[100] <= cov[50] <= cov[10]
+    # The first 120 samples (all doubt) are "left-handed" here, so their
+    # disagreement must be higher than the confident right-handed rest.
+    hands = charts["hands"]
+    assert hands["left"]["quartiles"][2] > hands["right"]["quartiles"][2]
+    assert abs(sum(hands["right"]["share"]) - 1) < 1e-3
+
+
+def test_algorithm_records_read_a_saved_run(tmp_path):
+    """A run from scripts/run_algorithms.sh becomes one chart record."""
+    m = _members(seeds=1)[0]
+    history = {
+        "accuracy": [0.5, 0.8],
+        "val_accuracy": [0.4, 0.7],
+        "loss": [2, 1],
+        "val_loss": [2.2, 1.3],
+    }
+    np.savez(
+        tmp_path / "cnn.npz",
+        true=m["true"],
+        pred=m["proba"].argmax(1),
+        proba=m["proba"].astype(np.float32),
+        classes=CLASSES,
+        model="cnn",
+        test_acc=70.0,
+        val_acc=72.0,
+        train_acc=90.0,
+        params=1234,
+        seed=0,
+        split_seed=0,
+        split="official both/indep/fold0",
+        history=json.dumps(history),
+    )
+    (rec,) = B.algorithm_records(str(tmp_path / "*.npz"))
+    assert rec["name"] == "cnn" and rec["params"] == 1234 and rec["train"] == 90.0
+    assert rec["history"]["val_accuracy"] == [0.4, 0.7]
+    assert 0 <= rec["case_share"] <= 100
+
+
+def test_comparison_records_hold_the_published_table():
+    rows = B.comparison_records()["official"]
+    published = [r for r in rows if not r["ours"]]
+    assert {r["name"] for r in published} >= {
+        "CNN+BiLSTM",
+        "InceptionTime",
+        "ResNet",
+        "LSTM-FCN",
+    }
+    assert all(len(r["cells"]) == 6 for r in rows)

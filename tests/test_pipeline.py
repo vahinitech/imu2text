@@ -738,3 +738,17 @@ def test_writer_split_refuses_to_guess_writers(monkeypatch, tmp_path):
         pickle.dump(list("ABAB"), f)
     msg = _run_cli(monkeypatch, ["--imu-file", str(imu), "--gt-file", str(gt)])
     assert "--writers-file" in msg
+
+
+def test_train_eval_returns_the_training_history():
+    """The per-epoch curves saved with --save-predictions come from here."""
+    from imu2text.models import train_eval
+
+    rng = np.random.default_rng(0)
+    x = rng.normal(size=(24, 20, 13)).astype("float32")
+    y = np.eye(3)[np.arange(24) % 3]
+    split = (np.arange(0, 12), np.arange(12, 18), np.arange(18, 24))
+    result = train_eval("cnn", x, y, split, epochs=2, batch=8)
+    history = result["history"]
+    assert {"loss", "accuracy", "val_loss", "val_accuracy"} <= set(history)
+    assert all(len(v) == 2 for v in history.values())
