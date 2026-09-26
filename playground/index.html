@@ -8,7 +8,11 @@
   <link rel="canonical" href="https://playground.vahinitech.com/">
   <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#222831">
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <!-- The Vahini favicon, served by every Vahini host (README.md) -->
+  <link rel="icon" href="/site/assets/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/site/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/site/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" href="/site/assets/apple-touch-icon.png">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Vahini">
@@ -69,108 +73,108 @@
     </div>
   </header>
 
-  <section class="hero">
-    <div class="wrap hero__in">
-      <div>
-        <h1>See how AI reads handwriting from a pen</h1>
-        <p class="hero__lead">This pen has motion sensors instead of a camera. Pick
-          a letter someone wrote, look at what the sensors recorded, and press
-          <strong>Recognize</strong> to see what the AI reads. Every answer comes
-          from a real test on people the AI never learned from.</p>
-        <div class="hero__cta">
-          <a class="v-btn" href="#workspace">Start playing</a>
-          <a class="v-btn v-btn--on-dark" href="#glossary">What do the words mean?</a>
-        </div>
-      </div>
-      <dl class="stats" aria-label="Key numbers">
-        <div><dt>5 models together</dt><dd data-bind="groups.right.ensemble_accuracy" data-fmt="pct">74.46%</dd><span>letters read right, from new people</span></div>
-        <div><dt>One model</dt><dd>72.5%</dd><span>the published CNN+BiLSTM: 68.06%</span></div>
-        <div><dt>Sensors</dt><dd>13</dd><span>readings, 100 times a second</span></div>
-        <div><dt>Things to read</dt><dd>4</dd><span>letters, symbols, maths, words</span></div>
-      </dl>
+  <main id="workspace" class="wrap stage-wrap">
+    <div class="stage-head">
+      <h1>How does a pen read handwriting?</h1>
+      <p class="hint">Draw a letter or pick a real one: see what the pen feels, what the AI does and what it
+        answers. Every answer is a real result on people the AI never learned from.</p>
     </div>
-  </section>
 
-  <nav class="pipeline wrap" aria-label="What happens, step by step">
-    <ol>
-      <li><a href="#pick"><span class="pipeline__k">1 · Choose</span><span id="pipe-task">Letters</span></a></li>
-      <li><a href="#pick"><span class="pipeline__k">2 · Sample</span><span id="pipe-sample">L</span></a></li>
-      <li><a href="#signal-card"><span class="pipeline__k">3 · Clean</span><span id="pipe-filter">Raw signal</span></a></li>
-      <li><a href="#answer-card"><span class="pipeline__k">4 · AI model</span><span id="pipe-model">All 5 together</span></a></li>
-      <li><a href="#answer-card"><span class="pipeline__k">5 · Answer</span><span id="pipe-answer">press Recognize</span></a></li>
-    </ol>
-  </nav>
+    <div class="choices" id="pick">
+      <div class="choice"><span class="choice__label">Read</span><div class="seg seg--small" id="task" role="radiogroup" aria-label="What to read"></div></div>
+      <div class="choice"><span class="choice__label">Writer <a class="term" href="#term-new-people">?</a></span><div class="seg seg--small" id="protocol" role="radiogroup" aria-label="Written by"></div></div>
+      <div class="choice"><span class="choice__label">Hand</span><div class="seg seg--small" id="hand" role="radiogroup" aria-label="Hand"></div></div>
+      <p id="task-note" class="hint choices__note"></p>
+    </div>
 
-  <main id="workspace" class="wrap workspace">
-    <aside class="panel controls" id="pick" aria-labelledby="pick-h">
-      <h2 id="pick-h" class="panel__h"><span class="step">1</span>Choose what to read</h2>
-      <div class="field">
-        <div class="seg" id="task" role="radiogroup" aria-label="What to read"></div>
-        <p id="task-note" class="hint"></p>
-      </div>
-      <div class="field">
-        <span class="field__label">Written by <a class="term" href="#term-new-people">?</a></span>
-        <div class="seg" id="protocol" role="radiogroup" aria-label="Written by"></div>
-      </div>
-      <div class="field">
-        <div class="seg" id="hand" role="radiogroup" aria-label="Hand"></div>
-      </div>
-      <div id="samples"></div>
-      <details class="dev" id="dev-pick"><summary>For developers</summary><div class="dev__body"></div></details>
-    </aside>
+    <nav class="stage-tabs" aria-label="Steps">
+      <a href="#pen-card">1 Pen</a><a href="#signal-card">2 AI</a><a href="#answer-card">3 Answer</a>
+    </nav>
 
-    <section class="panel" id="signal-card" aria-labelledby="signal-h">
-      <div class="panel__top">
-        <h2 id="signal-h" class="panel__h"><span class="step">2</span>What the pen felt</h2>
-        <div class="seg seg--small" id="filters" role="radiogroup" aria-label="Clean the signal"></div>
-      </div>
-      <p class="hint">Each line is one sensor reading over time. Try cleaning the signal with the
-        buttons above. <a class="term" href="#term-filter">What is a filter?</a></p>
-      <div id="signal-note" class="note"></div>
-      <div id="signal"></div>
-      <details class="raw" id="raw">
-        <summary>Raw sensor numbers <span class="hint" id="time-readout-short"></span></summary>
-        <label class="time-control">Time
-          <input id="time" type="range" min="0" max="0" value="0" aria-describedby="time-readout">
-          <output id="time-readout"></output>
-        </label>
-        <div class="table-wrap"><table id="raw-table"></table></div>
-        <p class="hint">Raw sensor counts; g and °/s use the conversions in
-          <code>imu2text/filters.py</code> (the gyroscope one is inferred).
-          <button id="download-csv" type="button" class="linkbtn">Download CSV</button></p>
-      </details>
-      <div id="filter-result" class="result"></div>
-      <details class="dev" id="dev-signal"><summary>For developers</summary><div class="dev__body"></div></details>
-    </section>
+    <div class="stage">
+      <section class="v-card stage-card" id="pen-card" data-steps="1" aria-labelledby="pen-h">
+        <h2 id="pen-h" class="stage-card__h"><span class="step">1</span>How the pen works <span class="stage-tag">simulation</span></h2>
+        <p class="hint">Draw a character. The pen feels movement, not ink.</p>
+        <section id="write" class="stage-pen" aria-label="Draw a character">
+          <div class="book__pad">
+            <canvas id="w-draw" aria-label="Drawing area"></canvas>
+            <div class="book__hint" id="w-hint"><span>draw O, S, Z, 7…</span></div>
+            <svg class="book__pen" id="w-pen" viewBox="0 0 34 150" aria-hidden="true">
+              <path class="pen__body" d="M12 4 q10 0 10 14 v78 l-8 40 -2 0 -8 -40 V18 q0 -14 8 -14z"/>
+              <rect class="pen__shine" x="9" y="20" width="4" height="72" rx="2"/>
+              <circle class="pen__led" cx="15" cy="34" r="2.6"/>
+              <path class="pen__tip" d="M4 136 l8 -22 8 22 -6 8 -4 0z"/>
+            </svg>
+          </div>
+          <div class="book__bus" id="w-bus"></div>
+          <p class="w-shape" id="w-shape" aria-live="polite"></p>
+          <button class="v-btn v-btn--ghost v-btn--sm" id="w-clear" type="button">Clear</button>
+        </section>
+        <div class="stage-samples">
+          <span class="choice__label">Or pick a real recording</span>
+          <div id="samples"></div>
+        </div>
+      </section>
 
-    <section class="panel" id="answer-card" aria-labelledby="answer-h">
-      <div class="panel__top">
-        <h2 id="answer-h" class="panel__h"><span class="step">3</span>Ask the AI</h2>
-      </div>
-      <p id="model-intro" class="hint"></p>
-      <div class="seg seg--small" id="models" role="radiogroup" aria-label="Which model"></div>
-      <div class="seg seg--small" id="training" role="radiogroup" aria-label="What the model learned from"></div>
-      <button id="recognize" type="button" class="v-btn v-btn--lg v-btn--block btn--go">Recognize</button>
-      <p id="run-status" class="run-status" aria-live="polite"></p>
-      <p id="waiting" class="waiting">Press <strong>Recognize</strong> to see what the AI reads.</p>
-      <div id="verdict" aria-live="polite"></div>
-      <div id="why" class="why" hidden></div>
-      <div id="class-view" class="answer-grid" hidden>
+      <section class="v-card stage-card" id="signal-card" data-steps="2 3" aria-labelledby="signal-h">
+        <h2 id="signal-h" class="stage-card__h"><span class="step">2</span>How the AI works <span class="stage-tag" id="signal-tag">practice signal</span></h2>
+        <p id="model-intro" class="hint"></p>
+        <div class="signal-mini" id="signal-mini" role="img" aria-label="The pen signal, front accelerometer"></div>
+        <p id="signal-note" class="hint signal-mini__note"></p>
+        <ol class="flow">
+          <li class="flow__box"><b>Clean</b><div class="seg seg--small" id="filters" role="radiogroup" aria-label="Clean the signal"></div></li>
+          <li class="flow__box"><b>CNN</b><span>spots short strokes</span></li>
+          <li class="flow__box"><b>BiLSTM</b><span>reads them in order</span></li>
+        </ol>
+        <div class="choice"><span class="choice__label">CNN-BiLSTM run</span><div class="seg seg--small" id="models" role="radiogroup" aria-label="Which model"></div></div>
+        <div class="choice"><span class="choice__label">Learned from</span><div class="seg seg--small" id="training" role="radiogroup" aria-label="What the model learned from"></div></div>
+        <button id="recognize" type="button" class="v-btn v-btn--lg v-btn--block btn--go">Recognize</button>
+        <p id="run-status" class="run-status" aria-live="polite"></p>
+      </section>
+
+      <section class="v-card stage-card" id="answer-card" data-steps="4" aria-labelledby="answer-h">
+        <h2 id="answer-h" class="stage-card__h"><span class="step">3</span>What it answers</h2>
+        <p id="waiting" class="waiting">Draw a character or press <strong>Recognize</strong>.</p>
+        <div id="verdict" aria-live="polite"></div>
+        <div id="class-view" hidden><div id="bars"></div></div>
+        <div id="why" class="why" hidden></div>
+        <div id="words-view" hidden></div>
+        <div id="model-result" class="result"></div>
+        <p id="score" class="score" aria-live="polite"></p>
+      </section>
+    </div>
+
+    <details class="stage-more" id="more">
+      <summary>Everything about this recording: all sensors, raw numbers, the 5 runs, the code</summary>
+      <div class="stage-more__grid">
         <div>
-          <h3 class="mini">Its top five guesses</h3>
-          <div id="bars"></div>
+          <h3 class="mini">What the pen felt</h3>
+          <div id="signal"></div>
+          <details class="raw" id="raw">
+            <summary>Raw sensor numbers <span class="hint" id="time-readout-short"></span></summary>
+            <label class="time-control">Time
+              <input id="time" type="range" min="0" max="0" value="0" aria-describedby="time-readout">
+              <output id="time-readout"></output>
+            </label>
+            <div class="table-wrap"><table id="raw-table"></table></div>
+            <p class="hint">Raw sensor counts; g and °/s use the conversions in
+              <code>imu2text/filters.py</code> (the gyroscope one is inferred).
+              <button id="download-csv" type="button" class="linkbtn">Download CSV</button></p>
+          </details>
+          <div id="filter-result" class="result"></div>
         </div>
-        <div id="members-col">
-          <h3 class="mini">What each of the 5 runs said</h3>
-          <div id="members"></div>
+        <div>
+          <div id="members-col">
+            <h3 class="mini">What each of the 5 runs said</h3>
+            <div id="members"></div>
+          </div>
+          <p id="members-read" class="reading"></p>
+          <details class="dev" id="dev-pick"><summary>For developers: choosing a recording</summary><div class="dev__body"></div></details>
+          <details class="dev" id="dev-signal"><summary>For developers: the signal</summary><div class="dev__body"></div></details>
+          <details class="dev" id="dev-model"><summary>For developers: the model</summary><div class="dev__body"></div></details>
         </div>
       </div>
-      <p id="members-read" class="reading"></p>
-      <div id="words-view" hidden></div>
-      <div id="model-result" class="result"></div>
-      <p id="score" class="score" aria-live="polite"></p>
-      <details class="dev" id="dev-model"><summary>For developers</summary><div class="dev__body"></div></details>
-    </section>
+    </details>
   </main>
 
   <section id="how" class="wrap section" aria-labelledby="how-h">
@@ -205,47 +209,63 @@
 
   <section id="glossary" class="wrap section" aria-labelledby="gloss-h">
     <h2 id="gloss-h">Glossary</h2>
-    <p class="hint">Short, plain meanings of the words on this page. More detail in
+    <p class="hint">Short, plain meanings of the words on this page, in five groups. The
+      coloured row in each group is the word to know first. More detail in
       <a href="https://github.com/vahinitech/imu2text/blob/main/docs/glossary.md">docs/glossary.md</a>.</p>
-    <dl class="glossary">
-      <div id="term-imu"><dt>Sensor pen (IMU)</dt><dd>A pen with motion sensors inside. IMU means inertial measurement unit: sensors that feel movement.</dd></div>
-      <div id="term-accelerometer"><dt>Accelerometer</dt><dd>Feels speeding up, slowing down and gravity, in three directions (x, y, z). This pen has two, front and back.</dd></div>
-      <div id="term-gyroscope"><dt>Gyroscope</dt><dd>Feels how fast the pen turns.</dd></div>
-      <div id="term-magnetometer"><dt>Magnetometer</dt><dd>A compass: feels the Earth's magnetic field, which changes as the pen points another way.</dd></div>
-      <div id="term-force"><dt>Force sensor</dt><dd>Feels how hard the tip presses on the paper.</dd></div>
-      <div id="term-recording"><dt>Recording or sample</dt><dd>One letter, symbol or word as a table of sensor numbers over time.</dd></div>
-      <div id="term-filter"><dt>Filter</dt><dd>A way to clean a signal before the AI sees it, for example smoothing out fast wiggles.</dd></div>
-      <div id="term-model"><dt>Model or neural network</dt><dd>The AI: a program that learned from examples which movements mean which letter.</dd></div>
-      <div id="term-cnn"><dt>CNN</dt><dd>The part of the model that spots short movement patterns, like a quick upstroke.</dd></div>
-      <div id="term-bilstm"><dt>BiLSTM</dt><dd>The part that reads the movement in time order, forwards and backwards, to connect the strokes.</dd></div>
-      <div id="term-attention"><dt>Attention</dt><dd>Lets the model weigh the moments of a recording that matter most.</dd></div>
-      <div id="term-training"><dt>Training and testing</dt><dd>Training is learning from examples with answers. Testing is checking on examples the model never saw.</dd></div>
-      <div id="term-new-people"><dt>New people</dt><dd>Test writers who were not in the training data. Also called writer-independent. The fair test for a new pen owner.</dd></div>
-      <div id="term-familiar-people"><dt>Familiar people</dt><dd>The same people appear in training and test, so the model already knows their handwriting. Also called writer-dependent. Scores are higher.</dd></div>
-      <div id="term-cnn-bilstm"><dt>CNN-BiLSTM</dt><dd>The AI design used on this page. For letters and symbols: a CNN, then a BiLSTM, then attention. The word reader is a CNN and a BiLSTM.</dd></div>
-      <div id="term-gru"><dt>GRU</dt><dd>A simpler LSTM. It remembers what came before with fewer parts, so it is smaller and faster.</dd></div>
-      <div id="term-transformer"><dt>Transformer</dt><dd>A model where every moment of a recording looks at every other moment. It needs a lot of data.</dd></div>
-      <div id="term-autoencoder"><dt>Autoencoder</dt><dd>A model that learns to squeeze a recording and rebuild it. It learns without answers.</dd></div>
-      <div id="term-vae"><dt>VAE</dt><dd>Variational autoencoder: an autoencoder that can also make new, realistic recordings.</dd></div>
-      <div id="term-gnn"><dt>GNN</dt><dd>Graph neural network: treats things, here the 13 sensors, as points connected to each other.</dd></div>
-      <div id="term-moe"><dt>Mixture of experts</dt><dd>A team of small models. A router picks which of them answers each recording.</dd></div>
-      <div id="term-quantum"><dt>Hybrid quantum network</dt><dd>A network where a small quantum circuit, today usually simulated on a normal computer, does one step.</dd></div>
-      <div id="term-calibration"><dt>Calibration</dt><dd>Whether "80% sure" really means right 80% of the time. The calibration gap is how far off it is on average (ECE).</dd></div>
-      <div id="term-entropy"><dt>Entropy (bits)</dt><dd>How spread out the AI's scores are. 0 bits: all on one letter. Higher: it hesitates between several.</dd></div>
-      <div id="term-disagreement"><dt>Disagreement (mutual information)</dt><dd>The part of the doubt that comes from the 5 runs giving different answers.</dd></div>
-      <div id="term-confusion"><dt>Confusion matrix</dt><dd>A grid of which letter was written (rows) and what the AI read (columns). Off the diagonal are mistakes.</dd></div>
-      <div id="term-epoch"><dt>Epoch or training round</dt><dd>One pass over all training letters. Training here runs 30.</dd></div>
-      <div id="term-validation"><dt>Validation letters</dt><dd>Letters from training writers held back to check progress while training. The test people stay unseen.</dd></div>
-      <div id="term-seed"><dt>Seed</dt><dd>The random starting point of training. The same design trained from 5 seeds gives CNN-BiLSTM #1 to #5.</dd></div>
-      <div id="term-ensemble"><dt>Ensemble ("all 5 together")</dt><dd>Several models answer, and their scores are averaged into one answer.</dd></div>
-      <div id="term-confidence"><dt>Confidence</dt><dd>How much of its score the model gives to an answer. 90% means it is quite sure.</dd></div>
-      <div id="term-accuracy"><dt>Accuracy</dt><dd>The share of test samples read correctly.</dd></div>
-      <div id="term-uncertainty"><dt>Uncertainty</dt><dd>Two kinds. If the 5 models disagree, the writing is unlike what they learned from. If all hesitate between the same two answers, the movement itself fits both.</dd></div>
-      <div id="term-augmentation"><dt>Augmentation</dt><dd>Making extra training examples by slightly stretching or shaking real ones.</dd></div>
-      <div id="term-ctc"><dt>CTC</dt><dd>A training method that lets a model spell out a word without being told where each letter starts.</dd></div>
-      <div id="term-word-list"><dt>Word list (lexicon)</dt><dd>A list of allowed words. The model picks the closest one, or gives no answer if none fits.</dd></div>
-      <div id="term-cer"><dt>Character error rate (CER)</dt><dd>How many letters are wrong, as a share of the word's length. Lower is better.</dd></div>
-    </dl>
+    <div class="deal-board deal-board--5" id="gloss-list">
+      <dl class="deal deal--blue" aria-label="The pen">
+        <span class="deal__ribbon" aria-hidden="true">The pen</span>
+        <div class="deal__item" id="term-imu"><dt>Sensor pen (IMU)</dt><dd>A pen with motion sensors inside. IMU means inertial measurement unit: sensors that feel movement.</dd></div>
+        <div class="deal__item deal__item--hot" id="term-recording"><dt>Recording or sample</dt><dd>One letter, symbol or word as a table of sensor numbers over time.</dd></div>
+        <div class="deal__item" id="term-accelerometer"><dt>Accelerometer</dt><dd>Feels speeding up, slowing down and gravity, in three directions (x, y, z). This pen has two, front and back.</dd></div>
+        <div class="deal__item" id="term-gyroscope"><dt>Gyroscope</dt><dd>Feels how fast the pen turns.</dd></div>
+        <div class="deal__item" id="term-magnetometer"><dt>Magnetometer</dt><dd>A compass: feels the Earth's magnetic field, which changes as the pen points another way.</dd></div>
+        <div class="deal__item" id="term-force"><dt>Force sensor</dt><dd>Feels how hard the tip presses on the paper.</dd></div>
+        <div class="deal__item" id="term-filter"><dt>Filter</dt><dd>A way to clean a signal before the AI sees it, for example smoothing out fast wiggles.</dd></div>
+      </dl>
+      <dl class="deal deal--orange" aria-label="The AI">
+        <span class="deal__ribbon" aria-hidden="true">The AI</span>
+        <div class="deal__item" id="term-model"><dt>Model or neural network</dt><dd>The AI: a program that learned from examples which movements mean which letter.</dd></div>
+        <div class="deal__item deal__item--hot" id="term-cnn-bilstm"><dt>CNN-BiLSTM</dt><dd>The AI design used on this page. For letters and symbols: a CNN, then a BiLSTM, then attention. The word reader is a CNN and a BiLSTM.</dd></div>
+        <div class="deal__item" id="term-cnn"><dt>CNN</dt><dd>The part of the model that spots short movement patterns, like a quick upstroke.</dd></div>
+        <div class="deal__item" id="term-bilstm"><dt>BiLSTM</dt><dd>The part that reads the movement in time order, forwards and backwards, to connect the strokes.</dd></div>
+        <div class="deal__item" id="term-attention"><dt>Attention</dt><dd>Lets the model weigh the moments of a recording that matter most.</dd></div>
+        <div class="deal__item" id="term-gru"><dt>GRU</dt><dd>A simpler LSTM. It remembers what came before with fewer parts, so it is smaller and faster.</dd></div>
+      </dl>
+      <dl class="deal deal--purple" aria-label="Other AI designs">
+        <span class="deal__ribbon" aria-hidden="true">Designs</span>
+        <div class="deal__item" id="term-autoencoder"><dt>Autoencoder</dt><dd>A model that learns to squeeze a recording and rebuild it. It learns without answers.</dd></div>
+        <div class="deal__item deal__item--hot" id="term-transformer"><dt>Transformer</dt><dd>A model where every moment of a recording looks at every other moment. It needs a lot of data.</dd></div>
+        <div class="deal__item" id="term-vae"><dt>VAE</dt><dd>Variational autoencoder: an autoencoder that can also make new, realistic recordings.</dd></div>
+        <div class="deal__item" id="term-gnn"><dt>GNN</dt><dd>Graph neural network: treats things, here the 13 sensors, as points connected to each other.</dd></div>
+        <div class="deal__item" id="term-moe"><dt>Mixture of experts</dt><dd>A team of small models. A router picks which of them answers each recording.</dd></div>
+        <div class="deal__item" id="term-quantum"><dt>Hybrid quantum network</dt><dd>A network where a small quantum circuit, today usually simulated on a normal computer, does one step.</dd></div>
+      </dl>
+      <dl class="deal deal--green" aria-label="Training">
+        <span class="deal__ribbon" aria-hidden="true">Training</span>
+        <div class="deal__item" id="term-training"><dt>Training and testing</dt><dd>Training is learning from examples with answers. Testing is checking on examples the model never saw.</dd></div>
+        <div class="deal__item deal__item--hot" id="term-new-people"><dt>New people</dt><dd>Test writers who were not in the training data. Also called writer-independent. The fair test for a new pen owner.</dd></div>
+        <div class="deal__item" id="term-familiar-people"><dt>Familiar people</dt><dd>The same people appear in training and test, so the model already knows their handwriting. Also called writer-dependent. Scores are higher.</dd></div>
+        <div class="deal__item" id="term-epoch"><dt>Epoch or training round</dt><dd>One pass over all training letters. Training here runs 30.</dd></div>
+        <div class="deal__item" id="term-validation"><dt>Validation letters</dt><dd>Letters from training writers held back to check progress while training. The test people stay unseen.</dd></div>
+        <div class="deal__item" id="term-seed"><dt>Seed</dt><dd>The random starting point of training. The same design trained from 5 seeds gives CNN-BiLSTM #1 to #5.</dd></div>
+        <div class="deal__item" id="term-ensemble"><dt>Ensemble ("all 5 together")</dt><dd>Several models answer, and their scores are averaged into one answer.</dd></div>
+        <div class="deal__item" id="term-augmentation"><dt>Augmentation</dt><dd>Making extra training examples by slightly stretching or shaking real ones.</dd></div>
+        <div class="deal__item" id="term-ctc"><dt>CTC</dt><dd>A training method that lets a model spell out a word without being told where each letter starts.</dd></div>
+      </dl>
+      <dl class="deal deal--red" aria-label="Reading the scores">
+        <span class="deal__ribbon" aria-hidden="true">Scores</span>
+        <div class="deal__item" id="term-confidence"><dt>Confidence</dt><dd>How much of its score the model gives to an answer. 90% means it is quite sure.</dd></div>
+        <div class="deal__item deal__item--hot" id="term-accuracy"><dt>Accuracy</dt><dd>The share of test samples read correctly.</dd></div>
+        <div class="deal__item" id="term-uncertainty"><dt>Uncertainty</dt><dd>Two kinds. If the 5 models disagree, the writing is unlike what they learned from. If all hesitate between the same two answers, the movement itself fits both.</dd></div>
+        <div class="deal__item" id="term-calibration"><dt>Calibration</dt><dd>Whether "80% sure" really means right 80% of the time. The calibration gap is how far off it is on average (ECE).</dd></div>
+        <div class="deal__item" id="term-entropy"><dt>Entropy (bits)</dt><dd>How spread out the AI's scores are. 0 bits: all on one letter. Higher: it hesitates between several.</dd></div>
+        <div class="deal__item" id="term-disagreement"><dt>Disagreement (mutual information)</dt><dd>The part of the doubt that comes from the 5 runs giving different answers.</dd></div>
+        <div class="deal__item" id="term-confusion"><dt>Confusion matrix</dt><dd>A grid of which letter was written (rows) and what the AI read (columns). Off the diagonal are mistakes.</dd></div>
+        <div class="deal__item" id="term-word-list"><dt>Word list (lexicon)</dt><dd>A list of allowed words. The model picks the closest one, or gives no answer if none fits.</dd></div>
+        <div class="deal__item" id="term-cer"><dt>Character error rate (CER)</dt><dd>How many letters are wrong, as a share of the word's length. Lower is better.</dd></div>
+      </dl>
+    </div>
   </section>
 
   <section id="designs" class="wrap section" aria-labelledby="designs-h">
@@ -254,24 +274,28 @@
       second. Each design below reads it differently. Scores are letters from people
       the model never saw, unless the row says otherwise; "not measured" means nobody
       has run it on this data in this project yet.</p>
-    <div class="table-wrap">
-      <table class="results designs">
-        <thead><tr><th scope="col">Design</th><th scope="col">How it reads the pen</th><th scope="col">Good when</th><th scope="col">Here</th></tr></thead>
-        <tbody>
-          <tr><td><a class="term" href="#term-cnn">CNN</a></td><td>Slides small windows along the signal and spots short patterns, like a quick upstroke.</td><td>You need speed or a small chip.</td><td>48.7%*</td></tr>
-          <tr><td>LSTM, <a class="term" href="#term-bilstm">BiLSTM</a></td><td>Reads the signal in time order and remembers what came before. A BiLSTM also reads it backwards.</td><td>Order matters more than shape.</td><td>43.8%*, 56.2%*</td></tr>
-          <tr class="designs__ours"><td><strong>CNN-BiLSTM</strong> (this page)</td><td>The CNN finds the strokes, the BiLSTM joins them in order, attention picks the moments that matter.</td><td>Little data, short signals. The design Ott et al. benchmark on OnHW.</td><td>64.8%*; 72.46% on the official test, 74.46% as a 5-run vote</td></tr>
-          <tr><td>CNN-GRU</td><td>A GRU is an LSTM with fewer parts. It learns the same kind of order.</td><td>You want a smaller, faster model.</td><td>not measured</td></tr>
-          <tr><td>CNN-MLP</td><td>After the CNN, a plain layer looks at everything at once and forgets the order.</td><td>Very short, simple shapes.</td><td>not measured</td></tr>
-          <tr><td>CNN-GNN</td><td>Treats the 13 sensors as connected points and learns how they relate.</td><td>Sensors that move together carry the signal.</td><td>no fair test yet</td></tr>
-          <tr><td><a class="term" href="#term-transformer">Transformer</a></td><td>Every moment looks at every other moment through attention; no reading order.</td><td>Much more data than OnHW has.</td><td>built, not measured</td></tr>
-          <tr><td><a class="term" href="#term-autoencoder">Autoencoder</a></td><td>Learns to squeeze a recording and rebuild it, without any labels.</td><td>You have many recordings but few with answers.</td><td>not measured</td></tr>
-          <tr><td><a class="term" href="#term-vae">VAE</a> or GAN</td><td>Learns to make new, realistic recordings.</td><td>A group is rare in the data, like left-handed people.</td><td>not measured</td></tr>
-          <tr><td><a class="term" href="#term-moe">Mixture of experts</a></td><td>Several small models, the experts, plus a router that sends each recording to the experts that suit it.</td><td>Writers differ a lot, for example left- and right-handed.</td><td>built (<code>build_moe</code>), not measured</td></tr>
-          <tr><td><a class="term" href="#term-quantum">Hybrid quantum</a></td><td>A small quantum circuit does part of the work, for example the filter of a CNN, and a normal network does the rest.</td><td>Research only so far. <a href="https://arxiv.org/abs/2402.10540">Zaman et al. (2024)</a> compared three such designs on 4 handwritten digits, 100 to 500 training images, on a quantum simulator.</td><td>not measured</td></tr>
-          <tr><td>DBN</td><td>An older stack of layers trained one at a time, from before CNNs and LSTMs took over.</td><td>Mostly of historical interest.</td><td>not measured</td></tr>
-        </tbody>
-      </table>
+    <div class="deal-board deal-board--3" id="design-list">
+      <div class="deal deal--blue" role="group" aria-label="Measured here">
+        <span class="deal__ribbon" aria-hidden="true">Measured</span>
+        <article class="deal__item"><h3><a class="term" href="#term-cnn">CNN</a> <b class="deal__score">48.7%*</b></h3><p>Slides small windows along the signal and spots short patterns, like a quick upstroke.</p><p class="deal__meta"><span>Good when</span> You need speed or a small chip.</p></article>
+        <article class="deal__item deal__item--hot"><h3><strong>CNN-BiLSTM</strong> <b class="deal__score">72.46%</b></h3><p>The design on this page. The CNN finds the strokes, the BiLSTM joins them in order, attention picks the moments that matter.</p><p class="deal__meta"><span>Good when</span> Little data, short signals. The design Ott et al. benchmark on OnHW.</p><p class="deal__meta"><span>Here</span> 72.46% on the official test, 74.46% as a 5-run vote; 64.8%* on the left-handed split</p></article>
+        <article class="deal__item"><h3>LSTM, <a class="term" href="#term-bilstm">BiLSTM</a> <b class="deal__score">43.8%* · 56.2%*</b></h3><p>Reads the signal in time order and remembers what came before. A BiLSTM also reads it backwards.</p><p class="deal__meta"><span>Good when</span> Order matters more than shape.</p></article>
+      </div>
+      <div class="deal deal--orange" role="group" aria-label="Built or close, not measured yet">
+        <span class="deal__ribbon" aria-hidden="true">Next up</span>
+        <article class="deal__item"><h3><a class="term" href="#term-transformer">Transformer</a> <b class="deal__score deal__score--muted">built</b></h3><p>Every moment looks at every other moment through attention; no reading order.</p><p class="deal__meta"><span>Good when</span> Much more data than OnHW has.</p></article>
+        <article class="deal__item deal__item--hot"><h3><a class="term" href="#term-moe">Mixture of experts</a> <b class="deal__score deal__score--muted">built</b></h3><p>Several small models, the experts, plus a router that sends each recording to the experts that suit it.</p><p class="deal__meta"><span>Good when</span> Writers differ a lot, for example left- and right-handed.</p><p class="deal__meta"><span>Here</span> built (<code>build_moe</code>), not measured</p></article>
+        <article class="deal__item"><h3>CNN-GRU <b class="deal__score deal__score--muted">not measured</b></h3><p>A GRU is an LSTM with fewer parts. It learns the same kind of order.</p><p class="deal__meta"><span>Good when</span> You want a smaller, faster model.</p></article>
+        <article class="deal__item"><h3>CNN-GNN <b class="deal__score deal__score--muted">no fair test yet</b></h3><p>Treats the 13 sensors as connected points and learns how they relate.</p><p class="deal__meta"><span>Good when</span> Sensors that move together carry the signal.</p></article>
+        <article class="deal__item"><h3>CNN-MLP <b class="deal__score deal__score--muted">not measured</b></h3><p>After the CNN, a plain layer looks at everything at once and forgets the order.</p><p class="deal__meta"><span>Good when</span> Very short, simple shapes.</p></article>
+      </div>
+      <div class="deal deal--green" role="group" aria-label="Research ideas, not measured">
+        <span class="deal__ribbon" aria-hidden="true">Research</span>
+        <article class="deal__item"><h3><a class="term" href="#term-autoencoder">Autoencoder</a> <b class="deal__score deal__score--muted">not measured</b></h3><p>Learns to squeeze a recording and rebuild it, without any labels.</p><p class="deal__meta"><span>Good when</span> You have many recordings but few with answers.</p></article>
+        <article class="deal__item deal__item--hot"><h3><a class="term" href="#term-vae">VAE</a> or GAN <b class="deal__score deal__score--muted">not measured</b></h3><p>Learns to make new, realistic recordings.</p><p class="deal__meta"><span>Good when</span> A group is rare in the data, like left-handed people.</p></article>
+        <article class="deal__item"><h3><a class="term" href="#term-quantum">Hybrid quantum</a> <b class="deal__score deal__score--muted">not measured</b></h3><p>A small quantum circuit does part of the work, for example the filter of a CNN, and a normal network does the rest.</p><p class="deal__meta"><span>Good when</span> Research only so far. <a href="https://arxiv.org/abs/2402.10540">Zaman et al. (2024)</a> compared three such designs on 4 handwritten digits, 100 to 500 training images, on a quantum simulator.</p></article>
+        <article class="deal__item"><h3>DBN <b class="deal__score deal__score--muted">not measured</b></h3><p>An older stack of layers trained one at a time, from before CNNs and LSTMs took over.</p><p class="deal__meta"><span>Good when</span> Mostly of historical interest.</p></article>
+      </div>
     </div>
     <p class="hint">* Left-handed OnHW-chars_L, 2,270 letters, a split that shares writers
       between training and test, so these four are only comparable with each other. The
@@ -464,5 +488,6 @@
   <script src="data/local.js"></script>
   <script src="app.js"></script>
   <script src="charts.js"></script>
+  <script src="write.js"></script>
 </body>
 </html>

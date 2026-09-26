@@ -71,10 +71,11 @@ The cards in step 4 of the page are the open tasks. Each links to an issue.
 |---|---|
 | `index.html`, `style.css`, `app.js` | the page; plain JavaScript, no dependencies |
 | `charts.js` | "Compare the algorithms" and "How sure is the AI?" charts |
+| `write.js` | card 1: your drawing picks a real OnHW recording of that character, then Recognize runs (the drawing and shape guess are simulated) |
 | `stages.js` | the methods shown, with measured accuracies and sources |
 | `data/public.js` | generated model outputs and the synthetic signal |
 | `data/local.js` | generated real recordings, local only |
-| `favicon.svg`, `og.png`, `robots.txt`, `sitemap.xml` | icon, social preview, crawler files |
+| `og.png`, `robots.txt`, `sitemap.xml` | social preview, crawler files |
 | `og.html` | source of `og.png`; regenerate with the command in its header |
 
 The Vahini design system (colours, type, spacing and shared components),
@@ -86,6 +87,7 @@ the same paths, and the page links them there:
 | `/site/design/v1/vahini.css` | `--v-*` tokens and the shared `v-*` classes |
 | `/site/assets/fonts/` | the font files |
 | `/site/assets/vahini-logo.png` | the logo; the page shows a drawn mark without it |
+| `/site/assets/favicon*`, `apple-touch-icon.png` | the Vahini tab icon, the same on every Vahini page |
 
 `style.css` uses only `var(--v-*)` tokens and holds the layout specific to
 this page; `tests/test_playground_page.py` fails on a colour code. To work on

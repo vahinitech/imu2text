@@ -71,7 +71,7 @@ def test_page_has_search_and_sharing_metadata():
     for key in ("og:title", "og:description", "og:image", "og:url", "twitter:card"):
         assert page.meta.get(key), key
     assert (PLAYGROUND / "og.png").exists()
-    assert (PLAYGROUND / "favicon.svg").exists()
+    assert page.links["icon"].startswith("/site/assets/favicon")
     robots = (PLAYGROUND / "robots.txt").read_text(encoding="utf-8")
     assert "Sitemap: https://playground.vahinitech.com/sitemap.xml" in robots
     assert "<loc>https://playground.vahinitech.com/</loc>" in (
@@ -117,7 +117,7 @@ def test_styles_use_only_design_system_tokens():
         r"#[0-9a-fA-F]{3,8}\b|rgba?\(", css
     ), "colour literal in style.css"
     assert not re.search(r"var\(--v-[a-z0-9-]+,", css), "a design token has a fallback"
-    for script in ("app.js", "charts.js", "stages.js"):
+    for script in ("app.js", "charts.js", "stages.js", "write.js"):
         js = (PLAYGROUND / script).read_text(encoding="utf-8")
         assert not re.findall(
             r"[\"']#[0-9a-fA-F]{6}[\"']", js
@@ -126,3 +126,14 @@ def test_styles_use_only_design_system_tokens():
     assert html.index('href="/site/design/v1/vahini.css"') < html.index(
         'href="style.css"'
     )
+
+
+def test_no_inline_style_attributes():
+    """The served CSP is style-src 'self': inline style attributes are dropped."""
+    html = (PLAYGROUND / "index.html").read_text(encoding="utf-8")
+    assert ' style="' not in html
+    for script in ("app.js", "charts.js", "stages.js", "write.js"):
+        js = (PLAYGROUND / script).read_text(encoding="utf-8")
+        assert not re.search(
+            r"style=[\\\"']", js
+        ), f"inline style attribute built in {script}"
