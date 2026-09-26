@@ -227,6 +227,10 @@ details.dev p { margin: 6px 0; }
 .book__hint.off { opacity: 0; }
 .book__pen { position: absolute; left: 0; top: 0; width: 34px; height: 150px; pointer-events: none; opacity: 0; transform-origin: 6px 144px; transition: opacity var(--v-dur-base); }
 .book__pen.show { opacity: 1; }
+.pen__body { fill: var(--v-dark); }
+.pen__shine { fill: var(--v-text-faint); opacity: 0.5; }
+.pen__led { fill: var(--v-accent); }
+.pen__tip { fill: var(--v-dark-2); }
 .book__buslab { display: flex; align-items: baseline; margin: var(--v-space-4) 0 var(--v-space-2); font-size: var(--v-text-xs); color: var(--v-paper-faint); text-transform: uppercase; letter-spacing: 0.12em; }
 .book__buslab span { margin-left: auto; text-transform: none; letter-spacing: 0; color: var(--v-paper-text); }
 .book__bus { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--v-space-2); }
@@ -276,5 +280,10 @@ details.dev p { margin: 6px 0; }
   .book__pad canvas { height: 260px; }
   .book__bus { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .engine__steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Phones: the result goes under the drawing instead of over it. */
+  .engine__screen { flex: none; min-height: 0; display: flex; flex-direction: column; }
+  .engine__screen canvas { position: static; height: 220px; }
+  .engine__verdict { position: static; margin: 0 var(--v-space-2) var(--v-space-2); display: none; }
+  .engine__verdict.on { display: flex; }
 }
 @media (prefers-reduced-motion: reduce) { .w-status.busy i { animation: none; } }

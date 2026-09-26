@@ -126,3 +126,14 @@ def test_styles_use_only_design_system_tokens():
     assert html.index('href="/site/design/v1/vahini.css"') < html.index(
         'href="style.css"'
     )
+
+
+def test_no_inline_style_attributes():
+    """The served CSP is style-src 'self': inline style attributes are dropped."""
+    html = (PLAYGROUND / "index.html").read_text(encoding="utf-8")
+    assert ' style="' not in html
+    for script in ("app.js", "charts.js", "stages.js", "write.js"):
+        js = (PLAYGROUND / script).read_text(encoding="utf-8")
+        assert not re.search(
+            r"style=[\\\"']", js
+        ), f"inline style attribute built in {script}"

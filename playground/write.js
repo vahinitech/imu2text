@@ -32,7 +32,8 @@
     const g = cv.getContext("2d"); g.scale(d, d); return g;
   }
   let gD = fit(draw), gR = fit(recon);
-  window.addEventListener("resize", () => { gD = fit(draw); gR = fit(recon); repaint(); });
+  // A resize (or a phone turning) resets both canvases, so redraw what they held.
+  window.addEventListener("resize", () => { gD = fit(draw); gR = fit(recon); repaint(); if (rebuilt) drawRebuilt(); });
 
   // ---------- sensor bus: six channels of the Vahini pen ----------
   // Accelerometer, gyroscope and magnetometer axes oscillate while the hand
@@ -43,8 +44,11 @@
     ["IMU-B · accel", "chart-1", "wave"], ["IMU-B · gyro", "chart-2", "wave"], ["tip force · analog", "warning", "level"],
   ];
   const bus = $("w-bus");
-  bus.innerHTML = CH.map((c) => `<div class="w-chan" style="--ch: var(--v-${c[1]})"><em>${c[0]}</em>` +
+  // Colours go through the CSSOM: the page's CSP (style-src 'self') blocks
+  // inline style attributes.
+  bus.innerHTML = CH.map((c) => `<div class="w-chan"><em>${c[0]}</em>` +
     '<svg class="w-wave" viewBox="0 0 100 16" preserveAspectRatio="none"><polyline points="0,8 100,8"/></svg></div>').join("");
+  [...bus.children].forEach((el, i) => el.style.setProperty("--ch", `var(--v-${CH[i][1]})`));
   const waveEls = [...bus.querySelectorAll("polyline")];
   const LEVEL_STEPS = 21;
   const levelHistory = CH.map((c) => (c[2] === "level" ? new Array(LEVEL_STEPS).fill(8) : null));
@@ -95,7 +99,7 @@
   function waveStop() { cancelAnimationFrame(waveRaf); waveRaf = null; waveT = 0; waveAmp = 0; waveTarget = 0; }
 
   // ---------- state ----------
-  let strokes = [], cur = null, lastPt = null, drawing = false, sendTimer = null, replayRaf = null;
+  let strokes = [], cur = null, lastPt = null, drawing = false, sendTimer = null, replayRaf = null, rebuilt = false;
   // Every template is one unbroken shape, so after one stroke the demo has
   // what it needs; further strokes wait for Clear.
   let locked = false;
@@ -193,24 +197,35 @@
       setTimeout(reconstruct, reduce ? 40 : 620);
     }, reduce ? 60 : 950);
   }
-  function reconstruct() {
-    waveStop();
-    setStep(2); setStatus("busy", "Rebuilding the pen-tip path…");
-    waitLay.classList.add("off");
-    gR.clearRect(0, 0, recon.width, recon.height);
+  // The strokes scaled and centred on the engine screen.
+  function rebuiltPoints() {
     const all = strokes.flat();
     const xs = all.map((p) => p.x), ys = all.map((p) => p.y);
     const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
-    const rb = recon.getBoundingClientRect(), padding = 34;
+    // On wide screens the result box covers the bottom of the screen; keep
+    // the path above it. On phones the box sits below the screen.
+    const below = getComputedStyle(verdict).position === "absolute" ? 92 : 24;
+    const rb = recon.getBoundingClientRect(), padding = 24;
     const w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
-    const s = Math.min((rb.width - padding * 2) / w, (rb.height - padding * 2) / h, 2.2);
-    const ox = (rb.width - w * s) / 2 - minX * s, oy = (rb.height - h * s) / 2 - minY * s;
+    const s = Math.min((rb.width - padding * 2) / w, (rb.height - padding - below) / h, 2.2);
+    const ox = (rb.width - w * s) / 2 - minX * s, oy = padding + (rb.height - padding - below - h * s) / 2 - minY * s;
     const pts = [];
     strokes.forEach((st, si) => st.forEach((p, pi) => pts.push({ x: p.x * s + ox, y: p.y * s + oy, brk: pi === 0 && si > 0 })));
-    if (reduce) {
-      for (let j = 1; j < pts.length; j++) if (!pts[j].brk) line(gR, pts[j - 1], pts[j], 3.2, GLOW, true);
-      recognise(); return;
-    }
+    return pts;
+  }
+  function drawRebuilt() {
+    const pts = rebuiltPoints();
+    gR.clearRect(0, 0, recon.width, recon.height);
+    for (let j = 1; j < pts.length; j++) if (!pts[j].brk) line(gR, pts[j - 1], pts[j], 3.2, GLOW, true);
+  }
+  function reconstruct() {
+    waveStop();
+    rebuilt = true;
+    setStep(2); setStatus("busy", "Rebuilding the pen-tip path…");
+    waitLay.classList.add("off");
+    gR.clearRect(0, 0, recon.width, recon.height);
+    const pts = rebuiltPoints();
+    if (reduce) { drawRebuilt(); recognise(); return; }
     let n = 1;
     const per = Math.max(1, Math.round(pts.length / 52));
     cancelAnimationFrame(replayRaf);
@@ -340,7 +355,7 @@
   }
 
   $("w-clear").addEventListener("click", () => {
-    strokes = []; cur = null; samples = 0; locked = false; pad.classList.remove("locked");
+    strokes = []; cur = null; samples = 0; locked = false; rebuilt = false; pad.classList.remove("locked");
     sampleEl.textContent = "0"; pktEl.textContent = "0"; eqEl.textContent = "";
     clearTimeout(sendTimer); cancelAnimationFrame(replayRaf); waveStop();
     gD.clearRect(0, 0, draw.width, draw.height); gR.clearRect(0, 0, recon.width, recon.height);

@@ -113,10 +113,10 @@
           <canvas id="w-draw" aria-label="Writing area"></canvas>
           <div class="book__hint" id="w-hint"><span>write here…</span></div>
           <svg class="book__pen" id="w-pen" viewBox="0 0 34 150" aria-hidden="true">
-            <path d="M12 4 q10 0 10 14 v78 l-8 40 -2 0 -8 -40 V18 q0 -14 8 -14z" style="fill: var(--v-dark)"/>
-            <rect x="9" y="20" width="4" height="72" rx="2" style="fill: var(--v-text-faint)" opacity=".5"/>
-            <circle cx="15" cy="34" r="2.6" style="fill: var(--v-accent)"/>
-            <path d="M4 136 l8 -22 8 22 -6 8 -4 0z" style="fill: var(--v-dark-2)"/>
+            <path class="pen__body" d="M12 4 q10 0 10 14 v78 l-8 40 -2 0 -8 -40 V18 q0 -14 8 -14z"/>
+            <rect class="pen__shine" x="9" y="20" width="4" height="72" rx="2"/>
+            <circle class="pen__led" cx="15" cy="34" r="2.6"/>
+            <path class="pen__tip" d="M4 136 l8 -22 8 22 -6 8 -4 0z"/>
           </svg>
         </div>
         <div class="book__buslab"><b>Pen sensors</b><span><span id="w-samples">0</span> samples · 208 Hz</span></div>
