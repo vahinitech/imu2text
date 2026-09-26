@@ -59,6 +59,7 @@
         <span class="brand__mark" aria-hidden="true"></span>Vahini <span class="v-brand__product">Playground</span>
       </a>
       <nav aria-label="Page">
+        <a href="#write">Write</a>
         <a href="#workspace">Play</a>
         <a href="#how">How it works</a>
         <a href="#designs">AI designs</a>
@@ -78,7 +79,8 @@
           <strong>Recognize</strong> to see what the AI reads. Every answer comes
           from a real test on people the AI never learned from.</p>
         <div class="hero__cta">
-          <a class="v-btn" href="#workspace">Start playing</a>
+          <a class="v-btn" href="#write">Write a letter</a>
+          <a class="v-btn v-btn--on-dark" href="#workspace">Try real recordings</a>
           <a class="v-btn v-btn--on-dark" href="#glossary">What do the words mean?</a>
         </div>
       </div>
@@ -89,6 +91,74 @@
         <div><dt>Things to read</dt><dd>4</dd><span>letters, symbols, maths, words</span></div>
       </dl>
     </div>
+  </section>
+
+  <section id="write" class="wrap section write" aria-labelledby="write-h">
+    <p class="v-eyebrow">Start here · the Vahini pen, simulated</p>
+    <h2 id="write-h">Write a letter. Watch the pen think.</h2>
+    <p class="hint">Your mouse or finger is the pen. Write one shape on the paper page: the sensors
+      fire, the samples travel over Bluetooth, and the engine page rebuilds and matches what you wrote.</p>
+    <div class="v-note v-note--warn write__notice">
+      <strong>This part is a simulation.</strong> The guess comes from a small shape matcher that knows
+      18 shapes, not from the AI further down. The real Vahini pen records two motion sensors and
+      tip force at 208 Hz; this page only sees your mouse.
+    </div>
+
+    <div class="book">
+      <div class="book__paper">
+        <p class="book__label">Try it</p>
+        <h3 class="book__title">Write one shape</h3>
+        <p class="book__tip">Best with: O, S, V, Z, 7, a star or a heart.</p>
+        <div class="book__pad">
+          <canvas id="w-draw" aria-label="Writing area"></canvas>
+          <div class="book__hint" id="w-hint"><span>write here…</span></div>
+          <svg class="book__pen" id="w-pen" viewBox="0 0 34 150" aria-hidden="true">
+            <path d="M12 4 q10 0 10 14 v78 l-8 40 -2 0 -8 -40 V18 q0 -14 8 -14z" style="fill: var(--v-dark)"/>
+            <rect x="9" y="20" width="4" height="72" rx="2" style="fill: var(--v-text-faint)" opacity=".5"/>
+            <circle cx="15" cy="34" r="2.6" style="fill: var(--v-accent)"/>
+            <path d="M4 136 l8 -22 8 22 -6 8 -4 0z" style="fill: var(--v-dark-2)"/>
+          </svg>
+        </div>
+        <div class="book__buslab"><b>Pen sensors</b><span><span id="w-samples">0</span> samples · 208 Hz</span></div>
+        <div class="book__bus" id="w-bus"></div>
+        <div class="book__btns">
+          <button class="v-btn" id="w-go" type="button">Send →</button>
+          <button class="v-btn v-btn--ghost" id="w-clear" type="button">Clear</button>
+        </div>
+      </div>
+
+      <div class="book__engine">
+        <div class="engine__head">
+          <b>Engine</b>
+          <span class="engine__badge" title="Demonstration only, not the AI below">Simulation</span>
+          <span class="w-status" id="w-status"><i></i><em id="w-status-tx">Waiting for a shape…</em></span>
+        </div>
+        <div class="engine__ble" id="w-ble">
+          <div class="engine__line"><span>pen</span><span class="engine__dash"></span><span>Bluetooth</span></div>
+          <div class="engine__meta"><span>16 axes packed into packets</span><span><b id="w-pkts">0</b> packets sent</span></div>
+          <div class="engine__eq" id="w-eq"></div>
+        </div>
+        <p class="engine__mm">motion → meaning</p>
+        <div class="engine__screen">
+          <canvas id="w-recon" aria-label="Rebuilt pen path"></canvas>
+          <div class="engine__wait" id="w-wait"><span>waiting for a shape…</span></div>
+          <div class="engine__verdict" id="w-verdict" aria-live="polite">
+            <span class="engine__glyph" id="w-glyph"></span>
+            <span><b id="w-guess"></b><span id="w-guess-sub"></span></span>
+          </div>
+        </div>
+        <ol class="engine__steps">
+          <li class="w-step"><b>Capture</b><span>16 axes · 208 Hz</span></li>
+          <li class="w-step"><b>Clean</b><span>filter the noise</span></li>
+          <li class="w-step"><b>Rebuild</b><span>pen-tip path</span></li>
+          <li class="w-step"><b>Match</b><span>18 shapes (demo)</span></li>
+        </ol>
+      </div>
+    </div>
+
+    <p class="write__bridge"><strong>That was the idea, simulated.</strong> Below is the real thing:
+      recordings from the Fraunhofer OnHW sensor pen (13 channels at 100 Hz) and a CNN-BiLSTM tested
+      on people it never learned from. <a href="#workspace">Try real recordings ↓</a></p>
   </section>
 
   <nav class="pipeline wrap" aria-label="What happens, step by step">
@@ -464,5 +534,6 @@
   <script src="data/local.js"></script>
   <script src="app.js"></script>
   <script src="charts.js"></script>
+  <script src="write.js"></script>
 </body>
 </html>

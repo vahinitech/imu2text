@@ -1,0 +1,352 @@
+// Vahini playground: "Write it yourself", a simulation of the Vahini pen.
+//
+// The mouse (or a finger) stands in for the pen. While you write, six sensor
+// channels animate, the samples are packed into Bluetooth packets, the path
+// is redrawn on the dark engine page, and a small shape matcher guesses one
+// of 18 shapes. The matcher is NOT the CNN-BiLSTM used in the rest of this
+// page: it compares the drawn path with templates, using the closed-form
+// best-rotation distance of the Protractor recogniser (Y. Li, "Protractor:
+// a fast and accurate gesture recognizer", CHI 2010), tried forwards,
+// reversed and, for closed shapes, from several start points.
+//
+// Written by Vahini Technologies for vahinitech.com ("See it in action") and
+// released here under Apache-2.0 with the owner's approval (2026-09-26).
+// Colours come from the Vahini design system (--v-* tokens).
+"use strict";
+
+(function () {
+  const root = document.getElementById("write");
+  if (!root) return;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const css = getComputedStyle(document.documentElement);
+  const token = (name) => css.getPropertyValue(`--v-${name}`).trim();
+  const INK = token("pen-ink");
+  const GLOW = token("engine-glow");
+  const GRID = token("engine-border");
+
+  const $ = (id) => document.getElementById(id);
+  const draw = $("w-draw"), recon = $("w-recon");
+  function fit(cv) {
+    const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d);
+    const g = cv.getContext("2d"); g.scale(d, d); return g;
+  }
+  let gD = fit(draw), gR = fit(recon);
+  window.addEventListener("resize", () => { gD = fit(draw); gR = fit(recon); repaint(); });
+
+  // ---------- sensor bus: six channels of the Vahini pen ----------
+  // Accelerometer, gyroscope and magnetometer axes oscillate while the hand
+  // writes, so they draw as waves; tip force is one analog reading, so it
+  // scrolls like a strip chart instead of repeating.
+  const CH = [
+    ["IMU-A · accel", "chart-1", "wave"], ["IMU-A · gyro", "chart-2", "wave"], ["IMU-A · magneto", "chart-3", "wave"],
+    ["IMU-B · accel", "chart-1", "wave"], ["IMU-B · gyro", "chart-2", "wave"], ["tip force · analog", "warning", "level"],
+  ];
+  const bus = $("w-bus");
+  bus.innerHTML = CH.map((c) => `<div class="w-chan" style="--ch: var(--v-${c[1]})"><em>${c[0]}</em>` +
+    '<svg class="w-wave" viewBox="0 0 100 16" preserveAspectRatio="none"><polyline points="0,8 100,8"/></svg></div>').join("");
+  const waveEls = [...bus.querySelectorAll("polyline")];
+  const LEVEL_STEPS = 21;
+  const levelHistory = CH.map((c) => (c[2] === "level" ? new Array(LEVEL_STEPS).fill(8) : null));
+  let samples = 0;
+  function wavePoints(speed, idx) {
+    const amp = Math.min(6.5, 1 + speed * 0.42), pts = [];
+    for (let x = 0; x <= 100; x += 5) pts.push(`${x},${(8 + Math.sin(x * 0.24 + samples * 0.14 + idx * 1.7) * amp).toFixed(1)}`);
+    return pts.join(" ");
+  }
+  function levelPoints(speed, idx) {
+    const hist = levelHistory[idx];
+    hist.shift(); hist.push(8 - Math.min(6.5, 1 + speed * 0.42));
+    return hist.map((y, i) => `${i * 5},${y.toFixed(1)}`).join(" ");
+  }
+  function pulseBus(speed) {
+    waveEls.forEach((el, i) => el.setAttribute("points", CH[i][2] === "level" ? levelPoints(speed, i) : wavePoints(speed, i)));
+  }
+  function calmBus() {
+    levelHistory.forEach((h) => { if (h) h.fill(8); });
+    waveEls.forEach((el) => el.setAttribute("points", "0,8 100,8"));
+  }
+
+  // ---------- live waveform on the engine page while the pen moves ----------
+  const WCH = [["chart-1", 1.0, 0], ["chart-2", 1.4, 1.1], ["chart-3", 0.8, 2.3], ["warning", 1.7, 3.6]].map(([t, f, p]) => [token(t), f, p]);
+  let waveT = 0, waveAmp = 0, waveTarget = 0, waveRaf = null;
+  function waveFrame() {
+    waveRaf = requestAnimationFrame(waveFrame);
+    waveT += 0.09; waveAmp += (waveTarget - waveAmp) * 0.12;
+    const r = recon.getBoundingClientRect(), w = r.width, h = r.height;
+    gR.clearRect(0, 0, recon.width, recon.height);
+    gR.save();
+    gR.strokeStyle = GRID; gR.lineWidth = 1;
+    gR.beginPath(); gR.moveTo(0, h / 2); gR.lineTo(w, h / 2); gR.stroke();
+    WCH.forEach((c, i) => {
+      const amp = (9 + i * 3.5) * (0.3 + waveAmp);
+      const midY = h / 2 + (i - (WCH.length - 1) / 2) * (h * 0.1);
+      gR.beginPath(); gR.strokeStyle = c[0]; gR.lineWidth = 2; gR.lineCap = "round";
+      gR.shadowColor = c[0]; gR.shadowBlur = 5;
+      for (let x = 0; x <= w; x += 4) {
+        const y = midY + Math.sin(x * 0.045 * c[1] + waveT * (1 + i * 0.12) + c[2]) * amp;
+        if (x === 0) gR.moveTo(x, y); else gR.lineTo(x, y);
+      }
+      gR.stroke();
+    });
+    gR.restore();
+  }
+  function waveStart() { waitLay.classList.add("off"); if (!waveRaf && !reduce) waveFrame(); }
+  function waveStop() { cancelAnimationFrame(waveRaf); waveRaf = null; waveT = 0; waveAmp = 0; waveTarget = 0; }
+
+  // ---------- state ----------
+  let strokes = [], cur = null, lastPt = null, drawing = false, sendTimer = null, replayRaf = null;
+  // Every template is one unbroken shape, so after one stroke the demo has
+  // what it needs; further strokes wait for Clear.
+  let locked = false;
+  const hint = $("w-hint"), waitLay = $("w-wait");
+  const sampleEl = $("w-samples"), pktEl = $("w-pkts"), eqEl = $("w-eq"), ble = $("w-ble");
+  const statusEl = $("w-status"), statusTx = $("w-status-tx");
+  const verdict = $("w-verdict"), glyphEl = $("w-glyph"), guessEl = $("w-guess"), guessSub = $("w-guess-sub");
+  const steps = [...root.querySelectorAll(".w-step")];
+  const pen = $("w-pen"), pad = draw.parentNode;
+  const setStep = (n) => steps.forEach((s, i) => s.classList.toggle("on", i === n));
+  function setStatus(mode, text) { statusEl.className = `w-status${mode ? ` ${mode}` : ""}`; statusTx.textContent = text; }
+
+  // ---------- the drawn pen follows a mouse ----------
+  if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+    pad.addEventListener("pointerenter", () => pen.classList.add("show"));
+    pad.addEventListener("pointerleave", () => pen.classList.remove("show"));
+    pad.addEventListener("pointermove", (e) => {
+      const r = pad.getBoundingClientRect();
+      pen.style.transform = `translate(${e.clientX - r.left - 6}px,${e.clientY - r.top - 144}px) rotate(33deg)`;
+    });
+  }
+
+  // ---------- drawing ----------
+  function pos(e) { const r = draw.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, t: performance.now() }; }
+  function line(g, a, b, w, col, glow) {
+    g.strokeStyle = col; g.lineWidth = w; g.lineCap = "round"; g.lineJoin = "round";
+    g.shadowColor = glow ? col : "transparent"; g.shadowBlur = glow ? 7 : 0;
+    g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+  }
+  draw.addEventListener("pointerdown", (e) => {
+    if (locked) return;
+    e.preventDefault(); draw.setPointerCapture(e.pointerId);
+    drawing = true; cur = [pos(e)]; lastPt = cur[0];
+    hint.classList.add("off"); clearTimeout(sendTimer);
+    setStep(0); setStatus("busy", "Capturing motion…");
+    waveStart();
+  });
+  draw.addEventListener("pointermove", (e) => {
+    if (!drawing) return;
+    const p = pos(e), dt = Math.max(1, p.t - lastPt.t);
+    const speed = Math.hypot(p.x - lastPt.x, p.y - lastPt.y) / dt * 16;
+    samples += Math.round(dt * 0.208); // the Vahini pen samples at 208 Hz
+    sampleEl.textContent = samples.toLocaleString();
+    pulseBus(speed);
+    waveTarget = Math.min(1, speed / 42);
+    line(gD, lastPt, p, Math.max(2.1, 4.6 - Math.min(2.4, speed * 0.3)), INK, false);
+    cur.push(p); lastPt = p;
+  });
+  function endStroke() {
+    if (!drawing) return;
+    drawing = false; calmBus(); waveTarget = 0.18;
+    if (cur && cur.length > 2) strokes.push(cur);
+    cur = null;
+    clearTimeout(sendTimer);
+    if (strokes.length) {
+      locked = true; pad.classList.add("locked");
+      setStatus("", "Shape captured. Sending…");
+      sendTimer = setTimeout(transmit, 1100);
+    }
+  }
+  draw.addEventListener("pointerup", endStroke);
+  draw.addEventListener("pointercancel", endStroke);
+  draw.addEventListener("pointerleave", endStroke);
+  $("w-go").addEventListener("click", () => { clearTimeout(sendTimer); transmit(); });
+  function repaint() {
+    gD.clearRect(0, 0, draw.width, draw.height);
+    strokes.forEach((s) => { for (let j = 1; j < s.length; j++) line(gD, s[j - 1], s[j], 3.2, INK, false); });
+  }
+
+  // ---------- send → clean → rebuild → match ----------
+  // Packet size from the Bluetooth LE frame: one 16-axis sample is 32 bytes
+  // (int16 per axis), and a 247-byte ATT MTU minus the 3-byte notification
+  // header holds 7 of them; on air the frame adds preamble, access address,
+  // PDU header and CRC.
+  const BLE = (() => {
+    const bytesPerSample = 16 * 2, payload = 247 - 3;
+    const samplesPerPacket = Math.floor(payload / bytesPerSample);
+    return { samplesPerPacket, bytesPerSample, packetBytes: 1 + 4 + 2 + 3 + samplesPerPacket * bytesPerSample + 3 };
+  })();
+  function transmit() {
+    if (!strokes.length) return;
+    setStep(0); setStatus("busy", "Sending packets over Bluetooth…");
+    ble.classList.add("streaming"); verdict.classList.remove("on");
+    const total = Math.max(1, Math.ceil(samples / BLE.samplesPerPacket));
+    let sent = 0;
+    eqEl.textContent = `${samples.toLocaleString()} samples ÷ ${BLE.samplesPerPacket} per packet = ${total} packets of ${BLE.packetBytes} bytes`;
+    const tick = setInterval(() => {
+      sent = Math.min(total, sent + Math.max(1, Math.round(total / 14)));
+      pktEl.textContent = sent;
+      if (sent >= total) clearInterval(tick);
+    }, reduce ? 8 : 55);
+    setTimeout(() => {
+      ble.classList.remove("streaming");
+      setStep(1); setStatus("busy", "Cleaning the signal…");
+      setTimeout(reconstruct, reduce ? 40 : 620);
+    }, reduce ? 60 : 950);
+  }
+  function reconstruct() {
+    waveStop();
+    setStep(2); setStatus("busy", "Rebuilding the pen-tip path…");
+    waitLay.classList.add("off");
+    gR.clearRect(0, 0, recon.width, recon.height);
+    const all = strokes.flat();
+    const xs = all.map((p) => p.x), ys = all.map((p) => p.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+    const rb = recon.getBoundingClientRect(), padding = 34;
+    const w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
+    const s = Math.min((rb.width - padding * 2) / w, (rb.height - padding * 2) / h, 2.2);
+    const ox = (rb.width - w * s) / 2 - minX * s, oy = (rb.height - h * s) / 2 - minY * s;
+    const pts = [];
+    strokes.forEach((st, si) => st.forEach((p, pi) => pts.push({ x: p.x * s + ox, y: p.y * s + oy, brk: pi === 0 && si > 0 })));
+    if (reduce) {
+      for (let j = 1; j < pts.length; j++) if (!pts[j].brk) line(gR, pts[j - 1], pts[j], 3.2, GLOW, true);
+      recognise(); return;
+    }
+    let n = 1;
+    const per = Math.max(1, Math.round(pts.length / 52));
+    cancelAnimationFrame(replayRaf);
+    (function step() {
+      for (let c = 0; c < per && n < pts.length; c++, n++) if (!pts[n].brk) line(gR, pts[n - 1], pts[n], 3.2, GLOW, true);
+      if (n < pts.length) replayRaf = requestAnimationFrame(step); else recognise();
+    })();
+  }
+
+  // ---------- the shape matcher ----------
+  const N = 48;
+  function resample(points) {
+    let length = 0;
+    for (let j = 1; j < points.length; j++) length += Math.hypot(points[j].x - points[j - 1].x, points[j].y - points[j - 1].y);
+    const step = length / (N - 1), out = [{ x: points[0].x, y: points[0].y }];
+    let D = 0;
+    for (let j = 1; j < points.length; j++) {
+      const d = Math.hypot(points[j].x - points[j - 1].x, points[j].y - points[j - 1].y);
+      if (D + d >= step && d > 0) {
+        const q = { x: points[j - 1].x + ((step - D) / d) * (points[j].x - points[j - 1].x),
+          y: points[j - 1].y + ((step - D) / d) * (points[j].y - points[j - 1].y) };
+        out.push(q); points.splice(j, 0, q); D = 0;
+      } else D += d;
+    }
+    while (out.length < N) out.push(out[out.length - 1]);
+    return out.slice(0, N);
+  }
+  function toVector(points) {
+    const c = points.reduce((a, p) => ({ x: a.x + p.x / points.length, y: a.y + p.y / points.length }), { x: 0, y: 0 });
+    const v = [];
+    let mag = 0;
+    points.forEach((p) => { const x = p.x - c.x, y = p.y - c.y; v.push(x, y); mag += x * x + y * y; });
+    mag = Math.sqrt(mag) || 1;
+    return v.map((x) => x / mag);
+  }
+  // Protractor: the best achievable match over every rotation is
+  // sqrt(dot^2 + cross^2), so no angle has to be guessed.
+  function angleScore(a, b) {
+    let dot = 0, cross = 0;
+    for (let i = 0; i < a.length; i += 2) { dot += a[i] * b[i] + a[i + 1] * b[i + 1]; cross += a[i] * b[i + 1] - a[i + 1] * b[i]; }
+    return Math.min(1, Math.sqrt(dot * dot + cross * cross));
+  }
+  function reversedVec(v) { const out = []; for (let i = v.length - 2; i >= 0; i -= 2) out.push(v[i], v[i + 1]); return out; }
+  function shiftedVec(v, k) {
+    const n = v.length / 2, out = [];
+    for (let i = 0; i < n; i++) { const j = ((i + k) % n + n) % n; out.push(v[j * 2], v[j * 2 + 1]); }
+    return out;
+  }
+  const dotProduct = (a, b) => a.reduce((s, x, i) => s + x * b[i], 0);
+  function rotateVec(v, t) {
+    const out = [], cos = Math.cos(t), sin = Math.sin(t);
+    for (let i = 0; i < v.length; i += 2) out.push(v[i] * cos - v[i + 1] * sin, v[i] * sin + v[i + 1] * cos);
+    return out;
+  }
+  // ±32° of slack for open shapes: a wobbly V still matches, but an upright
+  // V does not turn into a 7, which differs only by orientation.
+  const SWEEP = [];
+  for (let d = -32; d <= 32; d += 4) SWEEP.push(d * Math.PI / 180);
+  function bestMatch(v, t) {
+    const rv = reversedVec(v);
+    if (t.closed) {
+      let best = Math.max(angleScore(v, t.v), angleScore(rv, t.v));
+      const step = Math.max(1, Math.round(v.length / 2 / 12));
+      for (let k = step; k < v.length / 2; k += step) best = Math.max(best, angleScore(shiftedVec(v, k), t.v), angleScore(shiftedVec(rv, k), t.v));
+      return best;
+    }
+    return Math.max(...SWEEP.map((a) => Math.max(dotProduct(rotateVec(v, a), t.v), dotProduct(rotateVec(rv, a), t.v))));
+  }
+  const P = (x, y) => ({ x, y });
+  function poly(pts) {
+    const out = [];
+    for (let j = 0; j < pts.length - 1; j++) for (let k = 0; k < 12; k++) out.push(P(pts[j].x + (pts[j + 1].x - pts[j].x) * k / 12, pts[j].y + (pts[j + 1].y - pts[j].y) * k / 12));
+    out.push(pts[pts.length - 1]);
+    return out;
+  }
+  function arc(cx, cy, r, a0, a1) {
+    const out = [];
+    for (let k = 0; k <= 28; k++) { const a = a0 + (a1 - a0) * k / 28; out.push(P(cx + r * Math.cos(a), cy + r * Math.sin(a))); }
+    return out;
+  }
+  const TAU = Math.PI * 2;
+  const TEMPLATES = [
+    ["O", arc(0.5, 0.5, 0.42, -TAU / 4, -TAU / 4 + TAU), true],
+    ["C", arc(0.5, 0.5, 0.42, -TAU / 8, -TAU / 8 - TAU * 0.72)],
+    ["S", arc(0.5, 0.28, 0.22, -TAU / 4, -TAU / 4 - TAU / 2).concat(arc(0.5, 0.72, 0.22, TAU / 4, TAU * 0.75))],
+    ["U", poly([P(0.1, 0.08), P(0.1, 0.6)]).concat(arc(0.5, 0.6, 0.4, Math.PI, TAU / 2 + Math.PI)).concat(poly([P(0.9, 0.6), P(0.9, 0.08)]))],
+    ["V", poly([P(0.05, 0.05), P(0.5, 0.95), P(0.95, 0.05)])],
+    ["W", poly([P(0.02, 0.05), P(0.27, 0.95), P(0.5, 0.35), P(0.73, 0.95), P(0.98, 0.05)])],
+    ["M", poly([P(0.05, 0.95), P(0.05, 0.05), P(0.5, 0.6), P(0.95, 0.05), P(0.95, 0.95)])],
+    ["N", poly([P(0.08, 0.95), P(0.08, 0.05), P(0.92, 0.95), P(0.92, 0.05)])],
+    ["L", poly([P(0.15, 0.05), P(0.15, 0.9), P(0.85, 0.9)])],
+    ["Z", poly([P(0.08, 0.08), P(0.92, 0.08), P(0.08, 0.92), P(0.92, 0.92)])],
+    ["1", poly([P(0.5, 0.05), P(0.5, 0.95)])],
+    ["7", poly([P(0.08, 0.08), P(0.9, 0.08), P(0.42, 0.95)])],
+    ["2", arc(0.5, 0.3, 0.25, Math.PI, TAU * 0.55).concat(poly([P(0.68, 0.45), P(0.12, 0.92), P(0.9, 0.92)]))],
+    ["3", arc(0.5, 0.28, 0.2, Math.PI * 0.8, -TAU * 0.3 + Math.PI).concat(arc(0.5, 0.7, 0.24, -TAU / 4, TAU * 0.42))],
+    ["triangle", poly([P(0.5, 0.05), P(0.05, 0.92), P(0.95, 0.92), P(0.5, 0.05)]), true],
+    ["star", poly([P(0.5, 0.02), P(0.38, 0.38), P(0.02, 0.38), P(0.31, 0.6), P(0.2, 0.98), P(0.5, 0.75), P(0.8, 0.98), P(0.69, 0.6), P(0.98, 0.38), P(0.62, 0.38), P(0.5, 0.02)]), true],
+    ["heart", arc(0.32, 0.3, 0.2, Math.PI, 0).concat(arc(0.68, 0.3, 0.2, Math.PI, 0)).concat(poly([P(0.88, 0.4), P(0.5, 0.95), P(0.12, 0.4)])), true],
+    ["check", poly([P(0.08, 0.55), P(0.35, 0.9), P(0.92, 0.1)])],
+  ];
+  const VEC = TEMPLATES.map((t) => ({ name: t[0], v: toVector(resample(t[1].slice())), closed: !!t[2] }));
+  const NICE = { O: "the letter O", C: "the letter C", S: "the letter S", U: "the letter U", V: "the letter V",
+    W: "the letter W", M: "the letter M", N: "the letter N", L: "the letter L", Z: "the letter Z",
+    1: "the number 1", 2: "the number 2", 3: "the number 3", 7: "the number 7",
+    triangle: "a triangle", star: "a star", heart: "a heart", check: "a check mark" };
+  const GLYPH = { triangle: "△", star: "☆", heart: "♡", check: "✓" };
+  function recognise() {
+    const flat = strokes.flat().map((p) => ({ x: p.x, y: p.y }));
+    if (flat.length < 8) { setStatus("", "Waiting for a shape…"); return; }
+    setStep(3);
+    const v = toVector(resample(flat));
+    let best = null;
+    VEC.forEach((t) => { const sc = bestMatch(v, t); if (!best || sc > best.sc) best = { name: t.name, sc }; });
+    const pct = Math.round(Math.max(0, Math.min(0.999, best.sc)) * 100);
+    setStatus("done", "Matched, in your browser");
+    verdict.classList.add("on");
+    glyphEl.textContent = GLYPH[best.name] || best.name;
+    const name = NICE[best.name] || best.name;
+    if (best.sc > 0.72) {
+      guessEl.textContent = `Looks like ${name} · ${pct}% match`;
+      guessSub.textContent = "A shape match, not the AI below. The real pen also feels pressure, tilt and pen lifts.";
+    } else {
+      guessEl.textContent = `Best guess: ${name} · ${pct}% match`;
+      guessSub.textContent = "Not sure. Try one clear shape: O, S, V, Z, 7, a star or a heart.";
+    }
+  }
+
+  $("w-clear").addEventListener("click", () => {
+    strokes = []; cur = null; samples = 0; locked = false; pad.classList.remove("locked");
+    sampleEl.textContent = "0"; pktEl.textContent = "0"; eqEl.textContent = "";
+    clearTimeout(sendTimer); cancelAnimationFrame(replayRaf); waveStop();
+    gD.clearRect(0, 0, draw.width, draw.height); gR.clearRect(0, 0, recon.width, recon.height);
+    hint.classList.remove("off"); waitLay.classList.remove("off");
+    verdict.classList.remove("on"); ble.classList.remove("streaming");
+    setStatus("", "Waiting for a shape…"); setStep(-1); calmBus();
+  });
+  calmBus();
+})();

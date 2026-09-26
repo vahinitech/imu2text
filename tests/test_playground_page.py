@@ -117,7 +117,7 @@ def test_styles_use_only_design_system_tokens():
         r"#[0-9a-fA-F]{3,8}\b|rgba?\(", css
     ), "colour literal in style.css"
     assert not re.search(r"var\(--v-[a-z0-9-]+,", css), "a design token has a fallback"
-    for script in ("app.js", "charts.js", "stages.js"):
+    for script in ("app.js", "charts.js", "stages.js", "write.js"):
         js = (PLAYGROUND / script).read_text(encoding="utf-8")
         assert not re.findall(
             r"[\"']#[0-9a-fA-F]{6}[\"']", js
