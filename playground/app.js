@@ -673,6 +673,9 @@ function renderModel() {
       })), state.group, (v) => { state.group = v; renderModel(); renderPipeline(); writeHash(); });
     }
   }
+  // Rows with nothing to choose (a single-model task) are hidden.
+  models.closest(".choice").hidden = !models.children.length;
+  training.closest(".choice").hidden = !training.children.length;
   document.getElementById("waiting").hidden = state.revealed;
   if (!state.revealed) {
     renderDev("dev-model");
@@ -909,18 +912,20 @@ document.getElementById("recognize").addEventListener("click", recognize);
 readHash();
 renderAll();
 renderOpen();
-// ---------- glossary: one row that moves on by a card every second ----------
-// It pauses while the pointer is over it or it has focus, never moves for
-// reduced motion, and a click on a glossary word elsewhere jumps to that card.
-(function glossaryRow() {
-  const list = document.getElementById("gloss-list");
-  const controls = document.querySelector(".gloss-controls");
+// ---------- rows that move on by a card every second (glossary, AI designs) ----------
+// Each pauses while the pointer is over it or it has focus, while off screen
+// or hidden, and never moves for reduced motion. "Show all" turns it into a
+// grid. A glossary word elsewhere (#term-...) brings its card into view.
+function movingRow(prefix) {
+  const list = document.getElementById(`${prefix}-list`);
+  const controls = document.getElementById(`${prefix}-controls`);
   if (!list || !controls) return;
   controls.hidden = false;
   const STEP_MS = 1000;
   let paused = REDUCED_MOTION, hovering = false, visible = false, timer = null;
-  const pauseBtn = document.getElementById("gloss-pause"), allBtn = document.getElementById("gloss-all");
-  const cardWidth = () => (list.firstElementChild ? list.firstElementChild.getBoundingClientRect().width + 10 : 0);
+  const pauseBtn = document.getElementById(`${prefix}-pause`), allBtn = document.getElementById(`${prefix}-all`);
+  const gap = () => parseFloat(getComputedStyle(list).columnGap) || 0;
+  const cardWidth = () => (list.firstElementChild ? list.firstElementChild.getBoundingClientRect().width + gap() : 0);
   function step(dir) {
     const atEnd = list.scrollLeft + list.clientWidth >= list.scrollWidth - 4;
     if (dir > 0 && atEnd) list.scrollTo({ left: 0 });
@@ -928,7 +933,7 @@ renderOpen();
   }
   function sync() {
     clearInterval(timer);
-    const row = list.classList.contains("glossary--row");
+    const row = list.classList.contains("moving-row");
     pauseBtn.textContent = paused ? "Play" : "Pause";
     pauseBtn.hidden = REDUCED_MOTION || !row;
     if (row && visible && !paused && !hovering && !document.hidden) timer = setInterval(() => step(1), STEP_MS);
@@ -937,18 +942,17 @@ renderOpen();
   list.addEventListener("pointerleave", () => { hovering = false; sync(); });
   list.addEventListener("focusin", () => { hovering = true; sync(); });
   list.addEventListener("focusout", () => { hovering = false; sync(); });
-  document.getElementById("gloss-prev").addEventListener("click", () => step(-1));
-  document.getElementById("gloss-next").addEventListener("click", () => step(1));
+  document.getElementById(`${prefix}-prev`).addEventListener("click", () => step(-1));
+  document.getElementById(`${prefix}-next`).addEventListener("click", () => step(1));
   pauseBtn.addEventListener("click", () => { paused = !paused; sync(); });
   allBtn.addEventListener("click", () => {
-    const row = list.classList.toggle("glossary--row");
+    const row = list.classList.toggle("moving-row");
     allBtn.setAttribute("aria-pressed", String(!row));
     allBtn.textContent = row ? "Show all" : "Show as a row";
     sync();
   });
   document.addEventListener("visibilitychange", sync);
   new IntersectionObserver((entries) => { visible = entries[0].isIntersecting; sync(); }).observe(list);
-  // A glossary word elsewhere (#term-...) brings its card into the row and holds it.
   function showTarget() {
     const card = location.hash.startsWith("#term-") && document.getElementById(location.hash.slice(1));
     if (!card || !list.contains(card)) return;
@@ -957,7 +961,9 @@ renderOpen();
   }
   window.addEventListener("hashchange", showTarget);
   showTarget();
-})();
+}
+movingRow("gloss");
+movingRow("design");
 
 let resizeTimer;
 window.addEventListener("resize", () => {

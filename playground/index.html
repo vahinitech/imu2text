@@ -207,13 +207,13 @@
     <h2 id="gloss-h">Glossary</h2>
     <p class="hint">Short, plain meanings of the words on this page. More detail in
       <a href="https://github.com/vahinitech/imu2text/blob/main/docs/glossary.md">docs/glossary.md</a>.</p>
-    <div class="gloss-controls" hidden>
+    <div class="row-controls" id="gloss-controls" hidden>
       <button type="button" class="v-btn v-btn--ghost v-btn--sm" id="gloss-prev" aria-label="Previous term">←</button>
       <button type="button" class="v-btn v-btn--ghost v-btn--sm" id="gloss-pause">Pause</button>
       <button type="button" class="v-btn v-btn--ghost v-btn--sm" id="gloss-next" aria-label="Next term">→</button>
       <button type="button" class="v-btn v-btn--ghost v-btn--sm" id="gloss-all" aria-pressed="false">Show all</button>
     </div>
-    <dl class="glossary glossary--row" id="gloss-list">
+    <dl class="glossary moving-row" id="gloss-list">
       <div id="term-imu"><dt>Sensor pen (IMU)</dt><dd>A pen with motion sensors inside. IMU means inertial measurement unit: sensors that feel movement.</dd></div>
       <div id="term-accelerometer"><dt>Accelerometer</dt><dd>Feels speeding up, slowing down and gravity, in three directions (x, y, z). This pen has two, front and back.</dd></div>
       <div id="term-gyroscope"><dt>Gyroscope</dt><dd>Feels how fast the pen turns.</dd></div>
@@ -260,24 +260,25 @@
       second. Each design below reads it differently. Scores are letters from people
       the model never saw, unless the row says otherwise; "not measured" means nobody
       has run it on this data in this project yet.</p>
-    <div class="table-wrap">
-      <table class="results designs">
-        <thead><tr><th scope="col">Design</th><th scope="col">How it reads the pen</th><th scope="col">Good when</th><th scope="col">Here</th></tr></thead>
-        <tbody>
-          <tr><td><a class="term" href="#term-cnn">CNN</a></td><td>Slides small windows along the signal and spots short patterns, like a quick upstroke.</td><td>You need speed or a small chip.</td><td>48.7%*</td></tr>
-          <tr><td>LSTM, <a class="term" href="#term-bilstm">BiLSTM</a></td><td>Reads the signal in time order and remembers what came before. A BiLSTM also reads it backwards.</td><td>Order matters more than shape.</td><td>43.8%*, 56.2%*</td></tr>
-          <tr class="designs__ours"><td><strong>CNN-BiLSTM</strong> (this page)</td><td>The CNN finds the strokes, the BiLSTM joins them in order, attention picks the moments that matter.</td><td>Little data, short signals. The design Ott et al. benchmark on OnHW.</td><td>64.8%*; 72.46% on the official test, 74.46% as a 5-run vote</td></tr>
-          <tr><td>CNN-GRU</td><td>A GRU is an LSTM with fewer parts. It learns the same kind of order.</td><td>You want a smaller, faster model.</td><td>not measured</td></tr>
-          <tr><td>CNN-MLP</td><td>After the CNN, a plain layer looks at everything at once and forgets the order.</td><td>Very short, simple shapes.</td><td>not measured</td></tr>
-          <tr><td>CNN-GNN</td><td>Treats the 13 sensors as connected points and learns how they relate.</td><td>Sensors that move together carry the signal.</td><td>no fair test yet</td></tr>
-          <tr><td><a class="term" href="#term-transformer">Transformer</a></td><td>Every moment looks at every other moment through attention; no reading order.</td><td>Much more data than OnHW has.</td><td>built, not measured</td></tr>
-          <tr><td><a class="term" href="#term-autoencoder">Autoencoder</a></td><td>Learns to squeeze a recording and rebuild it, without any labels.</td><td>You have many recordings but few with answers.</td><td>not measured</td></tr>
-          <tr><td><a class="term" href="#term-vae">VAE</a> or GAN</td><td>Learns to make new, realistic recordings.</td><td>A group is rare in the data, like left-handed people.</td><td>not measured</td></tr>
-          <tr><td><a class="term" href="#term-moe">Mixture of experts</a></td><td>Several small models, the experts, plus a router that sends each recording to the experts that suit it.</td><td>Writers differ a lot, for example left- and right-handed.</td><td>built (<code>build_moe</code>), not measured</td></tr>
-          <tr><td><a class="term" href="#term-quantum">Hybrid quantum</a></td><td>A small quantum circuit does part of the work, for example the filter of a CNN, and a normal network does the rest.</td><td>Research only so far. <a href="https://arxiv.org/abs/2402.10540">Zaman et al. (2024)</a> compared three such designs on 4 handwritten digits, 100 to 500 training images, on a quantum simulator.</td><td>not measured</td></tr>
-          <tr><td>DBN</td><td>An older stack of layers trained one at a time, from before CNNs and LSTMs took over.</td><td>Mostly of historical interest.</td><td>not measured</td></tr>
-        </tbody>
-      </table>
+    <div class="row-controls" id="design-controls" hidden>
+      <button type="button" class="v-btn v-btn--ghost v-btn--sm" id="design-prev" aria-label="Previous design">←</button>
+      <button type="button" class="v-btn v-btn--ghost v-btn--sm" id="design-pause">Pause</button>
+      <button type="button" class="v-btn v-btn--ghost v-btn--sm" id="design-next" aria-label="Next design">→</button>
+      <button type="button" class="v-btn v-btn--ghost v-btn--sm" id="design-all" aria-pressed="false">Show all</button>
+    </div>
+    <div class="design-list moving-row" id="design-list">
+      <article class="v-card design-card"><h3><a class="term" href="#term-cnn">CNN</a></h3><p>Slides small windows along the signal and spots short patterns, like a quick upstroke.</p><p class="design-card__good"><span>Good when</span> You need speed or a small chip.</p><p class="design-card__here"><span>Here</span> 48.7%*</p></article>
+      <article class="v-card design-card"><h3>LSTM, <a class="term" href="#term-bilstm">BiLSTM</a></h3><p>Reads the signal in time order and remembers what came before. A BiLSTM also reads it backwards.</p><p class="design-card__good"><span>Good when</span> Order matters more than shape.</p><p class="design-card__here"><span>Here</span> 43.8%*, 56.2%*</p></article>
+      <article class="v-card design-card design-card--ours"><h3><strong>CNN-BiLSTM</strong> (this page)</h3><p>The CNN finds the strokes, the BiLSTM joins them in order, attention picks the moments that matter.</p><p class="design-card__good"><span>Good when</span> Little data, short signals. The design Ott et al. benchmark on OnHW.</p><p class="design-card__here"><span>Here</span> 64.8%*; 72.46% on the official test, 74.46% as a 5-run vote</p></article>
+      <article class="v-card design-card"><h3>CNN-GRU</h3><p>A GRU is an LSTM with fewer parts. It learns the same kind of order.</p><p class="design-card__good"><span>Good when</span> You want a smaller, faster model.</p><p class="design-card__here"><span>Here</span> not measured</p></article>
+      <article class="v-card design-card"><h3>CNN-MLP</h3><p>After the CNN, a plain layer looks at everything at once and forgets the order.</p><p class="design-card__good"><span>Good when</span> Very short, simple shapes.</p><p class="design-card__here"><span>Here</span> not measured</p></article>
+      <article class="v-card design-card"><h3>CNN-GNN</h3><p>Treats the 13 sensors as connected points and learns how they relate.</p><p class="design-card__good"><span>Good when</span> Sensors that move together carry the signal.</p><p class="design-card__here"><span>Here</span> no fair test yet</p></article>
+      <article class="v-card design-card"><h3><a class="term" href="#term-transformer">Transformer</a></h3><p>Every moment looks at every other moment through attention; no reading order.</p><p class="design-card__good"><span>Good when</span> Much more data than OnHW has.</p><p class="design-card__here"><span>Here</span> built, not measured</p></article>
+      <article class="v-card design-card"><h3><a class="term" href="#term-autoencoder">Autoencoder</a></h3><p>Learns to squeeze a recording and rebuild it, without any labels.</p><p class="design-card__good"><span>Good when</span> You have many recordings but few with answers.</p><p class="design-card__here"><span>Here</span> not measured</p></article>
+      <article class="v-card design-card"><h3><a class="term" href="#term-vae">VAE</a> or GAN</h3><p>Learns to make new, realistic recordings.</p><p class="design-card__good"><span>Good when</span> A group is rare in the data, like left-handed people.</p><p class="design-card__here"><span>Here</span> not measured</p></article>
+      <article class="v-card design-card"><h3><a class="term" href="#term-moe">Mixture of experts</a></h3><p>Several small models, the experts, plus a router that sends each recording to the experts that suit it.</p><p class="design-card__good"><span>Good when</span> Writers differ a lot, for example left- and right-handed.</p><p class="design-card__here"><span>Here</span> built (<code>build_moe</code>), not measured</p></article>
+      <article class="v-card design-card"><h3><a class="term" href="#term-quantum">Hybrid quantum</a></h3><p>A small quantum circuit does part of the work, for example the filter of a CNN, and a normal network does the rest.</p><p class="design-card__good"><span>Good when</span> Research only so far. <a href="https://arxiv.org/abs/2402.10540">Zaman et al. (2024)</a> compared three such designs on 4 handwritten digits, 100 to 500 training images, on a quantum simulator.</p><p class="design-card__here"><span>Here</span> not measured</p></article>
+      <article class="v-card design-card"><h3>DBN</h3><p>An older stack of layers trained one at a time, from before CNNs and LSTMs took over.</p><p class="design-card__good"><span>Good when</span> Mostly of historical interest.</p><p class="design-card__here"><span>Here</span> not measured</p></article>
     </div>
     <p class="hint">* Left-handed OnHW-chars_L, 2,270 letters, a split that shares writers
       between training and test, so these four are only comparable with each other. The

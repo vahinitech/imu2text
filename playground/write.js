@@ -71,7 +71,9 @@
   }
 
   // ---------- drawing ----------
-  let strokes = [], cur = null, lastPt = null, drawing = false, timer = null, locked = false;
+  // A finished character is replaced by the next drawing; strokes made
+  // within half a second of each other count as one character.
+  let strokes = [], cur = null, lastPt = null, drawing = false, timer = null, finished = false;
   function pos(e) { const r = draw.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, t: performance.now() }; }
   function line(g, a, b, w) {
     g.strokeStyle = INK; g.lineWidth = w; g.lineCap = "round"; g.lineJoin = "round";
@@ -82,8 +84,10 @@
     strokes.forEach((st) => { for (let j = 1; j < st.length; j++) line(gD, st[j - 1], st[j], 3.2); });
   }
   draw.addEventListener("pointerdown", (e) => {
-    if (locked) return;
     e.preventDefault(); draw.setPointerCapture(e.pointerId);
+    if (finished) { strokes = []; finished = false; gD.clearRect(0, 0, draw.width, draw.height); }
+    // Hide the previous answer while a new character is drawn.
+    if (state.revealed && !state.busy) { state.revealed = false; renderModel(); }
     drawing = true; cur = [pos(e)]; lastPt = cur[0];
     hint.classList.add("off"); clearTimeout(timer);
     shapeEl.textContent = "Feeling the movement…";
@@ -101,13 +105,13 @@
     drawing = false; calmBus();
     if (cur && cur.length > 2) strokes.push(cur);
     cur = null;
-    if (strokes.length) { locked = true; pad.classList.add("locked"); timer = setTimeout(recognise, reduce ? 0 : 500); }
+    if (strokes.length) timer = setTimeout(recognise, reduce ? 0 : 500);
   }
   draw.addEventListener("pointerup", endStroke);
   draw.addEventListener("pointercancel", endStroke);
   draw.addEventListener("pointerleave", endStroke);
   $("w-clear").addEventListener("click", () => {
-    strokes = []; cur = null; locked = false; pad.classList.remove("locked"); clearTimeout(timer);
+    strokes = []; cur = null; finished = false; clearTimeout(timer);
     gD.clearRect(0, 0, draw.width, draw.height); hint.classList.remove("off"); shapeEl.textContent = ""; calmBus();
   });
 
@@ -198,29 +202,20 @@
     ["7", poly([P(0.08, 0.08), P(0.9, 0.08), P(0.42, 0.95)])],
     ["2", arc(0.5, 0.3, 0.25, Math.PI, TAU * 0.55).concat(poly([P(0.68, 0.45), P(0.12, 0.92), P(0.9, 0.92)]))],
     ["3", arc(0.5, 0.28, 0.2, Math.PI * 0.8, -TAU * 0.3 + Math.PI).concat(arc(0.5, 0.7, 0.24, -TAU / 4, TAU * 0.42))],
-    ["triangle", poly([P(0.5, 0.05), P(0.05, 0.92), P(0.95, 0.92), P(0.5, 0.05)]), true],
-    ["star", poly([P(0.5, 0.02), P(0.38, 0.38), P(0.02, 0.38), P(0.31, 0.6), P(0.2, 0.98), P(0.5, 0.75), P(0.8, 0.98), P(0.69, 0.6), P(0.98, 0.38), P(0.62, 0.38), P(0.5, 0.02)]), true],
-    ["heart", arc(0.32, 0.3, 0.2, Math.PI, 0).concat(arc(0.68, 0.3, 0.2, Math.PI, 0)).concat(poly([P(0.88, 0.4), P(0.5, 0.95), P(0.12, 0.4)])), true],
-    ["check", poly([P(0.08, 0.55), P(0.35, 0.9), P(0.92, 0.1)])],
   ];
   const VEC = TEMPLATES.map((t) => ({ name: t[0], v: toVector(resample(t[1].slice())), closed: !!t[2] }));
-  const NICE = { O: "the letter O", C: "the letter C", S: "the letter S", U: "the letter U", V: "the letter V",
-    W: "the letter W", M: "the letter M", N: "the letter N", L: "the letter L", Z: "the letter Z",
-    1: "the number 1", 2: "the number 2", 3: "the number 3", 7: "the number 7",
-    triangle: "a triangle", star: "a star", heart: "a heart", check: "a check mark" };
-  const GLYPH = { triangle: "△", star: "☆", heart: "♡", check: "✓" };
   // ---------- shape → a real recording → the page's Recognize ----------
   const DIGITS = new Set(["1", "2", "3", "7"]);
   const LETTERS = new Set(["O", "C", "S", "U", "V", "W", "M", "N", "L", "Z"]);
   function recognise() {
+    finished = true;
     const flat = strokes.flat().map((p) => ({ x: p.x, y: p.y }));
     if (flat.length < 8) { shapeEl.textContent = ""; return; }
     const v = toVector(resample(flat));
     let best = null;
     VEC.forEach((t) => { const sc = bestMatch(v, t); if (!best || sc > best.sc) best = { name: t.name, sc }; });
-    const name = NICE[best.name] || best.name;
-    if (!DIGITS.has(best.name) && !LETTERS.has(best.name)) {
-      shapeEl.textContent = `Looks like ${name}. OnHW has letters, digits and maths symbols; try O, S, Z or 7.`;
+    if (best.sc < 0.6) {
+      shapeEl.textContent = "Not sure what that was. Try one clear shape: O, S, V, Z or 7.";
       return;
     }
     const ch = best.name;
