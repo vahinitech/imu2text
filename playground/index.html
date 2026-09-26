@@ -8,7 +8,11 @@
   <link rel="canonical" href="https://playground.vahinitech.com/">
   <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#222831">
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <!-- The Vahini favicon, served by every Vahini host (README.md) -->
+  <link rel="icon" href="/site/assets/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/site/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/site/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" href="/site/assets/apple-touch-icon.png">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Vahini">
@@ -212,8 +216,9 @@
       <button type="button" class="v-btn v-btn--ghost v-btn--sm" id="gloss-pause">Pause</button>
       <button type="button" class="v-btn v-btn--ghost v-btn--sm" id="gloss-next" aria-label="Next term">→</button>
       <button type="button" class="v-btn v-btn--ghost v-btn--sm" id="gloss-all" aria-pressed="false">Show all</button>
+      <span class="hint">Swipe the top card, or use the arrows.</span>
     </div>
-    <dl class="glossary moving-row" id="gloss-list">
+    <dl class="glossary" id="gloss-list">
       <div id="term-imu"><dt>Sensor pen (IMU)</dt><dd>A pen with motion sensors inside. IMU means inertial measurement unit: sensors that feel movement.</dd></div>
       <div id="term-accelerometer"><dt>Accelerometer</dt><dd>Feels speeding up, slowing down and gravity, in three directions (x, y, z). This pen has two, front and back.</dd></div>
       <div id="term-gyroscope"><dt>Gyroscope</dt><dd>Feels how fast the pen turns.</dd></div>
@@ -265,8 +270,9 @@
       <button type="button" class="v-btn v-btn--ghost v-btn--sm" id="design-pause">Pause</button>
       <button type="button" class="v-btn v-btn--ghost v-btn--sm" id="design-next" aria-label="Next design">→</button>
       <button type="button" class="v-btn v-btn--ghost v-btn--sm" id="design-all" aria-pressed="false">Show all</button>
+      <span class="hint">Swipe the top card, or use the arrows.</span>
     </div>
-    <div class="design-list moving-row" id="design-list">
+    <div class="design-list" id="design-list">
       <article class="v-card design-card"><h3><a class="term" href="#term-cnn">CNN</a></h3><p>Slides small windows along the signal and spots short patterns, like a quick upstroke.</p><p class="design-card__good"><span>Good when</span> You need speed or a small chip.</p><p class="design-card__here"><span>Here</span> 48.7%*</p></article>
       <article class="v-card design-card"><h3>LSTM, <a class="term" href="#term-bilstm">BiLSTM</a></h3><p>Reads the signal in time order and remembers what came before. A BiLSTM also reads it backwards.</p><p class="design-card__good"><span>Good when</span> Order matters more than shape.</p><p class="design-card__here"><span>Here</span> 43.8%*, 56.2%*</p></article>
       <article class="v-card design-card design-card--ours"><h3><strong>CNN-BiLSTM</strong> (this page)</h3><p>The CNN finds the strokes, the BiLSTM joins them in order, attention picks the moments that matter.</p><p class="design-card__good"><span>Good when</span> Little data, short signals. The design Ott et al. benchmark on OnHW.</p><p class="design-card__here"><span>Here</span> 64.8%*; 72.46% on the official test, 74.46% as a 5-run vote</p></article>

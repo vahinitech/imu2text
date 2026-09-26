@@ -71,7 +71,7 @@ def test_page_has_search_and_sharing_metadata():
     for key in ("og:title", "og:description", "og:image", "og:url", "twitter:card"):
         assert page.meta.get(key), key
     assert (PLAYGROUND / "og.png").exists()
-    assert (PLAYGROUND / "favicon.svg").exists()
+    assert page.links["icon"].startswith("/site/assets/favicon")
     robots = (PLAYGROUND / "robots.txt").read_text(encoding="utf-8")
     assert "Sitemap: https://playground.vahinitech.com/sitemap.xml" in robots
     assert "<loc>https://playground.vahinitech.com/</loc>" in (

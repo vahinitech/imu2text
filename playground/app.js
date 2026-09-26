@@ -912,58 +912,117 @@ document.getElementById("recognize").addEventListener("click", recognize);
 readHash();
 renderAll();
 renderOpen();
-// ---------- rows that move on by a card every second (glossary, AI designs) ----------
-// Each pauses while the pointer is over it or it has focus, while off screen
-// or hidden, and never moves for reduced motion. "Show all" turns it into a
-// grid. A glossary word elsewhere (#term-...) brings its card into view.
-function movingRow(prefix) {
-  const list = document.getElementById(`${prefix}-list`);
+// ---------- swipe stacks (glossary, AI designs) ----------
+// A deck of cards. The top card follows the finger or mouse (translate3d);
+// a committed swipe sends it to the back, so the deck loops. It also moves
+// on by itself every few seconds, pausing on hover, focus or touch, while
+// off screen or hidden, and never for reduced motion. The arrows step
+// through it, "Show all" lays the cards out as a grid, and a glossary word
+// elsewhere (#term-...) brings its card to the top.
+function swipeStack(prefix) {
+  const deck = document.getElementById(`${prefix}-list`);
   const controls = document.getElementById(`${prefix}-controls`);
-  if (!list || !controls) return;
+  if (!deck || !controls) return;
   controls.hidden = false;
-  const STEP_MS = 1000;
-  let paused = REDUCED_MOTION, hovering = false, visible = false, timer = null;
+  deck.classList.add("swipe-stack");   // without JavaScript the cards stay a grid
+  const AUTO_MS = 3000, BEHIND = 3, THRESHOLD = 70;
+  const cards = [...deck.children];
+  let order = cards.map((_, i) => i);
+  let paused = REDUCED_MOTION, hovering = false, visible = false, timer = null, drag = null;
   const pauseBtn = document.getElementById(`${prefix}-pause`), allBtn = document.getElementById(`${prefix}-all`);
-  const gap = () => parseFloat(getComputedStyle(list).columnGap) || 0;
-  const cardWidth = () => (list.firstElementChild ? list.firstElementChild.getBoundingClientRect().width + gap() : 0);
-  function step(dir) {
-    const atEnd = list.scrollLeft + list.clientWidth >= list.scrollWidth - 4;
-    if (dir > 0 && atEnd) list.scrollTo({ left: 0 });
-    else list.scrollBy({ left: dir * cardWidth() });
+  const counter = el("span", { class: "row-count", "aria-live": "polite" });
+  pauseBtn.after(counter);
+  const stacked = () => deck.classList.contains("swipe-stack");
+  function layout() {
+    if (!stacked()) {
+      cards.forEach((c) => { c.style.transform = ""; c.style.zIndex = ""; c.style.opacity = ""; c.style.height = ""; c.inert = false; });
+      deck.style.height = ""; counter.textContent = ""; return;
+    }
+    // Every card as tall as the tallest, so only the offset edges show behind.
+    cards.forEach((c) => { c.style.height = ""; });
+    const h = Math.max(...cards.map((c) => c.offsetHeight));
+    cards.forEach((c) => { c.style.height = `${h}px`; });
+    deck.style.height = `${h + BEHIND * 10}px`;
+    counter.textContent = `${order[0] + 1} / ${cards.length}`;
+    order.forEach((idx, pos) => {
+      const c = cards[idx];
+      const depth = Math.min(pos, BEHIND);
+      c.style.zIndex = String(cards.length - pos);
+      c.style.opacity = pos > BEHIND ? "0" : "1";
+      c.style.transform = `translate3d(0, ${depth * 10}px, 0) scale(${1 - depth * 0.04})`;
+      c.inert = pos !== 0;   // only the top card is read out and focusable
+    });
+  }
+  function cycle(dir) {
+    if (dir > 0) order.push(order.shift()); else order.unshift(order.pop());
+    layout();
+  }
+  function fling(dir) {
+    const top = cards[order[0]];
+    top.classList.remove("dragging");
+    top.style.transform = `translate3d(${dir * (deck.clientWidth + 60)}px, 0, 0) rotate(${dir * 12}deg)`;
+    top.style.opacity = "0";
+    setTimeout(() => { order.push(order.shift()); layout(); }, REDUCED_MOTION ? 0 : 260);
   }
   function sync() {
     clearInterval(timer);
-    const row = list.classList.contains("moving-row");
     pauseBtn.textContent = paused ? "Play" : "Pause";
-    pauseBtn.hidden = REDUCED_MOTION || !row;
-    if (row && visible && !paused && !hovering && !document.hidden) timer = setInterval(() => step(1), STEP_MS);
+    pauseBtn.hidden = REDUCED_MOTION || !stacked();
+    if (stacked() && visible && !paused && !hovering && !document.hidden) timer = setInterval(() => fling(-1), AUTO_MS);
   }
-  list.addEventListener("pointerenter", () => { hovering = true; sync(); });
-  list.addEventListener("pointerleave", () => { hovering = false; sync(); });
-  list.addEventListener("focusin", () => { hovering = true; sync(); });
-  list.addEventListener("focusout", () => { hovering = false; sync(); });
-  document.getElementById(`${prefix}-prev`).addEventListener("click", () => step(-1));
-  document.getElementById(`${prefix}-next`).addEventListener("click", () => step(1));
+  deck.addEventListener("pointerdown", (e) => {
+    if (!stacked() || e.button > 0 || e.target.closest("a")) return;
+    const top = cards[order[0]];
+    if (!top.contains(e.target)) return;
+    drag = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId };
+    top.classList.add("dragging");
+    top.setPointerCapture(e.pointerId);
+    hovering = true; sync();
+  });
+  deck.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dx = e.clientX - drag.x, dy = (e.clientY - drag.y) * 0.2;
+    cards[order[0]].style.transform = `translate3d(${dx}px, ${dy}px, 0) rotate(${dx / 24}deg)`;
+  });
+  function endDrag(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dx = e.clientX - drag.x, speed = Math.abs(dx) / Math.max(1, performance.now() - drag.t);
+    drag = null;
+    if (Math.abs(dx) > THRESHOLD || speed > 0.6) fling(Math.sign(dx) || -1);
+    else { cards[order[0]].classList.remove("dragging"); layout(); }
+    hovering = deck.matches(":hover"); sync();
+  }
+  deck.addEventListener("pointerup", endDrag);
+  deck.addEventListener("pointercancel", endDrag);
+  deck.addEventListener("pointerenter", () => { hovering = true; sync(); });
+  deck.addEventListener("pointerleave", () => { if (!drag) { hovering = false; sync(); } });
+  deck.addEventListener("focusin", () => { hovering = true; sync(); });
+  deck.addEventListener("focusout", () => { hovering = false; sync(); });
+  document.getElementById(`${prefix}-prev`).addEventListener("click", () => cycle(-1));
+  document.getElementById(`${prefix}-next`).addEventListener("click", () => cycle(1));
   pauseBtn.addEventListener("click", () => { paused = !paused; sync(); });
   allBtn.addEventListener("click", () => {
-    const row = list.classList.toggle("moving-row");
-    allBtn.setAttribute("aria-pressed", String(!row));
-    allBtn.textContent = row ? "Show all" : "Show as a row";
-    sync();
+    const nowStacked = deck.classList.toggle("swipe-stack");
+    allBtn.setAttribute("aria-pressed", String(!nowStacked));
+    allBtn.textContent = nowStacked ? "Show all" : "Show as a stack";
+    layout(); sync();
   });
   document.addEventListener("visibilitychange", sync);
-  new IntersectionObserver((entries) => { visible = entries[0].isIntersecting; sync(); }).observe(list);
+  window.addEventListener("resize", layout);
+  new IntersectionObserver((entries) => { visible = entries[0].isIntersecting; sync(); }).observe(deck);
   function showTarget() {
     const card = location.hash.startsWith("#term-") && document.getElementById(location.hash.slice(1));
-    if (!card || !list.contains(card)) return;
-    list.scrollTo({ left: card.offsetLeft - list.offsetLeft });
-    paused = true; sync();
+    const idx = cards.indexOf(card);
+    if (idx < 0) return;
+    while (order[0] !== idx) order.push(order.shift());
+    layout(); paused = true; sync();
   }
   window.addEventListener("hashchange", showTarget);
+  layout();
   showTarget();
 }
-movingRow("gloss");
-movingRow("design");
+swipeStack("gloss");
+swipeStack("design");
 
 let resizeTimer;
 window.addEventListener("resize", () => {

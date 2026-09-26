@@ -220,18 +220,17 @@ details.dev p { margin: 6px 0; }
   .choices { gap: 6px 14px; }
 }
 
-/* Moving rows (glossary, AI designs): app.js advances them every second;
-   "Show all" turns them back into a grid. Without JavaScript they scroll by hand. */
-.moving-row { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: thin; padding-bottom: 6px; }
-.moving-row > * { flex: 0 0 calc((100% - 30px) / 4); scroll-snap-align: start; }
-.row-controls { display: flex; gap: var(--v-space-2); margin: var(--v-space-2) 0 0; }
+/* Swipe stacks (glossary, AI designs): app.js stacks the cards, the top one
+   follows the finger, and a swipe sends it to the back. "Show all" (no
+   swipe-stack class) is a grid; without JavaScript the cards stay a grid. */
+.swipe-stack { display: block !important; position: relative; max-width: 560px; margin-top: var(--v-space-3); touch-action: pan-y; }
+.swipe-stack > * { position: absolute; left: 0; right: 0; top: 0; transform-origin: 50% 0; transition: transform 0.3s var(--v-ease), opacity 0.3s var(--v-ease); will-change: transform; cursor: grab; user-select: none; box-shadow: var(--v-shadow-1); }
+.swipe-stack > .dragging { transition: none; cursor: grabbing; }
+.row-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--v-space-2); margin: var(--v-space-2) 0 0; }
 .row-controls[hidden] { display: none; }
-@media (max-width: 1100px) { .moving-row > * { flex-basis: calc((100% - 20px) / 3); } }
-@media (max-width: 760px) { .moving-row > * { flex-basis: calc((100% - 10px) / 2); } }
-@media (max-width: 460px) { .moving-row > * { flex-basis: 85%; } }
-@media (prefers-reduced-motion: reduce) { .moving-row { scroll-behavior: auto; } }
+.row-count { font-size: var(--v-text-sm); color: var(--v-text-muted); min-width: 3.5em; text-align: center; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .swipe-stack > * { transition: none; } }
 .design-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 12px; }
-.design-list.moving-row { display: flex; }
 .design-card { display: flex; flex-direction: column; gap: 4px; }
 .design-card h3 { font-size: var(--v-text-md); margin: 0; }
 .design-card p { margin: 0; font-size: var(--v-text-sm); }
