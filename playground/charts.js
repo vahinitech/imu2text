@@ -9,7 +9,7 @@
   if (!U || !PUB.comparison) return;
 
   // One tooltip for every chart; marks carry their text in data-tip.
-  const tip = el("div", { class: "uq-tip", role: "status", hidden: "" });
+  const tip = el("div", { class: "v-tip", role: "status", hidden: "" });
   document.body.append(tip);
   function bindTips(svg) {
     svg.addEventListener("pointermove", (e) => {
@@ -37,7 +37,7 @@
     const x = (v) => m.l + (v / xMax) * (W - m.l - m.r);
     const y = (v) => H - m.b - ((v - yMin) / (yMax - yMin)) * (H - m.t - m.b);
     for (const t of yTicks) {
-      svg.append(svgEl("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: "var(--grid)" }));
+      svg.append(svgEl("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: "var(--v-chart-grid)" }));
       svg.append(svgEl("text", { x: m.l - 6, y: y(t) + 4, "text-anchor": "end" }, `${t}%`));
     }
     for (const t of xTicks) {
@@ -49,17 +49,17 @@
     return { x, y };
   }
   function legend(box, items) {
-    const row = el("div", { class: "uq-legend" });
+    const row = el("div", { class: "v-legend" });
     for (const [color, label] of items) {
-      const k = el("span", { class: "uq-key" });
+      const k = el("span", { class: "v-legend__key" });
       k.style.background = color;
-      const item = el("span", { class: "uq-item" });
+      const item = el("span", { class: "v-legend__item" });
       item.append(k, label);
       row.append(item);
     }
     box.append(row);
   }
-  const SERIES = [["single", "var(--series-2)", "One run (seed 0)"], ["vote", "var(--series-1)", "5-run vote"]];
+  const SERIES = [["single", "var(--v-chart-2)", "One run (seed 0)"], ["vote", "var(--v-chart-1)", "5-run vote"]];
 
   // 1. Calibration: when it says 80% sure, is it right 80% of the time?
   function calibration() {
@@ -71,7 +71,7 @@
     const s = frame(svg, W, H, m, 100, 0, 100, "How sure it said it was", "How often it was right",
       [0, 25, 50, 75, 100], [0, 25, 50, 75, 100]);
     svg.append(svgEl("line", { x1: s.x(0), y1: s.y(0), x2: s.x(100), y2: s.y(100),
-      stroke: "var(--muted)", "stroke-dasharray": "4 4" }));
+      stroke: "var(--v-text-muted)", "stroke-dasharray": "4 4" }));
     svg.append(svgEl("text", { x: s.x(62), y: s.y(70) - 6, transform: `rotate(-${Math.atan2(s.y(0) - s.y(100), s.x(100) - s.x(0)) * 180 / Math.PI} ${s.x(62)} ${s.y(70) - 6})` }, "perfectly honest"));
     for (const [key, color, name] of SERIES) {
       const bins = U.calibration[key].bins.filter((b) => b[2] >= 20);
@@ -79,7 +79,7 @@
       svg.append(svgEl("path", { d, fill: "none", stroke: color, "stroke-width": 2 }));
       for (const [c, a, n] of bins) {
         svg.append(focusable(svgEl("circle", { cx: s.x(c * 100), cy: s.y(a * 100), r: 5, fill: color,
-          stroke: "var(--surface)", "stroke-width": 2 }),
+          stroke: "var(--v-surface)", "stroke-width": 2 }),
           `${name}: said ${fmt(c * 100, 0)}% sure, right ${fmt(a * 100, 0)}% of the time (${n.toLocaleString()} letters)`));
       }
     }
@@ -110,7 +110,7 @@
       svg.append(svgEl("path", { d: pts.map((p, i) => `${i ? "L" : "M"}${s.x(p[0])} ${s.y(p[1])}`).join(""),
         fill: "none", stroke: color, "stroke-width": 2 }));
       for (const [c, a] of pts) {
-        svg.append(focusable(svgEl("circle", { cx: s.x(c), cy: s.y(a), r: 4, fill: color, stroke: "var(--surface)", "stroke-width": 2 }),
+        svg.append(focusable(svgEl("circle", { cx: s.x(c), cy: s.y(a), r: 4, fill: color, stroke: "var(--v-surface)", "stroke-width": 2 }),
           `${name}: answering its surest ${c}%, right ${fmt(a)}%`));
       }
     }
@@ -137,7 +137,7 @@
     const step = (W - m.l - m.r) / rows.length;
     const y = (v) => H - m.b - (v / yMax) * (H - m.t - m.b);
     for (let t = 0; t <= yMax + 1e-9; t += 0.5) {
-      svg.append(svgEl("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: "var(--grid)" }));
+      svg.append(svgEl("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: "var(--v-chart-grid)" }));
       svg.append(svgEl("text", { x: m.l - 6, y: y(t) + 4, "text-anchor": "end" }, fmt(t, 1)));
     }
     svg.append(svgEl("text", { x: 10, y: (m.t + H - m.b) / 2, "text-anchor": "middle",
@@ -147,9 +147,9 @@
       const x0 = m.l + i * step + (step - bw) / 2;
       const text = `${r.label}: ${fmt(r.accuracy)}% right over ${r.n} letters. Ambiguous ${fmt(r.ambiguous, 2)} bits, runs disagree ${fmt(r.disagree, 2)} bits`;
       const g = focusable(svgEl("g", {}), text);
-      g.append(svgEl("rect", { x: x0, y: y(r.ambiguous), width: bw, height: Math.max(0, y(0) - y(r.ambiguous)), fill: "var(--series-1)" }));
+      g.append(svgEl("rect", { x: x0, y: y(r.ambiguous), width: bw, height: Math.max(0, y(0) - y(r.ambiguous)), fill: "var(--v-chart-1)" }));
       g.append(svgEl("rect", { x: x0, y: y(r.ambiguous + r.disagree), width: bw,
-        height: Math.max(0, y(r.ambiguous) - y(r.ambiguous + r.disagree) - 1), fill: "var(--series-2)" }));
+        height: Math.max(0, y(r.ambiguous) - y(r.ambiguous + r.disagree) - 1), fill: "var(--v-chart-2)" }));
       svg.append(g);
       // On a phone the 52 labels do not fit; every other one, and the tooltip has all.
       if (step >= 9 || i % 2 === 0) {
@@ -159,8 +159,8 @@
     });
     bindTips(svg);
     box.append(svg);
-    legend(box, [["var(--series-1)", "The movement fits several letters (ambiguous)"],
-      ["var(--series-2)", "The 5 runs disagree"]]);
+    legend(box, [["var(--v-chart-1)", "The movement fits several letters (ambiguous)"],
+      ["var(--v-chart-2)", "The 5 runs disagree"]]);
     const top = rows.slice(0, 3).map((r) => `${r.label} (${fmt(r.accuracy, 0)}% right)`).join(", ");
     const last = rows[rows.length - 1];
     const amb = rows.reduce((t, r) => t + r.ambiguous * r.n, 0), dis = rows.reduce((t, r) => t + r.disagree * r.n, 0);
@@ -196,12 +196,12 @@
       const same = names[i].toLowerCase() === names[j].toLowerCase();
       if (same) casePairs += v;
       const r = svgEl("rect", { x: lab + j * cell, y: lab + i * cell, width: cell, height: cell,
-        fill: same ? "var(--series-2)" : "var(--series-1)", opacity: Math.max(0.12, Math.sqrt(v / max)) });
+        fill: same ? "var(--v-chart-2)" : "var(--v-chart-1)", opacity: Math.max(0.12, Math.sqrt(v / max)) });
       svg.append(focusable(r, `${names[i]} read as ${names[j]}: ${v} times${same ? " (same letter, other case)" : ""}`));
     }));
     bindTips(svg);
     box.append(svg);
-    legend(box, [["var(--series-2)", "Same letter, other case"], ["var(--series-1)", "A different letter"]]);
+    legend(box, [["var(--v-chart-2)", "Same letter, other case"], ["var(--v-chart-1)", "A different letter"]]);
     return `Rows: the letter written. Columns: what ${who} read. ${fmt(100 * casePairs / total, 1)}% of its ${total.toLocaleString()} mistakes are the same letter in the other case, the two orange lines.`;
   }
 
@@ -219,12 +219,12 @@
       "aria-label": "How much the 5 runs disagree, for right- and left-handed writers" });
     const y = (v) => H - m.b - (v / yMax) * (H - m.t - m.b);
     for (let t = 0; t <= yMax; t += yMax / 4) {
-      svg.append(svgEl("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: "var(--grid)" }));
+      svg.append(svgEl("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: "var(--v-chart-grid)" }));
       svg.append(svgEl("text", { x: m.l - 6, y: y(t) + 4, "text-anchor": "end" }, `${fmt(t, 0)}%`));
     }
     const step = (W - m.l - m.r) / bins, bw = Math.max(2, step / 2 - 2);
     for (let b = 0; b < bins; b++) {
-      [["right", "var(--series-1)", "right-handed"], ["left", "var(--series-2)", "left-handed"]].forEach(([k, color, who], s) => {
+      [["right", "var(--v-chart-1)", "right-handed"], ["left", "var(--v-chart-2)", "left-handed"]].forEach(([k, color, who], s) => {
         const v = h[k].share[b] * 100;
         const x0 = m.l + b * step + 1 + s * (bw + 2);
         svg.append(focusable(svgEl("rect", { x: x0, y: y(v), width: bw, height: Math.max(0, y(0) - y(v)), fill: color, rx: 2 }),
@@ -237,8 +237,8 @@
       transform: `rotate(-90 12 ${(m.t + H - m.b) / 2})` }, "Share of letters"));
     bindTips(svg);
     box.append(svg);
-    legend(box, [["var(--series-1)", `Right-handed (${h.right.n.toLocaleString()} letters)`],
-      ["var(--series-2)", `Left-handed (${h.left.n.toLocaleString()} letters)`]]);
+    legend(box, [["var(--v-chart-1)", `Right-handed (${h.right.n.toLocaleString()} letters)`],
+      ["var(--v-chart-2)", `Left-handed (${h.left.n.toLocaleString()} letters)`]]);
     document.getElementById("uq-hands-note").textContent =
       `Typical disagreement: ${fmt(h.right.quartiles[1], 2)} bits for right-handed letters, ${fmt(h.left.quartiles[1], 2)} for left-handed ones. The runs learned mostly from right-handed people, so left-handed writing is less familiar to them.`;
   }
@@ -262,7 +262,7 @@
       const yMid = i * rowH + rowH / 2;
       svg.append(svgEl("text", { x: nameW - 8, y: yMid + 4, "text-anchor": "end", class: r.ours ? "label-strong" : "" }, r.name));
       svg.append(focusable(svgEl("rect", { x: nameW, y: yMid - 9, width: Math.max(2, x(r.value) - nameW), height: 18, rx: 4,
-        fill: r.ours ? "var(--series-1)" : "var(--raw)" }), r.tip));
+        fill: r.ours ? "var(--v-chart-1)" : "var(--v-chart-neutral)" }), r.tip));
       svg.append(svgEl("text", { x: x(r.value) + 6, y: yMid + 4, class: "label-strong" }, `${fmt(r.value, 2)}%`));
     });
     bindTips(svg);
@@ -311,7 +311,7 @@
     curves(r);
     const box = document.getElementById("algo-cal");
     box.replaceChildren();
-    calibrationInto("algo-cal", [["x", "var(--series-1)", r.name, r.calibration, r.ece]]);
+    calibrationInto("algo-cal", [["x", "var(--v-chart-1)", r.name, r.calibration, r.ece]]);
     document.getElementById("algo-conf-note").textContent = drawConfusion("algo-conf", r.confusion, r.name);
   }
   function curves(r) {
@@ -323,13 +323,13 @@
     const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `Training curves for ${r.name}` });
     const s = frame(svg, W, H, m, n, 0, 100, "Training round (epoch)", "Right %", [], [0, 25, 50, 75, 100]);
     for (let e = 0; e <= n; e += Math.max(1, Math.round(n / 6))) svg.append(svgEl("text", { x: s.x(e), y: H - m.b + 16, "text-anchor": "middle" }, String(e)));
-    [[tr, "var(--series-2)", "training letters"], [va, "var(--series-1)", "held-back letters (validation)"]].forEach(([vals, color, name]) => {
+    [[tr, "var(--v-chart-2)", "training letters"], [va, "var(--v-chart-1)", "held-back letters (validation)"]].forEach(([vals, color, name]) => {
       svg.append(svgEl("path", { d: vals.map((v, i) => `${i ? "L" : "M"}${s.x(i + 1)} ${s.y(v)}`).join(""), fill: "none", stroke: color, "stroke-width": 2 }));
       vals.forEach((v, i) => svg.append(focusable(svgEl("circle", { cx: s.x(i + 1), cy: s.y(v), r: 3, fill: color }), `Round ${i + 1}: ${fmt(v)}% right on ${name}`)));
     });
     bindTips(svg);
     box.append(svg);
-    legend(box, [["var(--series-2)", "Training letters"], ["var(--series-1)", "Held-back letters"]]);
+    legend(box, [["var(--v-chart-2)", "Training letters"], ["var(--v-chart-1)", "Held-back letters"]]);
     const gap = tr[n - 1] - va[n - 1];
     document.getElementById("algo-curves-note").textContent =
       `After ${n} rounds: ${fmt(tr[n - 1])}% on training letters, ${fmt(va[n - 1])}% on held-back letters. A gap of ${fmt(gap)} points is how much it memorised.`;
@@ -339,11 +339,11 @@
     const W = widthOf(id, 1400), H = 260, m = { t: 12, r: 12, b: 40, l: 46 };
     const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Confidence against accuracy" });
     const s = frame(svg, W, H, m, 100, 0, 100, "How sure it said it was", "How often it was right", [0, 25, 50, 75, 100], [0, 25, 50, 75, 100]);
-    svg.append(svgEl("line", { x1: s.x(0), y1: s.y(0), x2: s.x(100), y2: s.y(100), stroke: "var(--muted)", "stroke-dasharray": "4 4" }));
+    svg.append(svgEl("line", { x1: s.x(0), y1: s.y(0), x2: s.x(100), y2: s.y(100), stroke: "var(--v-text-muted)", "stroke-dasharray": "4 4" }));
     for (const [, color, name, binsAll, ece] of series) {
       const bins = binsAll.filter((b) => b[2] >= 20);
       svg.append(svgEl("path", { d: bins.map((b, i) => `${i ? "L" : "M"}${s.x(b[0] * 100)} ${s.y(b[1] * 100)}`).join(""), fill: "none", stroke: color, "stroke-width": 2 }));
-      bins.forEach(([c, a, n]) => svg.append(focusable(svgEl("circle", { cx: s.x(c * 100), cy: s.y(a * 100), r: 5, fill: color, stroke: "var(--surface)", "stroke-width": 2 }),
+      bins.forEach(([c, a, n]) => svg.append(focusable(svgEl("circle", { cx: s.x(c * 100), cy: s.y(a * 100), r: 5, fill: color, stroke: "var(--v-surface)", "stroke-width": 2 }),
         `${name}: said ${fmt(c * 100, 0)}% sure, right ${fmt(a * 100, 0)}% (${n} letters)`)));
       legend(box, [[color, `${name}: off by ${fmt(ece, 2)} points on average`]]);
     }

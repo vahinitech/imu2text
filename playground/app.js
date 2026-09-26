@@ -40,7 +40,7 @@ const SENSOR_PANELS = [
   { title: "Magnetometer", channels: [9, 10, 11] },
   { title: "Pen-tip force", channels: [12] },
 ];
-const AXIS_COLORS = ["var(--series-1)", "var(--series-2)", "var(--series-3)"];
+const AXIS_COLORS = ["var(--v-chart-1)", "var(--v-chart-2)", "var(--v-chart-3)"];
 const AXIS_NAMES = ["x", "y", "z"];
 
 const state = {
@@ -98,7 +98,7 @@ function termLink(id, label) {
 function radioGroup(container, options, current, onPick) {
   container.replaceChildren();
   for (const opt of options) {
-    const b = el("button", { role: "radio", "aria-checked": String(opt.value === current) }, opt.label);
+    const b = el("button", { class: "v-chip", role: "radio", "aria-checked": String(opt.value === current) }, opt.label);
     if (opt.disabled) { b.disabled = true; b.title = opt.title || ""; }
     b.addEventListener("click", () => onPick(opt.value));
     container.append(b);
@@ -192,7 +192,7 @@ function renderTask() {
     for (const [s, i] of items) {
       const text = cur.mode === "words" ? s.ref : s.label;
       const b = el("button", {
-        class: cur.mode === "words" ? "word-btn" : "letter-btn", role: "radio",
+        class: cur.mode === "words" ? "v-chip word-btn" : "v-chip letter-btn", role: "radio",
         "aria-checked": String(i === state.sample),
       }, text);
       b.addEventListener("click", () => choose(() => { state.sample = i; }));
@@ -234,14 +234,14 @@ function drawPanel(panel, raw, filtered, showRaw) {
 
   const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${panel.title} signal` });
   svg.append(svgEl("text", { x: left, y: 11, class: "label-strong" }, panel.title));
-  svg.append(svgEl("line", { x1: left, x2: W - right, y1: H - bottom, y2: H - bottom, stroke: "var(--grid)" }));
+  svg.append(svgEl("line", { x1: left, x2: W - right, y1: H - bottom, y2: H - bottom, stroke: "var(--v-chart-grid)" }));
   series.forEach((s, k) => {
-    const color = panel.channels.length === 1 ? "var(--series-1)" : AXIS_COLORS[k];
-    if (showRaw) svg.append(svgEl("path", { d: path(s.raw), fill: "none", stroke: "var(--raw)", "stroke-width": 1 }));
+    const color = panel.channels.length === 1 ? "var(--v-chart-1)" : AXIS_COLORS[k];
+    if (showRaw) svg.append(svgEl("path", { d: path(s.raw), fill: "none", stroke: "var(--v-chart-neutral)", "stroke-width": 1 }));
     svg.append(svgEl("path", { d: path(s.filt), fill: "none", stroke: color, "stroke-width": 1.6 }));
   });
   // Crosshair for the selected moment; moving over any plot selects a time.
-  const cross = svgEl("line", { y1: top - 4, y2: H - bottom, stroke: "var(--text-muted)",
+  const cross = svgEl("line", { y1: top - 4, y2: H - bottom, stroke: "var(--v-text-muted)",
     "stroke-width": 1, "stroke-dasharray": "2 2", visibility: "hidden" });
   svg.append(cross);
   const pick = (clientX) => {
@@ -418,7 +418,7 @@ function renderBars() {
     const barW = Math.max(2, p * (W - labelW - valueW));
     svg.append(svgEl("text", { x: 4, y: yMid + 5, class: "label-strong" }, name));
     const bar = svgEl("rect", { x: labelW, y: yMid - 9, width: barW, height: 18, rx: 4, class: "grow-x",
-      fill: name === s.label ? "var(--series-3)" : "var(--series-1)" });
+      fill: name === s.label ? "var(--v-chart-3)" : "var(--v-chart-1)" });
     bars.push(bar);
     svg.append(bar);
     svg.append(svgEl("text", { x: labelW + barW + 6, y: yMid + 4 }, name === s.label ? `${pct(p)}  correct` : pct(p)));
@@ -435,7 +435,7 @@ function renderMembers() {
   const groupGap = Math.max(16, Math.min(60, (W - 40 - 3 * groupW) / 2));
   const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img",
     "aria-label": "What each of the five models answered for the three most likely letters" });
-  svg.append(svgEl("line", { x1: 0, x2: W, y1: base, y2: base, stroke: "var(--grid)" }));
+  svg.append(svgEl("line", { x1: 0, x2: W, y1: base, y2: base, stroke: "var(--v-chart-grid)" }));
   const bars = [];
   top.forEach((cls, gi) => {
     const x0 = 20 + gi * (groupW + groupGap);
@@ -443,13 +443,13 @@ function renderMembers() {
       const h = probs[cls] * (base - 10);
       const selected = state.model === s || state.model === "mean";
       const bar = svgEl("rect", { x: x0 + s * (barW + gap), y: base - h, width: barW, height: Math.max(h, 1),
-        rx: 2, fill: "var(--series-1)", opacity: selected ? 1 : 0.35, class: "grow-y" });
+        rx: 2, fill: "var(--v-chart-1)", opacity: selected ? 1 : 0.35, class: "grow-y" });
       bars.push(bar);
       svg.append(bar);
     });
     const meanY = base - g.mean[cls] * (base - 10);
     svg.append(svgEl("line", { x1: x0 - 3, x2: x0 + groupW, y1: meanY, y2: meanY,
-      stroke: "var(--text-primary)", "stroke-dasharray": "3 2" }));
+      stroke: "var(--v-text)", "stroke-dasharray": "3 2" }));
     svg.append(svgEl("text", { x: x0 + groupW / 2 - 4, y: base + 18, class: "label-strong" }, PUB.classes[cls]));
   });
   document.getElementById("members").replaceChildren(svg);
@@ -680,7 +680,7 @@ function renderModel() {
   const s = sample();
   const truth = cur.mode === "words" ? s.ref : s.label;
   const verdict = document.getElementById("verdict");
-  verdict.className = `verdict ${correct ? "verdict--right" : "verdict--wrong"}`;
+  verdict.className = `v-verdict ${correct ? "v-verdict--good" : "v-verdict--bad"}`;
   verdict.textContent = correct ? `Correct: it is ${truth}` : `Not quite: it was ${truth}`;
   renderWhy(correct);
   resultCard();
@@ -726,7 +726,7 @@ function recognize() {
     if (!score.seen.has(key)) {
       score.seen.add(key);
       score.tried += 1;
-      if (document.querySelector("#verdict.verdict--right")) score.right += 1;
+      if (document.querySelector("#verdict.v-verdict--good")) score.right += 1;
       renderScore();
     }
     document.getElementById("answer-card").scrollIntoView({ behavior: REDUCED_MOTION ? "auto" : "smooth", block: "nearest" });
@@ -775,7 +775,7 @@ function devData() {
   };
 }
 function codeBlock(lines) {
-  const wrap = el("div", { class: "code" });
+  const wrap = el("div", { class: "v-code" });
   const pre = el("pre");
   pre.append(el("code", {}, lines.join("\n")));
   const copy = el("button", { type: "button", class: "copy" }, "Copy");
@@ -823,7 +823,7 @@ function renderOpen() {
   const box = document.getElementById("open");
   box.replaceChildren();
   for (const item of STAGES.open) {
-    const card = el("div", { class: "card" });
+    const card = el("div", { class: "v-card" });
     card.append(el("h3", {}, item.name), el("p", {}, item.why));
     const link = item.issue
       ? el("a", { href: `${STAGES.repo}/issues/${item.issue}`, target: "_blank", rel: "noopener" }, `Issue #${item.issue}`)

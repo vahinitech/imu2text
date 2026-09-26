@@ -45,19 +45,18 @@
     }
   }
   </script>
+  <!-- The Vahini design system: served by every Vahini host, not in this repo (README.md) -->
+  <link rel="stylesheet" href="/site/design/v1/vahini.css">
   <link rel="stylesheet" href="style.css">
-  <!-- vahinitech.com colours and fonts; supplied by the deployment, absent in this repo -->
-  <link rel="stylesheet" href="theme/vahini-theme.css">
-  <script src="theme.js"></script>
 </head>
-<body>
+<body class="v-page">
   <a class="skip" href="#workspace">Skip to the playground</a>
 
-  <header class="topbar">
-    <div class="wrap topbar__in">
-      <a class="brand" href="https://vahinitech.com/" aria-label="Vahini home">
-        <img id="brand-logo" class="brand__logo" src="vahini-logo.png" alt="" width="28" height="28" hidden>
-        <span class="brand__mark" aria-hidden="true"></span>Vahini <span class="brand__sub">Playground</span>
+  <header class="v-topbar">
+    <div class="wrap v-topbar__in">
+      <a class="v-brand" href="https://vahinitech.com/" aria-label="Vahini home">
+        <img id="brand-logo" class="v-brand__logo" src="/site/assets/vahini-logo.png" alt="" width="28" height="28" hidden>
+        <span class="brand__mark" aria-hidden="true"></span>Vahini <span class="v-brand__product">Playground</span>
       </a>
       <nav aria-label="Page">
         <a href="#workspace">Play</a>
@@ -65,7 +64,7 @@
         <a href="#designs">AI designs</a>
         <a href="#algos">Charts</a>
         <a href="#glossary">Glossary</a>
-        <a class="btn btn--small" id="repo-link" href="https://github.com/vahinitech/imu2text">Contribute</a>
+        <a class="v-btn v-btn--sm" id="repo-link" href="https://github.com/vahinitech/imu2text">Contribute</a>
       </nav>
     </div>
   </header>
@@ -79,8 +78,8 @@
           <strong>Recognize</strong> to see what the AI reads. Every answer comes
           from a real test on people the AI never learned from.</p>
         <div class="hero__cta">
-          <a class="btn" href="#workspace">Start playing</a>
-          <a class="btn btn--ghost" href="#glossary">What do the words mean?</a>
+          <a class="v-btn" href="#workspace">Start playing</a>
+          <a class="v-btn v-btn--on-dark" href="#glossary">What do the words mean?</a>
         </div>
       </div>
       <dl class="stats" aria-label="Key numbers">
@@ -151,7 +150,7 @@
       <p id="model-intro" class="hint"></p>
       <div class="seg seg--small" id="models" role="radiogroup" aria-label="Which model"></div>
       <div class="seg seg--small" id="training" role="radiogroup" aria-label="What the model learned from"></div>
-      <button id="recognize" type="button" class="btn btn--go">Recognize</button>
+      <button id="recognize" type="button" class="v-btn v-btn--lg v-btn--block btn--go">Recognize</button>
       <p id="run-status" class="run-status" aria-live="polite"></p>
       <p id="waiting" class="waiting">Press <strong>Recognize</strong> to see what the AI reads.</p>
       <div id="verdict" aria-live="polite"></div>
@@ -177,25 +176,25 @@
   <section id="how" class="wrap section" aria-labelledby="how-h">
     <h2 id="how-h">How it works</h2>
     <div class="grid4">
-      <article class="card">
+      <article class="v-card">
         <h3>1. The pen feels, it does not see</h3>
         <p>Sensors in the pen record how it moves, turns and presses, 100 times a
           second. Nothing records where the ink goes. The AI has to work out the
           letter from movement alone.</p>
       </article>
-      <article class="card">
+      <article class="v-card">
         <h3>2. The AI learned from examples</h3>
         <p>It was shown about 20,000 letters with the right answer, and
           learned which movements go with which letter. Then it was tested on
           people it had never seen, which is the fair test for a new pen owner.</p>
       </article>
-      <article class="card">
+      <article class="v-card">
         <h3>3. Small or capital is hard</h3>
         <p>A small o and a capital O are the same movement at a different size, and
           the pen barely feels size. 43% of the AI's mistakes are exactly this.
           Ignoring small and capital, it reads 84.3% right.</p>
       </article>
-      <article class="card">
+      <article class="v-card">
         <h3>4. Five heads are better than one</h3>
         <p>Five copies of the AI were trained separately and vote together. Together
           they read 74.46% right; one alone reads 72.18% on average. When they
@@ -279,19 +278,19 @@
       official-test figures are right-handed OnHW-chars, 52 classes, seed 0. Details in
       <a href="https://github.com/vahinitech/imu2text/blob/main/docs/benchmarks.md">docs/benchmarks.md</a>.</p>
     <div class="grid3">
-      <article class="card">
+      <article class="v-card">
         <h3>Bigger is not better here</h3>
         <p>A larger BiLSTM (2 layers of 100) scored 99.2% on its own training letters
           and 70.4% on new people. It memorised. The smaller one with the same tricks
           did better on new people.</p>
       </article>
-      <article class="card">
+      <article class="v-card">
         <h3>Combine, then vote</h3>
         <p>Training the same design 5 times and averaging lifts letters from new people
           from 72.18% (one run, on average) to 74.46%. A vote of different designs,
           say a CNN-BiLSTM and a Transformer, has not been tried.</p>
       </article>
-      <article class="card">
+      <article class="v-card">
         <h3>Worth trying</h3>
         <p>A CNN in front of a Transformer, as speech models do. An autoencoder trained on
           unlabelled recordings first, then taught letters. A router that sends each
@@ -305,32 +304,32 @@
     <h2 id="algos-h">Compare the algorithms</h2>
     <p class="hint">Hover or tap a bar for its source. Every score is letters read right on the same test.</p>
     <div class="uq-grid">
-      <article class="card uq-card uq-wide">
+      <article class="v-card uq-card uq-wide">
         <h3>Which algorithm reads best?</h3>
         <div class="seg seg--small" id="algo-tests" role="radiogroup" aria-label="Which official test"></div>
         <div id="algo-official" class="uq-chart"></div>
         <p id="algo-official-note" class="uq-note"></p>
       </article>
-      <article class="card uq-card">
+      <article class="v-card uq-card">
         <h3>Four designs, one small set</h3>
         <div id="algo-left" class="uq-chart"></div>
         <p class="uq-note">The left-handed OnHW-chars_L set, 2,270 letters, with writers shared
           between training and test. Only good for comparing these four with each other.</p>
       </article>
-      <article class="card uq-card" id="algo-runs-empty">
+      <article class="v-card uq-card" id="algo-runs-empty">
         <h3>Training curves for every algorithm</h3>
         <p class="uq-note">Curves, calibration and mix-ups per algorithm appear here once each
           design is trained on the same test. That is an open task: it takes hours on a CPU.</p>
-        <div class="code"><pre><code>bash scripts/run_algorithms.sh data/onhw-chars_2021-06-30</code></pre></div>
+        <div class="v-code"><pre><code>bash scripts/run_algorithms.sh data/onhw-chars_2021-06-30</code></pre></div>
       </article>
     </div>
     <div id="algo-runs" hidden>
       <div class="seg seg--small" id="algo-pick" role="radiogroup" aria-label="Which algorithm"></div>
       <div class="table-wrap"><table id="algo-table" class="results"></table></div>
       <div class="uq-grid">
-        <article class="card uq-card"><h3>Did it learn or memorise?</h3><div id="algo-curves" class="uq-chart"></div><p id="algo-curves-note" class="uq-note"></p></article>
-        <article class="card uq-card"><h3>Does its "sure" mean right?</h3><div id="algo-cal" class="uq-chart"></div></article>
-        <article class="card uq-card uq-wide"><h3>What it mixes up</h3><div id="algo-conf" class="uq-chart"></div><p id="algo-conf-note" class="uq-note"></p></article>
+        <article class="v-card uq-card"><h3>Did it learn or memorise?</h3><div id="algo-curves" class="uq-chart"></div><p id="algo-curves-note" class="uq-note"></p></article>
+        <article class="v-card uq-card"><h3>Does its "sure" mean right?</h3><div id="algo-cal" class="uq-chart"></div></article>
+        <article class="v-card uq-card uq-wide"><h3>What it mixes up</h3><div id="algo-conf" class="uq-chart"></div><p id="algo-conf-note" class="uq-note"></p></article>
       </div>
     </div>
   </section>
@@ -341,18 +340,18 @@
       Hover or tap a point to read it. Method and papers:
       <a href="https://github.com/vahinitech/imu2text/blob/main/docs/uncertainty.md">docs/uncertainty.md</a>.</p>
     <div class="uq-grid">
-      <article class="card uq-card"><h3>Does "80% sure" mean 80% right?</h3><div id="uq-cal" class="uq-chart"></div><p id="uq-cal-note" class="uq-note"></p></article>
-      <article class="card uq-card"><h3>Let it say "not sure"</h3><div id="uq-cov" class="uq-chart"></div><p id="uq-cov-note" class="uq-note"></p></article>
-      <article class="card uq-card uq-wide"><h3>Which letters is it least sure about?</h3><div id="uq-letters" class="uq-chart"></div><p id="uq-letters-note" class="uq-note"></p></article>
-      <article class="card uq-card"><h3>What gets mixed up with what?</h3><div id="uq-conf" class="uq-chart"></div><p id="uq-conf-note" class="uq-note"></p></article>
-      <article class="card uq-card" id="uq-hands-card"><h3>Left-handed writing puzzles the runs</h3><div id="uq-hands" class="uq-chart"></div><p id="uq-hands-note" class="uq-note"></p></article>
+      <article class="v-card uq-card"><h3>Does "80% sure" mean 80% right?</h3><div id="uq-cal" class="uq-chart"></div><p id="uq-cal-note" class="uq-note"></p></article>
+      <article class="v-card uq-card"><h3>Let it say "not sure"</h3><div id="uq-cov" class="uq-chart"></div><p id="uq-cov-note" class="uq-note"></p></article>
+      <article class="v-card uq-card uq-wide"><h3>Which letters is it least sure about?</h3><div id="uq-letters" class="uq-chart"></div><p id="uq-letters-note" class="uq-note"></p></article>
+      <article class="v-card uq-card"><h3>What gets mixed up with what?</h3><div id="uq-conf" class="uq-chart"></div><p id="uq-conf-note" class="uq-note"></p></article>
+      <article class="v-card uq-card" id="uq-hands-card"><h3>Left-handed writing puzzles the runs</h3><div id="uq-hands" class="uq-chart"></div><p id="uq-hands-note" class="uq-note"></p></article>
     </div>
   </section>
 
   <section id="why-not-more" class="wrap section" aria-labelledby="whynot-h">
     <h2 id="whynot-h">Why is it not 99%?</h2>
     <div class="grid3">
-      <article class="card">
+      <article class="v-card">
         <h3>The pen cannot feel size</h3>
         <p>A small c and a capital C are the same movement, bigger. The pen measures
           speed and turning, not position, and capitals are also written faster, so
@@ -360,7 +359,7 @@
           small and capital, one CNN-BiLSTM reads 84.34% of letters from new people
           right instead of 72.46%.</p>
       </article>
-      <article class="card">
+      <article class="v-card">
         <h3>New people write differently</h3>
         <p>Everyone has their own habits. For numbers and symbols, the same design
           reads <span data-bind="tasks.symbols_dep.accuracy" data-fmt="pct">94.71%</span>
@@ -368,7 +367,7 @@
           <span data-bind="tasks.symbols_indep.accuracy" data-fmt="pct">71.03%</span>
           for new people.</p>
       </article>
-      <article class="card">
+      <article class="v-card">
         <h3>Few left-handed examples</h3>
         <p>Most training letters come from right-handed people. For new left-handed
           people the 5-run vote reads
@@ -376,14 +375,14 @@
           against <span data-bind="groups.right.ensemble_accuracy" data-fmt="pct">74.46%</span>
           for right-handed people.</p>
       </article>
-      <article class="card">
+      <article class="v-card">
         <h3>Words run together</h3>
         <p>In a word the model also has to find where each letter starts and ends.
           The word model here trained for only 15 rounds and reads
           <span data-bind="words.exact_lexicon" data-fmt="pct">32.73%</span> of words
           exactly.</p>
       </article>
-      <article class="card">
+      <article class="v-card">
         <h3>Be careful with 99%</h3>
         <p>A model tested on the same people it learned from can score near 99% and
           still fail on a new writer. Every score on this page is on people the model
@@ -443,7 +442,7 @@
     <div id="open" class="grid3"></div>
   </section>
 
-  <footer class="footer">
+  <footer class="v-footer footer">
     <div class="wrap">
       <p><strong>Data.</strong> The OnHW datasets are by Fraunhofer IIS and are for
         non-commercial use. They are not covered by the code's Apache-2.0 license

@@ -44,3 +44,6 @@ data/ICROW_*/
 
 # Playground data built from locally downloaded OnHW recordings.
 playground/data/local.js
+
+# Vahini design system fetched for local work (playground/README.md)
+playground/site/

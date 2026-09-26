@@ -109,12 +109,20 @@ def test_page_loads_nothing_from_other_hosts():
         assert not url.startswith(("http:", "https:", "//")), url
 
 
-def test_colours_follow_the_site_theme_with_fallbacks():
-    """Site tokens are optional: every --vahini-* use carries a fallback."""
+def test_styles_use_only_design_system_tokens():
+    """Colours come from the Vahini design system, never from this repo."""
     css = (PLAYGROUND / "style.css").read_text(encoding="utf-8")
-    uses = re.findall(r"var\(--vahini-[a-z0-9-]+([,)])", css)
-    assert uses, "style.css does not read the site theme"
-    assert all(sep == "," for sep in uses), "a --vahini-* token has no fallback"
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    assert not re.findall(
+        r"#[0-9a-fA-F]{3,8}\b|rgba?\(", css
+    ), "colour literal in style.css"
+    assert not re.search(r"var\(--v-[a-z0-9-]+,", css), "a design token has a fallback"
+    for script in ("app.js", "charts.js", "stages.js"):
+        js = (PLAYGROUND / script).read_text(encoding="utf-8")
+        assert not re.findall(
+            r"[\"']#[0-9a-fA-F]{6}[\"']", js
+        ), f"colour literal in {script}"
     html = (PLAYGROUND / "index.html").read_text(encoding="utf-8")
-    assert html.index('href="style.css"') < html.index('href="theme/vahini-theme.css"')
-    assert html.index('href="theme/vahini-theme.css"') < html.index('src="theme.js"')
+    assert html.index('href="/site/design/v1/vahini.css"') < html.index(
+        'href="style.css"'
+    )
