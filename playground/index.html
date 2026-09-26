@@ -207,7 +207,13 @@
     <h2 id="gloss-h">Glossary</h2>
     <p class="hint">Short, plain meanings of the words on this page. More detail in
       <a href="https://github.com/vahinitech/imu2text/blob/main/docs/glossary.md">docs/glossary.md</a>.</p>
-    <dl class="glossary">
+    <div class="gloss-controls" hidden>
+      <button type="button" class="v-btn v-btn--ghost v-btn--sm" id="gloss-prev" aria-label="Previous term">←</button>
+      <button type="button" class="v-btn v-btn--ghost v-btn--sm" id="gloss-pause">Pause</button>
+      <button type="button" class="v-btn v-btn--ghost v-btn--sm" id="gloss-next" aria-label="Next term">→</button>
+      <button type="button" class="v-btn v-btn--ghost v-btn--sm" id="gloss-all" aria-pressed="false">Show all</button>
+    </div>
+    <dl class="glossary glossary--row" id="gloss-list">
       <div id="term-imu"><dt>Sensor pen (IMU)</dt><dd>A pen with motion sensors inside. IMU means inertial measurement unit: sensors that feel movement.</dd></div>
       <div id="term-accelerometer"><dt>Accelerometer</dt><dd>Feels speeding up, slowing down and gravity, in three directions (x, y, z). This pen has two, front and back.</dd></div>
       <div id="term-gyroscope"><dt>Gyroscope</dt><dd>Feels how fast the pen turns.</dd></div>

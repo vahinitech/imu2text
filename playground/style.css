@@ -219,3 +219,14 @@ details.dev p { margin: 6px 0; }
   .book__bus { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .choices { gap: 6px 14px; }
 }
+
+/* Glossary as one moving row (app.js rotates it every second); "Show all"
+   turns it back into the grid. Without JavaScript the row scrolls by hand. */
+.glossary--row { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: thin; padding-bottom: 6px; }
+.glossary--row > div { flex: 0 0 calc((100% - 30px) / 4); scroll-snap-align: start; }
+.gloss-controls { display: flex; gap: var(--v-space-2); margin: var(--v-space-2) 0 0; }
+.gloss-controls[hidden] { display: none; }
+@media (max-width: 1100px) { .glossary--row > div { flex-basis: calc((100% - 20px) / 3); } }
+@media (max-width: 760px) { .glossary--row > div { flex-basis: calc((100% - 10px) / 2); } }
+@media (max-width: 460px) { .glossary--row > div { flex-basis: 85%; } }
+@media (prefers-reduced-motion: reduce) { .glossary--row { scroll-behavior: auto; } }
