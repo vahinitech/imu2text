@@ -1,17 +1,18 @@
-// Vahini playground: "Write it yourself", a simulation of the Vahini pen.
+// Vahini playground: "Draw a letter", the first step of the page.
 //
-// The mouse (or a finger) stands in for the pen. While you write, six sensor
-// channels animate, the samples are packed into Bluetooth packets, the path
-// is redrawn on the dark engine page, and a small shape matcher guesses one
-// of 18 shapes. The matcher is NOT the CNN-BiLSTM used in the rest of this
-// page: it compares the drawn path with templates, using the closed-form
-// best-rotation distance of the Protractor recogniser (Y. Li, "Protractor:
-// a fast and accurate gesture recognizer", CHI 2010), tried forwards,
-// reversed and, for closed shapes, from several start points.
+// The mouse (or a finger) stands in for the sensor pen that recorded the
+// Fraunhofer OnHW dataset. While you draw, five sensor groups animate (an
+// animation, not data). A small shape matcher then guesses which character
+// you drew, using the closed-form best-rotation distance of the Protractor
+// recogniser (Y. Li, "Protractor: a fast and accurate gesture recognizer",
+// CHI 2010). That guess picks a REAL recording of the same character from
+// the OnHW test set (data/public.js), and the page shows the real model's
+// answer and scores for it, with the same hand, writer, model and training
+// choices as the rest of the page (app.js state).
 //
-// Written by Vahini Technologies for vahinitech.com ("See it in action") and
-// released here under Apache-2.0 with the owner's approval (2026-09-26).
-// Colours come from the Vahini design system (--v-* tokens).
+// Drawing code written by Vahini Technologies for vahinitech.com and released
+// here under Apache-2.0 with the owner's approval (2026-09-26). Colours come
+// from the Vahini design system (--v-* tokens).
 "use strict";
 
 (function () {
@@ -39,9 +40,10 @@
   // Accelerometer, gyroscope and magnetometer axes oscillate while the hand
   // writes, so they draw as waves; tip force is one analog reading, so it
   // scrolls like a strip chart instead of repeating.
+  // The OnHW pen's sensor groups: 13 channels in all.
   const CH = [
-    ["IMU-A · accel", "chart-1", "wave"], ["IMU-A · gyro", "chart-2", "wave"], ["IMU-A · magneto", "chart-3", "wave"],
-    ["IMU-B · accel", "chart-1", "wave"], ["IMU-B · gyro", "chart-2", "wave"], ["tip force · analog", "warning", "level"],
+    ["Front accelerometer", "chart-1", "wave"], ["Rear accelerometer", "chart-2", "wave"], ["Gyroscope", "chart-3", "wave"],
+    ["Magnetometer", "chart-1", "wave"], ["Pen-tip force", "warning", "level"],
   ];
   const bus = $("w-bus");
   // Colours go through the CSSOM: the page's CSP (style-src 'self') blocks
@@ -141,7 +143,7 @@
     if (!drawing) return;
     const p = pos(e), dt = Math.max(1, p.t - lastPt.t);
     const speed = Math.hypot(p.x - lastPt.x, p.y - lastPt.y) / dt * 16;
-    samples += Math.round(dt * 0.208); // the Vahini pen samples at 208 Hz
+    samples += Math.max(1, Math.round(dt * 0.1)); // the OnHW pen samples at 100 Hz
     sampleEl.textContent = samples.toLocaleString();
     pulseBus(speed);
     waveTarget = Math.min(1, speed / 42);
@@ -156,7 +158,7 @@
     clearTimeout(sendTimer);
     if (strokes.length) {
       locked = true; pad.classList.add("locked");
-      setStatus("", "Shape captured. Sending…");
+      setStatus("", "Character captured. Sending…");
       sendTimer = setTimeout(transmit, 1100);
     }
   }
@@ -170,22 +172,13 @@
   }
 
   // ---------- send → clean → rebuild → match ----------
-  // Packet size from the Bluetooth LE frame: one 16-axis sample is 32 bytes
-  // (int16 per axis), and a 247-byte ATT MTU minus the 3-byte notification
-  // header holds 7 of them; on air the frame adds preamble, access address,
-  // PDU header and CRC.
-  const BLE = (() => {
-    const bytesPerSample = 16 * 2, payload = 247 - 3;
-    const samplesPerPacket = Math.floor(payload / bytesPerSample);
-    return { samplesPerPacket, bytesPerSample, packetBytes: 1 + 4 + 2 + 3 + samplesPerPacket * bytesPerSample + 3 };
-  })();
   function transmit() {
     if (!strokes.length) return;
-    setStep(0); setStatus("busy", "Sending packets over Bluetooth…");
-    ble.classList.add("streaming"); verdict.classList.remove("on");
-    const total = Math.max(1, Math.ceil(samples / BLE.samplesPerPacket));
+    setStep(0); setStatus("busy", "Sending the samples…");
+    ble.classList.add("streaming"); verdict.classList.remove("on"); realBox.hidden = true;
+    const total = Math.max(1, samples);
     let sent = 0;
-    eqEl.textContent = `${samples.toLocaleString()} samples ÷ ${BLE.samplesPerPacket} per packet = ${total} packets of ${BLE.packetBytes} bytes`;
+    eqEl.textContent = `${samples.toLocaleString()} samples × 13 channels = ${(samples * 13).toLocaleString()} numbers`;
     const tick = setInterval(() => {
       sent = Math.min(total, sent + Math.max(1, Math.round(total / 14)));
       pktEl.textContent = sent;
@@ -193,7 +186,7 @@
     }, reduce ? 8 : 55);
     setTimeout(() => {
       ble.classList.remove("streaming");
-      setStep(1); setStatus("busy", "Cleaning the signal…");
+      setStep(1); setStatus("busy", "Guessing the shape…");
       setTimeout(reconstruct, reduce ? 40 : 620);
     }, reduce ? 60 : 950);
   }
@@ -221,7 +214,7 @@
   function reconstruct() {
     waveStop();
     rebuilt = true;
-    setStep(2); setStatus("busy", "Rebuilding the pen-tip path…");
+    setStatus("busy", "Guessing the shape…");
     waitLay.classList.add("off");
     gR.clearRect(0, 0, recon.width, recon.height);
     const pts = rebuiltPoints();
@@ -333,26 +326,116 @@
     1: "the number 1", 2: "the number 2", 3: "the number 3", 7: "the number 7",
     triangle: "a triangle", star: "a star", heart: "a heart", check: "a check mark" };
   const GLYPH = { triangle: "△", star: "☆", heart: "♡", check: "✓" };
+  const DIGITS = new Set(["1", "2", "3", "7"]);
+  const LETTERS = new Set(["O", "C", "S", "U", "V", "W", "M", "N", "L", "Z"]);
   function recognise() {
     const flat = strokes.flat().map((p) => ({ x: p.x, y: p.y }));
-    if (flat.length < 8) { setStatus("", "Waiting for a shape…"); return; }
-    setStep(3);
+    if (flat.length < 8) { setStatus("", "Waiting for a character…"); return; }
     const v = toVector(resample(flat));
     let best = null;
     VEC.forEach((t) => { const sc = bestMatch(v, t); if (!best || sc > best.sc) best = { name: t.name, sc }; });
-    const pct = Math.round(Math.max(0, Math.min(0.999, best.sc)) * 100);
-    setStatus("done", "Matched, in your browser");
+    const pct100 = Math.round(Math.max(0, Math.min(0.999, best.sc)) * 100);
     verdict.classList.add("on");
     glyphEl.textContent = GLYPH[best.name] || best.name;
     const name = NICE[best.name] || best.name;
-    if (best.sc > 0.72) {
-      guessEl.textContent = `Looks like ${name} · ${pct}% match`;
-      guessSub.textContent = "A shape match, not the AI below. The real pen also feels pressure, tilt and pen lifts.";
+    guessEl.textContent = `${best.sc > 0.72 ? "Looks like" : "Best guess:"} ${name} · ${pct100}% shape match`;
+    guessSub.textContent = "A shape guess from your drawing, not the AI.";
+    if (DIGITS.has(best.name) || LETTERS.has(best.name)) {
+      setStep(2); setStatus("busy", "Picking a real recording…");
+      setTimeout(() => pickReal(best.name), reduce ? 0 : 450);
     } else {
-      guessEl.textContent = `Best guess: ${name} · ${pct}% match`;
-      guessSub.textContent = "Not sure. Try one clear shape: O, S, V, Z, 7, a star or a heart.";
+      setStatus("done", "Not an OnHW character");
+      drawn = null;
+      realBox.hidden = false;
+      realBox.replaceChildren(el("p", {}, `${name[0].toUpperCase()}${name.slice(1)} is not in the OnHW dataset, which holds letters, digits and maths symbols. Try O, S, Z or 7.`));
     }
   }
+
+  // ---------- a real recording of the drawn character ----------
+  // Uses app.js: state, current(), sample(), available(), currentProbs(),
+  // classNames(), topK(), modelName(), whyLines(), radioGroup(), renderAll().
+  const realBox = $("w-real");
+  let drawn = null;
+  function writerText(cur) {
+    const who = state.protocol === "indep" ? "a new" : "a familiar";
+    return `${who} ${cur.left ? "left-handed" : "right-handed"} writer`;
+  }
+  function pickReal(ch) {
+    drawn = ch;
+    state.task = DIGITS.has(ch) ? "symbols" : "chars";
+    if (state.task === "symbols") state.hand = "right";
+    if (state.task === "chars") state.protocol = "indep";
+    if (!available(state.task, state.protocol)) state.protocol = "indep";
+    renderOpts();
+    const cur = current();
+    let i = cur ? cur.samples.findIndex((s) => s.label === ch) : -1;
+    if (cur && i < 0) i = cur.samples.findIndex((s) => s.label.toLowerCase() === ch.toLowerCase());
+    if (i < 0) { showMissing(ch, cur); return; }
+    state.sample = i;
+    state.revealed = true;
+    renderAll();
+    showReal(ch);
+  }
+  function showReal(ch) {
+    const cur = current(), s = sample(), names = classNames();
+    const [a] = topK(currentProbs(), 1);
+    const read = names[a[0]], correct = read === s.label;
+    setStep(3); setStatus("done", "Read a real recording");
+    realBox.hidden = false;
+    const head = el("p", { class: "engine__real-head" });
+    head.append(`Real OnHW recording of “${s.label}”, written by ${writerText(cur)}.`);
+    if (s.label !== ch) head.append(` There is no “${ch}” in the exported samples, so this is its other case.`);
+    const line = el("p", { class: "engine__real-read" });
+    line.append(`${modelName()} read `, el("b", {}, read), ` · ${pct(a[1])} `,
+      el("span", { class: `v-badge ${correct ? "v-badge--live" : "v-badge--dev"}` }, correct ? "right" : "wrong"));
+    const why = el("ul", { class: "engine__why" });
+    whyLines(correct).forEach((t) => why.append(el("li", {}, t)));
+    const more = el("a", { href: "#workspace" }, "See its sensors and every score ↓");
+    realBox.replaceChildren(head, line, why, more);
+  }
+  function showMissing(ch, cur) {
+    setStatus("done", "No recording of that character");
+    realBox.hidden = false;
+    const p = el("p", {}, cur
+      ? `No recording of “${ch}” by ${writerText(cur)} in the exported samples. Pick another hand or writer, or one of these:`
+      : "Nothing exported for this choice yet.");
+    const row = el("div", { class: "seg seg--small" });
+    if (cur) {
+      [...new Set(cur.samples.map((s) => s.label))].slice(0, 20).forEach((label) => {
+        const b = el("button", { class: "v-chip", type: "button" }, label);
+        b.addEventListener("click", () => pickReal(label));
+        row.append(b);
+      });
+    }
+    realBox.replaceChildren(p, row);
+  }
+  function redo() { if (drawn) pickReal(drawn); else renderOpts(); }
+  function renderOpts() {
+    const cur = current();
+    const hand = $("w-opt-hand"), who = $("w-opt-who"), model = $("w-opt-model"), train = $("w-opt-train");
+    if (state.task === "chars") {
+      radioGroup(hand, [{ value: "right", label: "Right-handed" }, { value: "left", label: "Left-handed" }], state.hand,
+        (v) => { state.hand = v; state.sample = 0; redo(); });
+      who.replaceChildren(el("span", { class: "hint" }, "New people"));
+    } else {
+      hand.replaceChildren(el("span", { class: "hint" }, "Right-handed"));
+      radioGroup(who, ["indep", "dep"].map((p) => ({ value: p, label: PEOPLE[p], disabled: !available(state.task, p) })),
+        state.protocol, (v) => { state.protocol = v; state.sample = 0; redo(); });
+    }
+    if (cur && cur.mode === "ensemble") {
+      radioGroup(model, [...[0, 1, 2, 3, 4].map((i) => ({ value: i, label: `#${i + 1}` })), { value: "mean", label: "×5 vote" }],
+        state.model, (v) => { state.model = v; redo(); });
+    } else {
+      model.replaceChildren(el("span", { class: "hint" }, "One CNN-BiLSTM run"));
+    }
+    if (cur && cur.mode === "ensemble" && !cur.left) {
+      radioGroup(train, [{ value: "right", label: "Right-handed people" }, { value: "with_left", label: "+ left-handed" }],
+        state.group, (v) => { state.group = v; redo(); });
+    } else {
+      train.replaceChildren(el("span", { class: "hint" }, cur && cur.left ? "Right- and left-handed people" : "Right-handed people"));
+    }
+  }
+  renderOpts();
 
   $("w-clear").addEventListener("click", () => {
     strokes = []; cur = null; samples = 0; locked = false; rebuilt = false; pad.classList.remove("locked");
@@ -361,7 +444,8 @@
     gD.clearRect(0, 0, draw.width, draw.height); gR.clearRect(0, 0, recon.width, recon.height);
     hint.classList.remove("off"); waitLay.classList.remove("off");
     verdict.classList.remove("on"); ble.classList.remove("streaming");
-    setStatus("", "Waiting for a shape…"); setStep(-1); calmBus();
+    realBox.hidden = true; drawn = null;
+    setStatus("", "Waiting for a character…"); setStep(-1); calmBus();
   });
   calmBus();
 })();
