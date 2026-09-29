@@ -142,6 +142,20 @@ def test_task_records_summarise_a_single_model_run(tmp_path):
         ("unsure", "1"),
         ("wrong", "2"),
     }
+    # "Draw it" needs a recording of every class that has a test item.
+    assert [s["label"] for s in t["drawn"]] == ["0", "1", "2", "3"]
+    assert {s["kind"] for s in t["drawn"]} == {"drawn"}
+
+
+def test_one_per_class_takes_the_median_item_and_respects_keep():
+    true = np.array([0, 0, 0, 1, 1, 1, 3])
+    proba = np.zeros((7, 4))
+    proba[[0, 1, 2], 0] = 0.9, 0.2, 0.6  # median confidence: item 2
+    proba[[3, 4, 5], 1] = 0.1, 0.8, 0.5  # item 3 is not kept
+    proba[6, 3] = 0.4
+    keep = np.array([True, True, True, False, True, True, True])
+    picked = B.one_per_class(true, proba, 4, keep)
+    assert picked == [2, 4, 6]  # class 2 has no item; of 5 and 4, the upper
 
 
 def test_uncertainty_charts_split_doubt_into_its_two_kinds():

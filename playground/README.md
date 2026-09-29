@@ -71,7 +71,8 @@ The cards in step 4 of the page are the open tasks. Each links to an issue.
 |---|---|
 | `index.html`, `style.css`, `app.js` | the page; plain JavaScript, no dependencies |
 | `charts.js` | "Compare the algorithms" and "How sure is the AI?" charts |
-| `write.js` | card 1: your drawing picks a real OnHW recording of that character, then Recognize runs (the drawing and shape guess are simulated) |
+| `write.js` | card 1, "Draw it": the pad, the sensor animation, and the wait for the next part of a character (lift the pen between the parts of ÷, = or +) |
+| `shapes.js` | reads a drawing as one character: dots and straight lines by rule, other shapes against templates. It is not the AI; the page then shows the model's output for a real recording of that character (`drawn` and `drawn_letters` in `data/public.js`, the median recording of each class). `tests/test_playground_shapes.py` runs it under Node |
 | `stages.js` | the methods shown, with measured accuracies and sources |
 | `data/public.js` | generated model outputs and the synthetic signal |
 | `data/local.js` | generated real recordings, local only |
@@ -87,6 +88,7 @@ the same paths, and the page links them there:
 | `/site/design/v1/vahini.css` | `--v-*` tokens and the shared `v-*` classes |
 | `/site/assets/fonts/` | the font files |
 | `/site/assets/vahini-logo.png` | the logo; the page shows a drawn mark without it |
+| `/site/design/v1/pen.svg` | the Vahini pen that follows the pointer on the drawing pad; a drawn pen stands in without it |
 | `/site/assets/favicon*`, `apple-touch-icon.png` | the Vahini tab icon, the same on every Vahini page |
 
 `style.css` uses only `var(--v-*)` tokens and holds the layout specific to

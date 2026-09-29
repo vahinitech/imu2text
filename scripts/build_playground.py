@@ -102,6 +102,28 @@ def pick_letters(members: list, seed: int = 0, hand=(0, -1)) -> list:
     return chosen
 
 
+def one_per_class(
+    true: np.ndarray, proba: np.ndarray, n_classes: int, keep=None
+) -> list:
+    """One test item for every class, for the page's "Draw it".
+
+    A drawing is matched to a character and the page then shows the model's
+    output on a real recording of that character, so every class needs one.
+    The pick is the class's median item by the model's confidence in the
+    right answer: a typical result, right for a class the model mostly reads
+    right and wrong for one it mostly misses. Classes without a test item are
+    left out.
+    """
+    keep = np.ones(len(true), bool) if keep is None else keep
+    out = []
+    for c in range(n_classes):
+        idx = np.flatnonzero(keep & (true == c))
+        if len(idx):
+            order = idx[np.argsort(proba[idx, c], kind="stable")]
+            out.append(int(order[len(order) // 2]))
+    return out
+
+
 def rounded(a: np.ndarray, digits: int = 3) -> list:
     """Nested lists with fixed precision, to keep the exported file small."""
     return np.round(np.asarray(a, dtype=np.float64), digits).tolist()
@@ -267,6 +289,15 @@ def task_records(path: str, seed: int = 0) -> dict:
             )
             if len(seen) == PER_KIND:
                 break
+    drawn = [
+        {
+            "test_index": i,
+            "kind": "drawn",
+            "label": classes[true[i]],
+            "probs": rounded(proba[i]),
+        }
+        for i in one_per_class(true, proba, len(classes))
+    ]
     return {
         "classes": classes,
         "split": str(run["split"]),
@@ -276,6 +307,7 @@ def task_records(path: str, seed: int = 0) -> dict:
         "accuracy": round(float((top == true).mean() * 100), 2),
         "source": path.replace(os.sep, "/"),
         "samples": samples,
+        "drawn": drawn,
     }
 
 
@@ -502,6 +534,19 @@ def main() -> None:
         "sample_rate_hz": SAMPLE_RATE_HZ,
         "groups": {name: group_summary(g) for name, g in groups.items()},
         "letters": letter_records(right, chosen, groups),
+        "drawn_letters": letter_records(
+            right,
+            [
+                ("drawn", i)
+                for i in one_per_class(
+                    right[0]["true"],
+                    np.mean([m["proba"] for m in right], axis=0),
+                    len(classes),
+                    np.isin(right[0]["handedness"], (0, -1)),
+                )
+            ],
+            groups,
+        ),
         "left_letters": (
             letter_records(
                 groups["with_left"],

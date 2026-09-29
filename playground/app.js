@@ -47,6 +47,9 @@ const state = {
   task: "chars", protocol: "indep", hand: "right", sample: 0,
   filter: "none", model: "mean", group: "right", t: null,
   revealed: false, busy: false,
+  // Where the recording comes from: "pick" (a chip) or "draw" (the recording
+  // chosen for a drawing: { label, shape, note }).
+  source: "pick", drawn: null,
 };
 const score = { tried: 0, right: 0, seen: new Set() };
 
@@ -71,9 +74,58 @@ function available(task, protocol) {
   if (task === "chars" && protocol === "indep") return true;
   return Boolean(PUB.tasks[`${task}_${protocol}`]);
 }
+// One real recording per character, for drawings (scripts/build_playground.py,
+// one_per_class). Drawings use right-handed writers.
+function drawPool() {
+  if (state.task === "chars" && state.protocol === "indep") return state.hand === "right" ? PUB.drawn_letters : null;
+  const run = PUB.tasks[`${state.task}_${state.protocol}`];
+  return (run && run.drawn) || null;
+}
 function sample() {
+  if (state.source === "draw") {
+    const pool = drawPool();
+    return (pool && state.drawn && pool.find((s) => s.label === state.drawn.label)) || null;
+  }
   const cur = current();
   return cur ? cur.samples[Math.min(state.sample, cur.samples.length - 1)] : null;
+}
+
+// ---------- card 1: draw it (write.js) or pick a recording ----------
+function showSource() {
+  const draw = state.source === "draw";
+  document.getElementById("src-draw").classList.toggle("src--off", !draw);
+  document.getElementById("src-pick").classList.toggle("src--off", draw);
+}
+// The pen touched the pad: the drawing is the input from now on.
+function startDrawing() {
+  if (state.source === "draw" && !state.revealed) return;
+  state.source = "draw";
+  state.drawn = null;
+  if (!state.busy) state.revealed = false;
+  renderTask();
+  renderModel();
+  showSource();
+}
+function drawnNothing() {
+  state.drawn = null;
+  renderModel();
+}
+// A drawing was read as got.label; move to the task that has it and select
+// its recording. False when there is none.
+function useDrawing(got) {
+  state.task = got.task;
+  if (got.task === "chars") { state.protocol = "indep"; state.hand = "right"; }
+  if (!available(state.task, state.protocol)) state.protocol = "indep";
+  state.source = "draw";
+  state.drawn = { label: got.label, shape: got.shape, note: got.note };
+  state.revealed = false;
+  renderAll();
+  return Boolean(sample());
+}
+function showPick() {
+  state.source = "pick";
+  state.drawn = null;
+  showSource();
 }
 
 // ---------- small helpers ----------
@@ -128,6 +180,10 @@ function readHash() {
   else if (/^[0-9]$/.test(model || "")) state.model = Number(model);
   if (PUB.groups[h.get("group")]) state.group = h.get("group");
   if (h.get("show") === "1") state.revealed = true;
+  if (h.get("drawn")) {
+    state.source = "draw";
+    state.drawn = { label: h.get("drawn"), shape: h.get("shape") || h.get("drawn"), note: "" };
+  }
   if (!available(state.task, state.protocol)) state.protocol = "indep";
 }
 function writeHash() {
@@ -135,14 +191,25 @@ function writeHash() {
     task: state.task, protocol: state.protocol, hand: state.hand, sample: state.sample,
     filter: state.filter, model: state.model, group: state.group,
   });
+  if (state.source === "draw" && state.drawn) {
+    h.delete("sample");
+    h.set("drawn", state.drawn.label);
+    if (state.drawn.shape !== state.drawn.label) h.set("shape", state.drawn.shape);
+  }
   if (state.revealed) h.set("show", "1");
   history.replaceState(null, "", `#${h}`);
 }
 
-// A new choice hides the old answer, so every sample is a fresh try.
+// A new choice hides the old answer, so every sample is a fresh try. Every
+// choice outside the pad selects a recording, so the drawing is cleared.
 function choose(update) {
   update();
   state.revealed = false;
+  if (state.source === "draw") {
+    state.source = "pick";
+    state.drawn = null;
+    if (window.PlaygroundDraw) window.PlaygroundDraw.clear();
+  }
   renderAll();
 }
 
@@ -173,6 +240,10 @@ function renderTask() {
   } else {
     handBox.replaceChildren();
   }
+  // A row with nothing to choose is hidden, not left as a bare label.
+  handBox.closest(".choice").hidden = !handBox.children.length;
+  const padHint = document.querySelector("#w-hint span");
+  if (padHint) padHint.textContent = state.task === "symbols" || state.task === "equations" ? "draw 2, 7, +, = or ÷" : "draw O, S, Z, e…";
 
   const box = document.getElementById("samples");
   box.replaceChildren();
@@ -191,13 +262,14 @@ function renderTask() {
       if (smp.kind !== kind) return;
       const b = el("button", {
         class: `v-chip sample-chip sample-chip--${kind}`, role: "radio", title,
-        "aria-checked": String(i === state.sample), "aria-label": `${cur.mode === "words" ? smp.ref : smp.label}: ${title}`,
+        "aria-checked": String(state.source === "pick" && i === state.sample), "aria-label": `${cur.mode === "words" ? smp.ref : smp.label}: ${title}`,
       }, cur.mode === "words" ? smp.ref : smp.label);
       b.addEventListener("click", () => choose(() => { state.sample = i; }));
       row.append(b);
     });
   }
   box.append(row);
+  showSource();
   renderDev("dev-pick");
 }
 
@@ -394,7 +466,8 @@ function classNames() {
   return cur.mode === "single" ? cur.run.classes : PUB.classes;
 }
 function groupData() {
-  const s = sample();
+  // Before a drawing is read there is no sample; the seeds are the same for all.
+  const s = sample() || current().samples[0];
   if (current().left) return s.with_left;
   return s[state.group] || s.right;
 }
@@ -648,7 +721,11 @@ function renderModel() {
   show("class-view", false);
   show("words-view", false);
   const button = document.getElementById("recognize");
-  button.disabled = !cur || state.busy;
+  const s0 = sample();
+  const waitingDrawing = state.source === "draw" && window.PlaygroundDraw && window.PlaygroundDraw.pending();
+  button.disabled = !cur || state.busy || (!s0 && !waitingDrawing);
+  renderInput(s0);
+  show("trail", false);
   if (!cur) {
     intro.replaceChildren("Nothing to recognize yet for this choice.");
     renderDev("dev-model");
@@ -676,8 +753,12 @@ function renderModel() {
   // Rows with nothing to choose (a single-model task) are hidden.
   models.closest(".choice").hidden = !models.children.length;
   training.closest(".choice").hidden = !training.children.length;
-  document.getElementById("waiting").hidden = state.revealed;
-  if (!state.revealed) {
+  const waiting = document.getElementById("waiting");
+  waiting.hidden = state.revealed;
+  waiting.replaceChildren(...(state.source === "draw"
+    ? ["Finish drawing, or press ", el("strong", {}, "Recognize"), "."]
+    : ["Draw a character or pick a recording, then press ", el("strong", {}, "Recognize"), "."]));
+  if (!state.revealed || !s0) {
     renderDev("dev-model");
     return;
   }
@@ -697,9 +778,52 @@ function renderModel() {
   const verdict = document.getElementById("verdict");
   verdict.className = `v-verdict ${correct ? "v-verdict--good" : "v-verdict--bad"}`;
   verdict.textContent = correct ? `Correct: it is ${truth}` : `Not quite: it was ${truth}`;
+  renderTrail(truth);
   renderWhy(correct);
   resultCard();
   renderDev("dev-model");
+}
+
+// Card 2 names what the AI is reading: always a real recording, never the
+// drawing itself.
+function renderInput(s) {
+  const box = document.getElementById("model-input");
+  box.replaceChildren();
+  if (state.source === "draw") {
+    if (!state.drawn) {
+      box.append("Input: your drawing, once it is read.");
+    } else if (!s) {
+      box.append(`Input: no recording of “${state.drawn.label}” here.`);
+    } else {
+      box.append("Input: a real pen recording of ", el("strong", {}, `“${s.label}”`),
+        `, chosen because your drawing looked like ${state.drawn.shape}. The AI reads the pen's movement, not the drawing.`);
+    }
+    return;
+  }
+  if (!s) return;
+  const kinds = state.task === "words" ? { ...KIND_TITLES, ...WORD_TITLES } : KIND_TITLES;
+  box.append("Input: the real pen recording of ", el("strong", {}, `“${state.task === "words" ? s.ref : s.label}”`),
+    ` you picked (${(kinds[s.kind] || "").split(":")[0].toLowerCase()}).`);
+}
+// Card 3 repeats the chain in one line: drawing → recording → answer.
+function renderTrail(truth) {
+  const cur = current();
+  let said;
+  if (cur.mode === "words") said = sample().lexicon || "no answer";
+  else {
+    const probs = currentProbs();
+    said = classNames()[probs.indexOf(Math.max(...probs))];
+  }
+  const box = document.getElementById("trail");
+  const parts = [];
+  if (state.source === "draw" && state.drawn) parts.push(["You drew", state.drawn.shape]);
+  parts.push(["Recording of", truth], ["The AI read", said]);
+  box.replaceChildren();
+  parts.forEach(([k, v], i) => {
+    if (i) box.append(el("span", { class: "trail__arrow", "aria-hidden": "true" }, "→"));
+    box.append(el("span", { class: "trail__step" }, `${k} `), el("b", {}, v));
+  });
+  show("trail", true);
 }
 
 // ---------- the Recognize run ----------
@@ -711,7 +835,12 @@ const RUN_STEPS = [
   { pipe: 4, text: () => "Deciding" },
 ];
 function recognize() {
-  if (state.busy || !current()) return;
+  // A drawing still waiting for its next part is read now.
+  if (state.source === "draw" && window.PlaygroundDraw && window.PlaygroundDraw.pending()) {
+    window.PlaygroundDraw.readNow();
+    return;
+  }
+  if (state.busy || !current() || !sample()) return;
   state.busy = true;
   state.revealed = false;
   renderModel();
@@ -736,7 +865,8 @@ function recognize() {
     renderModel();
     renderPipeline();
     writeHash();
-    const key = [state.task, state.protocol, state.hand, state.sample, state.model, state.group].join("|");
+    const which = state.source === "draw" ? `drawn:${state.drawn.label}` : state.sample;
+    const key = [state.task, state.protocol, state.hand, which, state.model, state.group].join("|");
     if (!score.seen.has(key)) {
       score.seen.add(key);
       score.tried += 1;
