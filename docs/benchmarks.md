@@ -323,6 +323,20 @@ result. Exact word accuracy counts whole-word matches.
   with higher CER than greedy. In the 30-epoch run the lexicon lowered CER
   instead (38.08 to 32.65); the two runs differ in epochs and training data,
   and this study did not isolate why.
+- **Case inside words** (issue #11, `scripts/case_in_words.py`, from the saved
+  predictions). With the word list, the final refit reads 33.67% of test words
+  right ignoring case, and 97.2% of those are also right in case (99.46% of
+  their letters); greedy decoding gets 88.0% of its 10.11%. That figure
+  flatters the word list: it holds most words in one spelling, so it sets
+  their case by construction. The real test is the words the test set has in
+  two spellings, mostly sentence-initial capitals (`Wie` and `wie`): 368 of
+  418 read words (88.0%) have the right case, and they carry all 50 remaining
+  case errors. A single word recording does not say where the word sat in its
+  sentence, so this is the limit for isolated words. For comparison only, on a
+  different dataset and model, the 5-seed character ensemble gets the case
+  right on 86.4% of the letters it reads right ignoring case (74.46 of 86.14,
+  [uncertainty.md](uncertainty.md#results)). Under-trained 15-epoch model, one
+  run.
 
 Host: AMD EPYC 9354P, four logical CPUs, 7.75 GiB RAM, Python 3.10.21,
 TensorFlow 2.15.1, NumPy 1.26.4; refit plus evaluation took 1,627 seconds

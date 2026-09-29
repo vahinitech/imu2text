@@ -164,6 +164,22 @@ letters gives 78.8% accuracy on them, and 80% gives 82.5% (single model:
 76.9% and 80.0%). Every point of panel B is in
 `results/uncertainty_curves.csv`.
 
+**Case errors are not confidently wrong, but abstaining mostly skips
+them** (issue #13). A case error is a letter read as its own other case: 929
+of the ensemble's 2,032 errors (45.7%), right-handed training data. Their
+median confidence is 0.584, against 0.429 for the other errors and 0.817 for
+right answers; 1.9% of them reach 0.9 (single models: median 0.621, 4.8%).
+So the model is not sure of them, but it is surer than of its other
+mistakes, and withholding the least confident predictions removes the other
+errors first: at 80% coverage it withholds 61.3% of the other errors and
+26.2% of the case errors, and case errors grow from 45.7% to 61.6% of what
+is left. For 91.0% of case errors the second choice is the right answer.
+The model knows the letter and hesitates on its case, so the useful
+fallback is to withhold the case, not the letter: a separate case decision
+(#10) or word context (#11). Every figure is in `results/ensemble/summary.md`
+and `summary.json` (`case_confidence`), from the same saved predictions, one
+fold and one split seed.
+
 Each member took about 20 minutes on four CPU cores with `--deterministic`
 and peaked at 2.3 to 2.6 GB of memory, so the ensemble costs five times one
 model. One fold and one split seed: the numbers carry that caveat.

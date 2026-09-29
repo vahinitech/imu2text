@@ -82,3 +82,27 @@ def test_ece_is_zero_when_confidence_matches_accuracy():
 def test_ece_measures_overconfidence():
     proba = np.tile([1.0, 0.0, 0.0, 0.0], (2, 1))
     assert E.expected_calibration_error(proba, np.array([0, 1])) == pytest.approx(0.5)
+
+
+def test_case_confidence_separates_case_errors_and_abstention():
+    classes = np.array(["a", "A", "b"])
+    true = np.array([0, 0, 0, 2])
+    proba = np.array(
+        [
+            [0.90, 0.05, 0.05],  # right, confident
+            [0.35, 0.60, 0.05],  # case error: A for a, second choice right
+            [0.30, 0.30, 0.40],  # other error: b for a, least confident
+            [0.20, 0.10, 0.70],  # right
+        ]
+    )
+    out = E.case_confidence(proba, true, classes)
+    assert out["right"]["n"] == 2
+    assert out["case_errors"]["n"] == 1 and out["other_errors"]["n"] == 1
+    assert out["case_share_of_errors"] == 50.0
+    assert out["case_errors_second_choice_right"] == 100.0
+    assert out["case_errors"]["median_confidence"] == 0.60
+    # At 70% coverage one prediction (the 0.40 other error) is withheld.
+    a70 = next(a for a in out["abstain"] if a["coverage"] == 0.7)
+    assert a70["other_errors_withheld"] == 100.0
+    assert a70["case_errors_withheld"] == 0.0
+    assert a70["case_share_of_kept_errors"] == 100.0
