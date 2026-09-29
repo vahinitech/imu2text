@@ -77,6 +77,11 @@ the rules above apply there too.
   estimate or a number from another dataset.
 - The page shows model outputs and a synthetic signal only. OnHW recordings
   stay in the gitignored `data/local.js`.
+- A drawing is shown the output for one real recording of its character:
+  the class's median by the model's confidence in the right answer
+  (`one_per_class`). Never swap in the most confident recording to make a
+  demo look better; the page's accuracy figure is the result, and a drawn
+  character the model usually misses should come out wrong.
 
 ## Pick the right published number to compare against
 
