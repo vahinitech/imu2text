@@ -79,14 +79,19 @@
     pad.addEventListener("pointerenter", () => pen.classList.add("show"));
     pad.addEventListener("pointerleave", () => pen.classList.remove("show"));
     pad.addEventListener("pointermove", (e) => {
+      // Moving the pen over the pad between strokes means another part is
+      // coming: start the wait again.
+      if (!drawing && timer) startWaiting();
       const r = pad.getBoundingClientRect();
       pen.style.transform = `translate(${e.clientX - r.left - tip.x}px,${e.clientY - r.top - tip.y}px) rotate(${drawing ? 28 : 33}deg)`;
     });
   }
 
   // ---------- drawing ----------
-  // Strokes belong to one character until the pen stays up for WAIT_MS; then
-  // it is read. The next stroke after that starts a new character.
+  // Strokes belong to one character until the pen stays up, and still, for
+  // WAIT_MS; then it is read. A mouse moving over the pad restarts the wait.
+  // After a character is read, the next stroke starts a new one; after "not
+  // sure" it adds to the same drawing, so a slow second stroke is not lost.
   const WAIT_MS = reduce ? 900 : 1200;
   let strokes = [], cur = null, lastPt = null, drawing = false, timer = null, finished = false;
   function pos(e) { const r = draw.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, t: performance.now() }; }
@@ -132,13 +137,17 @@
     cur = null;
     if (!strokes.length) return;
     shapeEl.textContent = "Pen up. Draw the next part, or wait and it is read.";
+    startWaiting();
+    renderModel();   // Recognize can read it now
+  }
+  function startWaiting() {
+    clearTimeout(timer);
     wait.hidden = false;
     // Restart the bar's animation for this wait.
     const bar = wait.firstElementChild;
     bar.style.animation = "none"; void bar.offsetWidth;
     bar.style.animation = ""; bar.style.animationDuration = `${WAIT_MS}ms`;
     timer = setTimeout(read, WAIT_MS);
-    renderModel();   // Recognize can read it now
   }
   draw.addEventListener("pointerup", endStroke);
   draw.addEventListener("pointercancel", endStroke);
@@ -151,7 +160,13 @@
     const task = state.task === "symbols" || state.task === "equations" ? "symbols" : "chars";
     const got = window.PlaygroundShapes.recognise(strokes, { size: draw.getBoundingClientRect().height, task });
     if (!got) { shapeEl.textContent = ""; return; }
-    if (!got.label) { shapeEl.textContent = got.reason; drawnNothing(); return; }
+    if (!got.label) {
+      // Keep the strokes: the next one adds to this drawing. Clear starts over.
+      finished = false;
+      shapeEl.textContent = `${got.reason} Add a stroke, or press Clear.`;
+      drawnNothing();
+      return;
+    }
     const moved = got.task !== state.task;
     const found = useDrawing(got);
     if (!found) {

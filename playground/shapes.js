@@ -155,12 +155,22 @@
     // 3: two bumps to the right, meeting in the middle.
     ["3", arc(0.5, 0.28, 0.26, 0.22, LEFT + 0.5, TAU + DOWN).concat(arc(0.5, 0.73, 0.3, 0.23, UP, TAU / 2 + 0.4)), 1],
     ["3", poly([P(0.12, 0.06), P(0.85, 0.06), P(0.45, 0.45)]).concat(arc(0.5, 0.7, 0.3, 0.24, UP, TAU / 2 + 0.4)), 1],
-    // 4: the open corner, then the upright (two strokes).
-    ["4", poly([P(0.6, 0.05), P(0.1, 0.65), P(0.9, 0.65), P(0.68, 0.3), P(0.68, 0.95)]), 2],
-    ["4", poly([P(0.2, 0.05), P(0.15, 0.6), P(0.9, 0.6), P(0.72, 0.1), P(0.72, 0.95)]), 2],
+    // 4: the open corner and the upright (two strokes).
+    ["4", [poly([P(0.6, 0.05), P(0.1, 0.65), P(0.9, 0.65)]), poly([P(0.68, 0.3), P(0.68, 0.95)])], 2],
+    ["4", [poly([P(0.2, 0.05), P(0.15, 0.6), P(0.9, 0.6)]), poly([P(0.72, 0.1), P(0.72, 0.95)])], 2],
     // 5: in one stroke, or the body first and the flag second.
     ["5", poly([P(0.82, 0.07), P(0.3, 0.07), P(0.26, 0.45)]).concat(arc(0.48, 0.66, 0.32, 0.26, -0.75 * TAU / 2, 0.85 * TAU / 2)), 1],
-    ["5", poly([P(0.3, 0.07), P(0.26, 0.45)]).concat(arc(0.48, 0.66, 0.32, 0.26, -0.75 * TAU / 2, 0.85 * TAU / 2)).concat(poly([P(0.25, 0.85), P(0.3, 0.07), P(0.82, 0.07)])), 2],
+    ["5", [poly([P(0.3, 0.07), P(0.26, 0.45)]).concat(arc(0.48, 0.66, 0.32, 0.26, -0.75 * TAU / 2, 0.85 * TAU / 2)), poly([P(0.3, 0.07), P(0.82, 0.07)])], 2],
+    // Letters in two or more strokes. Straight crossings (+ T t = X) are read
+    // by rule above; these have a curve or more than two lines.
+    ["t", [poly([P(0.45, 0.0), P(0.45, 0.78)]).concat(arc(0.62, 0.78, 0.17, 0.17, LEFT, TAU / 8)), poly([P(0.15, 0.32), P(0.8, 0.32)])], 2],
+    ["f", [arc(0.55, 0.17, 0.2, 0.15, -TAU / 12, -TAU / 2).concat(poly([P(0.35, 0.17), P(0.35, 1.0)])), poly([P(0.12, 0.42), P(0.65, 0.42)])], 2],
+    ["A", [poly([P(0.1, 1.0), P(0.5, 0.0), P(0.9, 1.0)]), poly([P(0.3, 0.62), P(0.7, 0.62)])], 2],
+    ["K", [poly([P(0.2, 0.0), P(0.2, 1.0)]), poly([P(0.8, 0.0), P(0.22, 0.55), P(0.8, 1.0)])], 2],
+    ["Y", [poly([P(0.1, 0.0), P(0.5, 0.48), P(0.9, 0.0)]), poly([P(0.5, 0.48), P(0.5, 1.0)])], 2],
+    ["H", [poly([P(0.15, 0.0), P(0.15, 1.0)]), poly([P(0.85, 0.0), P(0.85, 1.0)]), poly([P(0.15, 0.5), P(0.85, 0.5)])], 3],
+    ["F", [poly([P(0.2, 0.0), P(0.2, 1.0)]), poly([P(0.2, 0.0), P(0.85, 0.0)]), poly([P(0.2, 0.48), P(0.7, 0.48)])], 3],
+    ["E", [poly([P(0.2, 0.0), P(0.2, 1.0)]), poly([P(0.2, 0.0), P(0.85, 0.0)]), poly([P(0.2, 0.5), P(0.7, 0.5)]), poly([P(0.2, 1.0), P(0.85, 1.0)])], 4],
     // 6: down the left side, then a loop at the bottom.
     ["6", poly([P(0.7, 0.04), P(0.42, 0.22), P(0.25, 0.5)]).concat(arc(0.5, 0.7, 0.25, 0.24, LEFT, LEFT - TAU)), 1],
     // 9: a loop at the top, then the stem.
@@ -168,13 +178,49 @@
     // 8: an S down, then back up the other side.
     ["8", arc(0.5, 0.26, 0.22, 0.2, -TAU / 8, DOWN - TAU).concat(arc(0.5, 0.71, 0.27, 0.23, UP, UP + TAU)).concat(arc(0.5, 0.26, 0.22, 0.2, DOWN, -TAU / 8)), 1, true],
   ];
-  const VEC = TEMPLATES.map(([shape, pts, strokes, closed]) => ({ shape, v: toVector(resample(pts)), strokes, closed: !!closed }));
+  // A stroke drawn up or down, left or right, is the same stroke: each is
+  // turned to run top to bottom, or left to right when it is mostly
+  // horizontal, before strokes are joined in one path.
+  function canonical(stroke) {
+    const a = stroke[0], z = stroke[stroke.length - 1];
+    const vertical = Math.abs(z.y - a.y) >= Math.abs(z.x - a.x);
+    const backwards = vertical ? z.y < a.y : z.x < a.x;
+    return backwards ? stroke.slice().reverse() : stroke;
+  }
+  // Every order the strokes could have been drawn in (at most 4! = 24).
+  function orders(items) {
+    if (items.length <= 1) return [items];
+    return items.flatMap((x, i) => orders(items.filter((_, j) => j !== i)).map((rest) => [x, ...rest]));
+  }
+  const VEC = TEMPLATES.map(([shape, pts, strokes, closed]) => {
+    const path = strokes > 1 ? pts.map(canonical).flat() : pts;
+    return { shape, v: toVector(resample(path)), strokes, closed: !!closed };
+  });
 
   // ---------- parts: dots and straight lines ----------
   const SYMBOLS = new Set(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "-", "·", ":", "="]);
   // Letters whose small and capital forms are the same shape; the drawing's
   // height decides between them.
   const SAME_SHAPE = new Set(["C", "O", "S", "U", "V", "W", "X", "Z"]);
+
+  // Does the straight segment p (a, z) cross the drawn stroke anywhere?
+  function crossesStroke(p, stroke, slack) {
+    for (let i = 1; i < stroke.length; i++) {
+      if (segmentsCross(p, { a: stroke[i - 1], z: stroke[i] }, slack)) return true;
+    }
+    return false;
+  }
+  // Where a stroke that runs top to bottom bends: horizontal spread of its
+  // top quarter against its bottom quarter.
+  function hookEnd(stroke, b) {
+    const spread = (lo, hi) => {
+      const xs = stroke.filter((q) => q.y >= lo && q.y <= hi).map((q) => q.x);
+      return xs.length ? Math.max(...xs) - Math.min(...xs) : 0;
+    };
+    const top = spread(b.y0, b.y0 + b.h / 4), bottom = spread(b.y1 - b.h / 4, b.y1);
+    if (Math.max(top, bottom) < 0.18 * b.h) return "none";
+    return top > bottom ? "top" : "bottom";
+  }
 
   function part(stroke, dotLimit) {
     const b = box(stroke);
@@ -188,9 +234,11 @@
     // length would be thrown off by a shaky hand.
     const bulge = Math.max(...stroke.map((p) => Math.abs((z.x - a.x) * (a.y - p.y) - (a.x - p.x) * (z.y - a.y)) / chord));
     const straight = chord >= 0.8 * size && bulge <= 0.12 * chord;
+    // A tall stroke, straight or hooked at one end, can be the upright of t.
+    const upright = b.h >= 1.5 * b.w;
     const dir = angle < 30 ? "h" : angle > 60 ? "v" : "d";
     const slope = Math.sign((z.x - a.x) * (z.y - a.y));
-    return { kind: straight ? "line" : "curve", b, a, z, angle, dir, slope, size };
+    return { kind: straight ? "line" : "curve", b, a, z, angle, dir, slope, size, upright, stroke };
   }
   function segmentsCross(p, q, slack) {
     // Do the two segments meet, allowing `slack` pixels of overshoot?
@@ -231,6 +279,27 @@
           Math.abs(dots[0].b.cx - L.b.cx) < L.size * 0.4) return { shape: "i" };
       return null;
     }
+    // An upright crossed by a bar: T, t, f or +. The upright may be hooked
+    // (t, f); the bar is a straight horizontal line.
+    if (rest.length === 2 && !dots.length) {
+      const bar = rest.find((q) => q.kind === "line" && q.dir === "h");
+      const up = rest.find((q) => q !== bar && q.upright && (q.kind === "curve" || q.dir === "v"));
+      // The bar must stick out on both sides of the upright where they
+      // meet: a 5's flag touches its upright but runs off to one side only.
+      const nearest = up && bar && up.stroke.reduce((m, q) => (Math.abs(q.y - bar.b.cy) < Math.abs(m.y - bar.b.cy) ? q : m));
+      const overhang = bar && 0.12 * bar.b.w;
+      const across = nearest && bar.b.x0 < nearest.x - overhang && bar.b.x1 > nearest.x + overhang;
+      if (across && crossesStroke(bar, up.stroke, Math.max(all.w, all.h) * 0.08)) {
+        const at = (bar.b.cy - up.b.y0) / (up.b.h || 1);
+        const hook = up.kind === "curve" ? hookEnd(up.stroke, up.b) : "none";
+        if (hook === "top" && at < 0.7 && task === "chars") return { shape: "f" };
+        if (hook === "bottom" && at < 0.7 && task === "chars") return { shape: "t" };
+        if (hook === "none") {
+          if (at < 0.18) return { shape: "T" };
+          return { shape: at < 0.42 && task === "chars" ? "t" : "+" };
+        }
+      }
+    }
     if (rest.length === 2 && lines.length === 2 && !dots.length) {
       const [p, q] = lines;
       const slack = Math.max(all.w, all.h) * 0.12;
@@ -243,8 +312,12 @@
       const h = p.dir === "h" ? p : q.dir === "h" ? q : null;
       const v = p.dir === "v" ? p : q.dir === "v" ? q : null;
       if (h && v && segmentsCross(h, v, slack)) {
-        // A bar across the very top of the upright is a T, anywhere lower a +.
-        return { shape: h.b.cy - v.b.y0 < 0.18 * v.size ? "T" : "+" };
+        // A bar across the very top of the upright is a T. Higher than the
+        // middle it is a small t when letters are being read, and a +
+        // otherwise.
+        const at = (h.b.cy - v.b.y0) / v.size;
+        if (at < 0.18) return { shape: "T" };
+        return { shape: at < 0.42 && task === "chars" ? "t" : "+" };
       }
       if (p.dir === "d" && q.dir === "d" && p.slope !== q.slope && segmentsCross(p, q, slack)) return { shape: "X" };
     }
@@ -301,7 +374,7 @@
   const isDigit = (shape) => /^[0-9]$/.test(shape);
   function known(task) {
     return task === "chars"
-      ? "a, b, d, e, g, h, i, m, n, p, q, r, and O, C, L, M, N, S, T, U, V, W, X, Z"
+      ? "a, b, d, e, f, g, h, i, m, n, p, q, r, t, and A, C, E, F, H, K, L, M, N, O, S, T, U, V, W, X, Y, Z"
       : "0 to 9, and - + = · ÷";
   }
   // strokes: arrays of {x, y}. opts.size: the drawing area's height in
@@ -324,15 +397,21 @@
       const flat = body.flat();
       if (flat.length < 2 || pathLength(flat) < dotLimit * 2) return { label: null, reason: `Too small to read. Draw it bigger: ${known(task)}.` };
       const pts = resample(flat);
-      const v = toVector(pts);
-      const upright = deslant(pts);
-      const vu = upright && toVector(upright);
       const n = body.length;
+      // One stroke: its own path, which the match reads either way. More:
+      // every stroke order, each stroke turned to its canonical direction.
+      const paths = n === 1 ? [pts] : (n <= 4 ? orders(body.map(canonical)) : [body]).map((o) => resample(o.flat()));
+      const vectors = [];
+      for (const path of paths) {
+        vectors.push(toVector(path));
+        const upright = deslant(path);
+        if (upright) vectors.push(toVector(upright));
+      }
       // Best score per shape, highest first.
       const byShape = new Map();
       for (const t of VEC) {
         if (t.strokes !== n) continue;
-        const sc = vu ? Math.max(bestMatch(v, t), bestMatch(vu, t)) : bestMatch(v, t);
+        const sc = Math.max(...vectors.map((v) => bestMatch(v, t)));
         if (!byShape.has(t.shape) || sc > byShape.get(t.shape)) byShape.set(t.shape, sc);
       }
       const ranking = [...byShape].map(([shape, sc]) => ({ shape, sc })).sort((a, b) => b.sc - a.sc);
