@@ -73,6 +73,36 @@ Both formats return the same `OnHWCharsDataset` named tuple. `X_train` and
 `X_test` are filled for .npy and `None` for .pkl, which has no official split:
 use `imu2text.models.make_split(mode="writer", writers=ds.writers)` to make one.
 
+### Recording lengths and `--max-len`
+
+`imu2text.models` truncates at the end, so a recording longer than
+`--max-len` (default 100) keeps its first steps. On `both/indep/fold0`,
+31,272 non-empty recordings: mean 48.5 steps, median 43, p90 72, p99 157,
+max 3,475; capitals average 52.8 steps and small letters 44.1.
+`python -m scripts.length_study data/onhw-chars_2021-06-30` prints the rest
+(issue #15, no training):
+
+| `--max-len` | Cut | Capitals cut | Small cut | Capitals among the cut | In test | All writing after the cut |
+|--:|--:|--:|--:|--:|--:|--:|
+| 72 | 9.53% | 13.42% | 5.63% | 70.5% | 547 | 227 |
+| 100 | 2.90% | 3.76% | 2.04% | 64.9% | 111 | 66 |
+| 128 | 1.55% | 1.81% | 1.29% | 58.5% | 56 | 35 |
+| 160 | 0.94% | 1.00% | 0.87% | 53.6% | 43 | 19 |
+
+- The default cut falls mostly on capitals (E, A, B, R, H, W lead), so it
+  adds to the capital and small letter confusion rather than spreading evenly.
+- The longest recordings are mostly idle. The 3,475-step `A` has pen-down
+  force for 23 steps, at 3,379 to 3,406; the 1,213-step `a` at 774 to 803.
+  The pen was recording before it touched the paper. With the cut at the end,
+  the model sees none of the letter: 66 cut recordings at the default lose
+  every pen-down step (2 of them in the test half). Trimming the idle lead-in
+  before truncating is the fix worth measuring.
+- Pen-down is pen-tip force (channel 12) above the median force over the
+  split, a heuristic: the archive carries no sensor calibration.
+
+What this does not answer is accuracy: the sweep over `--max-len` and a
+trimmed lead-in needs training runs on the official folds.
+
 ## OnHW-symbols and OnHW-equations
 
 Both load with `imu2text/symbols.py`:
