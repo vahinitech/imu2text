@@ -54,6 +54,31 @@ official test half is never touched. Three of the 31,275 recordings have zero
 timesteps and are dropped (all three fall in train for `both/indep/fold0`),
 which the run prints.
 
+All 30 splits were loaded and checked against each other (issue #16,
+`tests/test_real_data.py`, run with `ONHW_DATA_DIR`):
+
+- Every split has 13 channels, finite values and every class in both halves.
+  Train and test sizes are pinned per split in the test. Writer-dependent
+  folds are all one size; writer-independent folds differ, because each holds
+  out a different set of writers.
+- The three empty recordings are lower-case `f`, `k` and `i`. Some splits put
+  one in the test half, where it is dropped from the denominator too.
+- Leaving those out, no split repeats a recording or shares one between train
+  and test, and each of the 31,272 recordings carries the same label in every
+  split it appears in, including between the one-case and combined splits.
+  `both` is exactly `lower` plus `upper`, and `dep` and `indep` hold the same
+  recordings. The splits are cut from one ordering of the recordings, so this
+  rules out labels shifted against recordings when a split was written; it
+  cannot rule out a fault in the source they were all cut from.
+- **The five writer-independent test folds overlap.** Every recording is
+  tested at least once, but 7,228 of the 31,272 in `both/indep` are tested in
+  more than one fold, and the five test halves sum to 38,503. A mean over the
+  folds is still the published protocol, but its spread is not the spread of
+  five independent test sets.
+- `readme.txt` describes the five cross-validation splits, says the splits
+  reproduce Table 4 of the IMWUT 2020 paper, and notes that the data carries
+  no sensor calibration. Nothing in it contradicts the loader.
+
 From Python:
 
 ```python

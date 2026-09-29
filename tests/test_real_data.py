@@ -6,6 +6,7 @@ folders to run them:
 
     python -m imu2text.download onhw_chars_L onhw_symbols_L onhw_words500_indep_L \
         --out ./data
+    python -m imu2text.download onhw_chars --out ./data   # 896 MB, all 30 splits
     ONHW_DATA_DIR=./data python -m pytest tests/test_real_data.py -v
 
 These exist because the synthetic fixtures elsewhere encode the same
@@ -137,6 +138,141 @@ def test_real_symbols_dep_labels_span_the_charset():
 
     ds = S.load_onhw_symbols(_require("OnHW-symbols_equations_dep"))
     assert set(np.unique(ds.y_train).tolist()) == set(range(15))
+
+
+# --------------------------------------------------------------------------- #
+# OnHW-chars, right-handed .npy release (896 MB, 30 official splits)
+# --------------------------------------------------------------------------- #
+CHARS_NPY = ("onhw-chars_2021-06-30",)
+# (train, test) recordings per split, empty recordings included, as published.
+# Writer-dependent folds are all the same size; writer-independent ones hold
+# out a different number of writers each.
+CHARS_NPY_SIZES = {
+    ("lower", "dep"): [(11524, 4101)] * 5,
+    ("lower", "indep"): [
+        (11647, 3978),
+        (11830, 3795),
+        (11855, 3770),
+        (11959, 3666),
+        (11595, 4030),
+    ],
+    ("upper", "dep"): [(11542, 4108)] * 5,
+    ("upper", "indep"): [
+        (11672, 3978),
+        (11854, 3796),
+        (11879, 3771),
+        (11961, 3689),
+        (11620, 4030),
+    ],
+    ("both", "dep"): [(23066, 8209)] * 5,
+    ("both", "indep"): [
+        (23319, 7956),
+        (23684, 7591),
+        (23734, 7541),
+        (23920, 7355),
+        (23215, 8060),
+    ],
+}
+
+
+def _chars_npy_splits():
+    """Every one of the 30 splits: (case, dependency, fold, loaded split)."""
+    from imu2text.chars import _load_npy_split
+
+    base = _require(*CHARS_NPY)
+    for (case, dep), sizes in CHARS_NPY_SIZES.items():
+        for fold in range(len(sizes)):
+            yield case, dep, fold, _load_npy_split(base, case, dep, fold)
+
+
+def _digest(x):
+    import hashlib
+
+    return hashlib.sha1(np.asarray(x, np.float64).tobytes()).hexdigest()
+
+
+def test_real_chars_npy_all_30_splits_have_the_documented_layout():
+    """Issue #16: every split, not just both/indep/fold0."""
+    seen = 0
+    for case, dep, fold, (x_tr, y_tr, x_te, y_te, classes) in _chars_npy_splits():
+        where = f"{case}/{dep}/{fold}"
+        assert (len(x_tr), len(x_te)) == CHARS_NPY_SIZES[(case, dep)][fold], where
+        assert len(classes) == (52 if case == "both" else 26), where
+        # Every class in both halves, labels inside the class range.
+        assert set(y_tr.tolist()) == set(range(len(classes))), where
+        assert set(y_te.tolist()) == set(range(len(classes))), where
+        rec = [r for r in x_tr + x_te if len(r)]
+        assert all(np.ndim(r) == 2 and np.shape(r)[1] == 13 for r in rec), where
+        assert all(np.isfinite(np.asarray(r, np.float64)).all() for r in rec), where
+        # The three empty recordings are lower-case f, k and i; some splits
+        # put one in the test half.
+        empty = sorted(
+            classes[y]
+            for r, y in zip(x_tr + x_te, list(y_tr) + list(y_te))
+            if len(r) == 0
+        )
+        assert empty == ([] if case == "upper" else ["f", "i", "k"]), where
+        seen += 1
+    assert seen == 30
+
+
+def test_real_chars_npy_splits_agree_on_every_recording():
+    """Issue #16: X and y line up in every split.
+
+    The splits are cut from one ordering of the recordings, each a different
+    subset of it. If any split had its labels shifted against its recordings,
+    the same recording would carry a different label there than elsewhere.
+    None does, across all 30, and between the one-case and combined splits.
+    That rules out a misalignment made when a split was written, not one in
+    the source they were all cut from.
+    """
+    label_of, pools = {}, {}
+    for case, dep, fold, (x_tr, y_tr, x_te, y_te, classes) in _chars_npy_splits():
+        where = f"{case}/{dep}/{fold}"
+        train = [_digest(r) for r in x_tr if len(r)]
+        test = [_digest(r) for r in x_te if len(r)]
+        assert len(set(train)) == len(train) and len(set(test)) == len(test), where
+        assert not set(train) & set(test), where
+        pairs = [
+            (_digest(r), y)
+            for r, y in zip(x_tr + x_te, list(y_tr) + list(y_te))
+            if len(r)
+        ]
+        for key, y in pairs:
+            assert label_of.setdefault(key, classes[y]) == classes[y], where
+        pools[(case, dep, fold)] = frozenset(train + test)
+    assert len(label_of) == 31272  # 31,275 published, 3 of them empty
+    for dep in ("dep", "indep"):
+        for fold in range(5):
+            lower, upper = pools[("lower", dep, fold)], pools[("upper", dep, fold)]
+            assert not lower & upper
+            assert pools[("both", dep, fold)] == lower | upper
+            assert pools[(("both", dep, fold))] == pools[("both", "indep", 0)]
+
+
+def test_real_chars_npy_indep_test_folds_overlap():
+    """The five writer-independent test sets are not a partition.
+
+    Every recording is tested at least once, but 7,228 of the 31,272 in
+    both/indep are tested in more than one fold, so a mean over the folds is
+    not a mean over five disjoint test sets (issue #9).
+    """
+    from collections import Counter
+
+    tested = Counter()
+    for case, dep, _, (_, _, x_te, _, _) in _chars_npy_splits():
+        if (case, dep) == ("both", "indep"):
+            tested.update(_digest(r) for r in x_te if len(r))
+    assert len(tested) == 31272
+    assert sum(n > 1 for n in tested.values()) == 7228
+
+
+def test_real_chars_npy_readme_says_what_the_loader_assumes():
+    base = _require(*CHARS_NPY)
+    with open(os.path.join(base, "readme.txt"), encoding="utf-8") as f:
+        text = f.read()
+    assert "five cross validation splits" in text
+    assert "does not contain or consider any sensor calibration" in text
 
 
 # --------------------------------------------------------------------------- #
