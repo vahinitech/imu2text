@@ -102,6 +102,7 @@ Docs, comments, commit messages and PR bodies follow
 | `docs/` | benchmarks, datasets, roadmap, root-cause analyses |
 | `playground/` | the Vahini AI Playground page at playground.vahinitech.com; see `playground/README.md` |
 | `scripts/build_playground.py` | builds `playground/data/public.js` from committed results |
+| `playground/shapes.js` | "Draw it": reads a drawing as one character, then the page shows the model's saved output for a real recording of it; tested by `tests/test_playground_shapes.py` under Node |
 | `tests/test_real_data.py` | loader tests on the real archives; needs `ONHW_DATA_DIR` |
 
 The package runs from the source tree. `pytest.ini` puts the repo root on
@@ -121,6 +122,13 @@ The package runs from the source tree. `pytest.ini` puts the repo root on
 - **A split rebuilt from an archive that ships one.** Use the published
   split. The OnHW symbols `dep` archive shares all 27 writers between train
   and val by design.
+- **Templates never drawn.** The playground's 2 template had an 18-degree
+  arc and the 3 template's arc ran backwards, so a drawn 2 read as Z and a
+  3 as 1, and a minus read as U because nothing handled straight lines.
+  The matcher had no test. `tests/test_playground_shapes.py` now draws
+  every shape it claims to know, jittered and slanted, and a shape added to
+  `shapes.js` needs a case there. The drawing is never fed to the model;
+  the page shows the output for a real recording of the matched character.
 - **More capacity for a data limit.** On the 52-class task, 43% of the 72.5%
   model's errors are a letter read as its other case (38.4% for the 68.0%
   baseline), and the case-insensitive score of the 72.5% model is 84.3%.
