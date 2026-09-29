@@ -132,6 +132,21 @@
     ["L", poly([P(0.15, 0.05), P(0.15, 0.9), P(0.85, 0.9)]), 1],
     ["Z", poly([P(0.08, 0.08), P(0.92, 0.08), P(0.08, 0.92), P(0.92, 0.92)]), 1],
     ["e", poly([P(0.15, 0.55), P(0.85, 0.55)]).concat(arc(0.5, 0.55, 0.35, 0.38, RIGHT, RIGHT - TAU * 0.85)), 1],
+    // Small letters written in one stroke. A stem that goes down and back up
+    // before an arch (h, n, m, r, b, p) retraces itself, as a pen does.
+    ["h", poly([P(0.2, 0.02), P(0.2, 0.98), P(0.2, 0.6)]).concat(arc(0.5, 0.64, 0.3, 0.2, LEFT, TAU)).concat(poly([P(0.8, 0.64), P(0.8, 0.98)])), 1],
+    ["h", poly([P(0.3, 0.02), P(0.3, 0.98), P(0.3, 0.58)]).concat(arc(0.5, 0.62, 0.2, 0.2, LEFT, TAU)).concat(poly([P(0.7, 0.62), P(0.72, 0.9)])), 1],
+    ["n", poly([P(0.25, 0.3), P(0.25, 0.95), P(0.25, 0.55)]).concat(arc(0.47, 0.55, 0.22, 0.25, LEFT, TAU)).concat(poly([P(0.69, 0.55), P(0.72, 0.9)])), 1],
+    ["n", poly([P(0.15, 0.2), P(0.15, 0.95), P(0.15, 0.5)]).concat(arc(0.5, 0.5, 0.35, 0.3, LEFT, TAU)).concat(poly([P(0.85, 0.5), P(0.85, 0.95)])), 1],
+    ["m", poly([P(0.08, 0.25), P(0.08, 0.95), P(0.08, 0.5)]).concat(arc(0.29, 0.5, 0.21, 0.25, LEFT, TAU)).concat(poly([P(0.5, 0.5), P(0.5, 0.95), P(0.5, 0.5)])).concat(arc(0.71, 0.5, 0.21, 0.25, LEFT, TAU)).concat(poly([P(0.92, 0.5), P(0.92, 0.95)])), 1],
+    ["r", poly([P(0.25, 0.2), P(0.25, 0.98), P(0.25, 0.55)]).concat(arc(0.55, 0.55, 0.3, 0.3, LEFT, LEFT + TAU * 0.36)), 1],
+    ["b", poly([P(0.2, 0.0), P(0.2, 0.95), P(0.2, 0.62)]).concat(arc(0.5, 0.7, 0.3, 0.26, LEFT, LEFT + TAU)), 1],
+    ["p", poly([P(0.2, 0.3), P(0.2, 1.0), P(0.2, 0.36)]).concat(arc(0.5, 0.44, 0.3, 0.22, LEFT, LEFT + TAU)), 1],
+    // Small letters that start with a bowl drawn anticlockwise from its top right.
+    ["a", arc(0.42, 0.6, 0.32, 0.34, -TAU / 8, -TAU / 8 - TAU).concat(poly([P(0.72, 0.3), P(0.74, 0.97)])), 1],
+    ["d", arc(0.42, 0.66, 0.32, 0.3, -TAU / 8, -TAU / 8 - TAU).concat(poly([P(0.72, 0.4), P(0.75, 0.0), P(0.75, 0.97)])), 1],
+    ["q", arc(0.42, 0.34, 0.32, 0.3, -TAU / 8, -TAU / 8 - TAU).concat(poly([P(0.72, 0.1), P(0.74, 1.0)])), 1],
+    ["g", arc(0.42, 0.3, 0.32, 0.26, -TAU / 8, -TAU / 8 - TAU).concat(poly([P(0.72, 0.1), P(0.74, 0.78)])).concat(arc(0.45, 0.78, 0.29, 0.2, RIGHT, TAU / 2)), 1],
     ["1", poly([P(0.25, 0.28), P(0.55, 0.05), P(0.55, 0.95)]), 1],
     ["7", poly([P(0.08, 0.08), P(0.9, 0.08), P(0.42, 0.95)]), 1],
     // 2: over the top, down the diagonal, along the base.
@@ -236,6 +251,28 @@
     return null;
   }
 
+  // ---------- slant ----------
+  // Handwriting leans. Rotation is allowed for by the match, but a lean is a
+  // shear: the tops of the uprights move sideways and the bottoms do not.
+  // Estimate it from the parts of the path that run close to vertical and
+  // shear it back to upright.
+  function deslant(pts) {
+    let sum = 0, weight = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const dx = pts[i].x - pts[i - 1].x, dy = pts[i].y - pts[i - 1].y;
+      const len = Math.hypot(dx, dy);
+      if (!len || Math.abs(dx) > Math.abs(dy)) continue;  // within 45 degrees of vertical
+      // dx/dy is the same for a stroke drawn up or down.
+      sum += (dx / dy) * len;
+      weight += len;
+    }
+    if (!weight) return null;
+    const shear = Math.max(-0.7, Math.min(0.7, sum / weight));
+    if (Math.abs(shear) < 0.05) return null;
+    const cy = pts.reduce((a, p) => a + p.y, 0) / pts.length;
+    return pts.map((p) => ({ x: p.x - shear * (p.y - cy), y: p.y }));
+  }
+
   // ---------- corners, to tell a Z from a 2 ----------
   // The largest change of direction over a short stretch of the path, and
   // where along the path (0 to 1) it happens.
@@ -254,9 +291,17 @@
   }
 
   // ---------- the answer ----------
+  // Match needed to answer. Drawings of every shape here score 0.94 or more
+  // even when drawn sloppily; letters this matcher does not know (k, f, y,
+  // j, t, &) top out around 0.93 against their nearest template, and at the
+  // old 0.8 were read as that template (a small h came back as V).
+  // tests/test_playground_shapes.py holds both sides of this line.
+  const ACCEPT = 0.94;
+  const TIE = 0.03;
+  const isDigit = (shape) => /^[0-9]$/.test(shape);
   function known(task) {
     return task === "chars"
-      ? "O, C, S, U, V, W, M, N, L, Z, e, i, T, X"
+      ? "a, b, d, e, g, h, i, m, n, p, q, r, and O, C, L, M, N, S, T, U, V, W, X, Z"
       : "0 to 9, and - + = · ÷";
   }
   // strokes: arrays of {x, y}. opts.size: the drawing area's height in
@@ -280,14 +325,28 @@
       if (flat.length < 2 || pathLength(flat) < dotLimit * 2) return { label: null, reason: `Too small to read. Draw it bigger: ${known(task)}.` };
       const pts = resample(flat);
       const v = toVector(pts);
+      const upright = deslant(pts);
+      const vu = upright && toVector(upright);
       const n = body.length;
-      let best = null;
+      // Best score per shape, highest first.
+      const byShape = new Map();
       for (const t of VEC) {
         if (t.strokes !== n) continue;
-        const sc = bestMatch(v, t);
-        if (!best || sc > best.sc) best = { shape: t.shape, sc };
+        const sc = vu ? Math.max(bestMatch(v, t), bestMatch(vu, t)) : bestMatch(v, t);
+        if (!byShape.has(t.shape) || sc > byShape.get(t.shape)) byShape.set(t.shape, sc);
       }
-      if (!best || best.sc < 0.8) {
+      const ranking = [...byShape].map(([shape, sc]) => ({ shape, sc })).sort((a, b) => b.sc - a.sc);
+      if (opts.ranking) return { ranking: ranking.slice(0, 4) };
+      let best = ranking[0] || null;
+      // A digit and a letter can share a shape (9 and q, 6 and b). When the
+      // two score within TIE of each other, the one the current task reads
+      // wins.
+      if (best) {
+        const inTask = (shape) => (task === "symbols") === (isDigit(shape) || shape === "O/0");
+        const rival = ranking.find((r) => r !== best && r.sc >= best.sc - TIE && inTask(r.shape));
+        if (!inTask(best.shape) && rival && best.shape !== "Z" && best.shape !== "2") best = rival;
+      }
+      if (!best || best.sc < ACCEPT) {
         return { label: null, reason: `Not sure what that was. Shapes this demo knows: ${known(task)}.` };
       }
       if (best.shape === "Z" || best.shape === "2") {

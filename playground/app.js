@@ -243,7 +243,7 @@ function renderTask() {
   // A row with nothing to choose is hidden, not left as a bare label.
   handBox.closest(".choice").hidden = !handBox.children.length;
   const padHint = document.querySelector("#w-hint span");
-  if (padHint) padHint.textContent = state.task === "symbols" || state.task === "equations" ? "draw 2, 7, +, = or ÷" : "draw O, S, Z, e…";
+  if (padHint) padHint.textContent = state.task === "symbols" || state.task === "equations" ? "draw 2, 7, +, = or ÷" : "draw a, h, n, O, S…";
 
   const box = document.getElementById("samples");
   box.replaceChildren();
