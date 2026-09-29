@@ -15,6 +15,12 @@ handedness when the runs pooled both archives, case-insensitive accuracy,
 negative log-likelihood and expected calibration error (ECE, 15 equal-width
 confidence bins; Guo et al., "On Calibration of Modern Neural Networks",
 ICML 2017).
+
+Also per group, for the whole test set: how confident the model is on its
+case errors (a letter read as its own other case) against its other errors,
+and which errors abstaining on the least confident predictions removes. This
+answers issue #13's question of whether the case confusions are confidently
+wrong.
 """
 
 from __future__ import annotations
@@ -27,6 +33,7 @@ import os
 import numpy as np
 
 ECE_BINS = 15
+COVERAGES = (0.9, 0.8, 0.7)
 POPULATIONS = (("all", None), ("right-handed", (0, -1)), ("left-handed", (1,)))
 
 
@@ -86,6 +93,61 @@ def scores(proba: np.ndarray, true: np.ndarray, classes: np.ndarray) -> dict:
     }
 
 
+def case_confidence(proba: np.ndarray, true: np.ndarray, classes: np.ndarray) -> dict:
+    """Confidence of right answers, case errors and other errors, and abstention.
+
+    A case error is a prediction that is the right letter in the other case.
+    For each coverage c, the least confident (1 - c) of predictions are
+    withheld; reported is the share of each kind of error withheld and the
+    accuracy on what is kept.
+    """
+    pred, conf = proba.argmax(1), proba.max(1)
+    folded = np.char.lower(classes.astype(str))
+    right = pred == true
+    case = ~right & (folded[pred] == folded[true])
+    other = ~right & ~case
+    second = np.argsort(-proba, axis=1)[:, 1]
+
+    def describe(mask):
+        c = conf[mask]
+        return {
+            "n": int(mask.sum()),
+            "mean_confidence": float(c.mean()) if len(c) else 0.0,
+            "median_confidence": float(np.median(c)) if len(c) else 0.0,
+            "share_at_least_0_8": float((c >= 0.8).mean() * 100) if len(c) else 0.0,
+            "share_at_least_0_9": float((c >= 0.9).mean() * 100) if len(c) else 0.0,
+        }
+
+    order = np.argsort(conf, kind="stable")
+    abstain = []
+    for cov in COVERAGES:
+        held = np.zeros(len(conf), bool)
+        held[order[: int(round(len(conf) * (1 - cov)))]] = True
+        kept_errors = (~right & ~held).sum()
+        abstain.append(
+            {
+                "coverage": cov,
+                "accuracy_kept": float(right[~held].mean() * 100),
+                "case_errors_withheld": float(held[case].mean() * 100),
+                "other_errors_withheld": float(held[other].mean() * 100),
+                "right_withheld": float(held[right].mean() * 100),
+                "case_share_of_kept_errors": float(
+                    (case & ~held).sum() / max(kept_errors, 1) * 100
+                ),
+            }
+        )
+    return {
+        "right": describe(right),
+        "case_errors": describe(case),
+        "other_errors": describe(other),
+        "case_share_of_errors": float(case.sum() / max((~right).sum(), 1) * 100),
+        "case_errors_second_choice_right": float(
+            (second[case] == true[case]).mean() * 100 if case.any() else 0.0
+        ),
+        "abstain": abstain,
+    }
+
+
 def by_population(proba, true, handedness, classes) -> dict:
     """Score the whole test set and each handedness population present."""
     out = {}
@@ -118,6 +180,10 @@ def summarise(name: str, members: list) -> dict:
         "files": [os.path.basename(m["path"]) for m in members],
         "members": per_member,
         "ensemble": by_population(mean_proba, true, hand, classes),
+        "case_confidence": {
+            "ensemble": case_confidence(mean_proba, true, classes),
+            "members": [case_confidence(m["proba"], true, classes) for m in members],
+        },
     }
 
 
@@ -140,7 +206,66 @@ def markdown(groups: list) -> str:
             )
     splits = "; ".join(f"{g['group']}: {g['split']}" for g in groups)
     lines += ["", f"Splits: {splits}. Model: {groups[0]['model']}."]
+    lines += ["", *case_markdown(groups)]
     return "\n".join(lines) + "\n"
+
+
+def case_markdown(groups: list) -> list:
+    """Case errors against other errors: confidence, and what abstaining removes."""
+    lines = [
+        "Case errors (a letter read as its own other case) against other errors, "
+        "whole test set. Single model: mean over the members.",
+        "",
+        "| Group | Model | Kind | n | Median confidence | Confidence ≥ 0.9 |",
+        "|---|---|---|--:|--:|--:|",
+    ]
+    for g in groups:
+        for name, runs in (
+            ("single", g["case_confidence"]["members"]),
+            ("ensemble", [g["case_confidence"]["ensemble"]]),
+        ):
+            for kind, label in (
+                ("right", "right"),
+                ("case_errors", "case error"),
+                ("other_errors", "other error"),
+            ):
+                n = np.mean([r[kind]["n"] for r in runs])
+                med = np.mean([r[kind]["median_confidence"] for r in runs])
+                hi = np.mean([r[kind]["share_at_least_0_9"] for r in runs])
+                lines.append(
+                    f"| {g['group']} | {name} | {label} | {n:.0f} | {med:.3f} | {hi:.1f}% |"
+                )
+    lines += [
+        "",
+        "Abstaining on the least confident predictions (ensemble):",
+        "",
+        "| Group | Coverage | Accuracy kept % | Case errors withheld % | "
+        "Other errors withheld % | Right answers withheld % | Case share of kept errors % |",
+        "|---|--:|--:|--:|--:|--:|--:|",
+    ]
+    for g in groups:
+        ens = g["case_confidence"]["ensemble"]
+        lines.append(
+            f"| {g['group']} | 100% | "
+            f"{ens['right']['n'] / (ens['right']['n'] + ens['case_errors']['n'] + ens['other_errors']['n']) * 100:.2f} "
+            f"| 0.0 | 0.0 | 0.0 | {ens['case_share_of_errors']:.1f} |"
+        )
+        for a in ens["abstain"]:
+            lines.append(
+                f"| {g['group']} | {a['coverage'] * 100:.0f}% | {a['accuracy_kept']:.2f} | "
+                f"{a['case_errors_withheld']:.1f} | {a['other_errors_withheld']:.1f} | "
+                f"{a['right_withheld']:.1f} | {a['case_share_of_kept_errors']:.1f} |"
+            )
+    lines += [
+        "",
+        "Case errors whose second choice is the right answer (ensemble): "
+        + "; ".join(
+            f"{g['group']} {g['case_confidence']['ensemble']['case_errors_second_choice_right']:.1f}%"
+            for g in groups
+        )
+        + ".",
+    ]
+    return lines
 
 
 def main() -> None:

@@ -39,7 +39,7 @@ of the IJDAR 2022 benchmark paper, which this repo does not hold.
 - Words500 loader and lexicon-constrained beam search: `imu2text/words.py` (`LexiconDecoder`), used by `imu2text/seq2seq.py --lexicon`.
 - CTC alignment and writer-disjoint validation: `imu2text/sequence_data.py`, `scripts/benchmark_ctc.py`, `scripts/refit_ctc.py`, see [rca_ctc_lengths.md](rca_ctc_lengths.md).
 - Left-handed chars: `--onhw-chars-l` and `--both-hands` in `imu2text/models.py`, constructed splits only.
-- Seed ensembles with ECE, reliability and coverage plots: `scripts/ensemble_chars.py`, `scripts/plot_uncertainty.py`. This is the code for #13; no result is committed yet.
+- Seed ensembles with ECE, reliability and coverage plots: `scripts/ensemble_chars.py`, `scripts/plot_uncertainty.py`. Results for #13, including how confident the case errors are, in [uncertainty.md](uncertainty.md#results).
 - Dataset downloads, including the ICROW and wordsTraj archives: `imu2text/download.py`.
 
 ## Next, in order
@@ -164,6 +164,10 @@ Time-Series Classification for Online Handwriting Recognition with Domain
 Shift*, STRL 2022 (title and abstract only). Accuracy hides whether a model is
 confidently wrong, and calibration degrades under shift faster than accuracy
 does. ECE, reliability diagrams and ensemble uncertainty are post-hoc on
-models this repo already trains, and the ensemble scripts compute them. What
-#13 still needs is the run: are the case confusions confidently wrong, or low
-confidence and so recoverable by abstaining?
+models this repo already trains, and the ensemble scripts compute them. The
+run answered #13's question: the case confusions are not confidently wrong,
+but they are more confident than the other errors, so abstaining removes
+them last; for 91% of them the second choice is right
+([results](uncertainty.md#results)). Still open: temperature scaling,
+which needs validation outputs saved alongside the test ones, and MC dropout
+as a one-model alternative to the ensemble.
