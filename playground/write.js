@@ -160,6 +160,7 @@
     const task = state.task === "symbols" || state.task === "equations" ? "symbols" : "chars";
     const got = window.PlaygroundShapes.recognise(strokes, { size: draw.getBoundingClientRect().height, task });
     if (!got) { shapeEl.textContent = ""; return; }
+    if (got.sequence) { readSequence(got.sequence); return; }
     if (!got.label) {
       // Keep the strokes: the next one adds to this drawing. Clear starts over.
       finished = false;
@@ -176,6 +177,44 @@
     shapeEl.textContent = `Looks like ${got.shape}.${got.note ? ` ${got.note}` : ""}` +
       `${moved ? ` Switched to ${TASKS[got.task].label}.` : ""} The AI now reads a real pen recording of “${got.label}”.`;
     recognize();
+  }
+
+  // Several characters side by side ("12"). The recordings hold one
+  // character each, so the AI reads them one at a time: the first straight
+  // away, the others from a button each.
+  function readSequence(seq) {
+    const shown = seq.map((c) => (c.label ? c.shape : "?")).join("");
+    const pick = (i) => {
+      const c = seq[i];
+      const found = useDrawing(c);
+      shapeEl.replaceChildren(
+        `Looks like ${shown}: ${seq.length} characters. The AI reads one character at a time. ` +
+        (found ? `Now: a real pen recording of “${c.label}”. ` : `There is no recording of “${c.label}” here. `),
+      );
+      const row = document.createElement("span");
+      row.className = "w-seq";
+      seq.forEach((ch, j) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "v-chip";
+        b.textContent = ch.label ? ch.shape : "?";
+        b.setAttribute("aria-pressed", String(j === i));
+        b.setAttribute("aria-label", ch.label ? `Read character ${j + 1}, ${ch.shape}` : `Character ${j + 1}: not sure what it is`);
+        if (!ch.label) b.disabled = true;
+        else b.addEventListener("click", () => pick(j));
+        row.append(b);
+      });
+      shapeEl.append(row);
+      if (found) recognize();
+    };
+    const first = seq.findIndex((c) => c.label);
+    if (first < 0) {
+      finished = false;
+      shapeEl.textContent = "Not sure about any of those characters. Add a stroke, or press Clear.";
+      drawnNothing();
+      return;
+    }
+    pick(first);
   }
 
   // app.js reads these: the Recognize button reads a waiting drawing at once,

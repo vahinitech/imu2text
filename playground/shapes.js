@@ -138,6 +138,9 @@
     ["h", poly([P(0.3, 0.02), P(0.3, 0.98), P(0.3, 0.58)]).concat(arc(0.5, 0.62, 0.2, 0.2, LEFT, TAU)).concat(poly([P(0.7, 0.62), P(0.72, 0.9)])), 1],
     ["n", poly([P(0.25, 0.3), P(0.25, 0.95), P(0.25, 0.55)]).concat(arc(0.47, 0.55, 0.22, 0.25, LEFT, TAU)).concat(poly([P(0.69, 0.55), P(0.72, 0.9)])), 1],
     ["n", poly([P(0.15, 0.2), P(0.15, 0.95), P(0.15, 0.5)]).concat(arc(0.5, 0.5, 0.35, 0.3, LEFT, TAU)).concat(poly([P(0.85, 0.5), P(0.85, 0.95)])), 1],
+    // Pointed arches: many people write n and m as zigzags.
+    ["n", poly([P(0.1, 0.4), P(0.2, 1.0), P(0.5, 0.0), P(0.9, 1.0)]), 1],
+    ["m", poly([P(0.05, 0.4), P(0.15, 1.0), P(0.35, 0.05), P(0.55, 1.0), P(0.75, 0.05), P(0.95, 1.0)]), 1],
     ["m", poly([P(0.08, 0.25), P(0.08, 0.95), P(0.08, 0.5)]).concat(arc(0.29, 0.5, 0.21, 0.25, LEFT, TAU)).concat(poly([P(0.5, 0.5), P(0.5, 0.95), P(0.5, 0.5)])).concat(arc(0.71, 0.5, 0.21, 0.25, LEFT, TAU)).concat(poly([P(0.92, 0.5), P(0.92, 0.95)])), 1],
     ["r", poly([P(0.25, 0.2), P(0.25, 0.98), P(0.25, 0.55)]).concat(arc(0.55, 0.55, 0.3, 0.3, LEFT, LEFT + TAU * 0.36)), 1],
     ["b", poly([P(0.2, 0.0), P(0.2, 0.95), P(0.2, 0.62)]).concat(arc(0.5, 0.7, 0.3, 0.26, LEFT, LEFT + TAU)), 1],
@@ -152,6 +155,8 @@
     // 2: over the top, down the diagonal, along the base.
     ["2", arc(0.5, 0.3, 0.3, 0.24, LEFT + 0.35, TAU + 0.5).concat(poly([P(0.73, 0.42), P(0.1, 0.92), P(0.92, 0.92)])), 1],
     ["2", arc(0.5, 0.32, 0.32, 0.28, LEFT, TAU + 0.9).concat(poly([P(0.6, 0.6), P(0.1, 0.92), P(0.92, 0.92)])), 1],
+    // A square 2: along the top, straight down, along the base.
+    ["2", poly([P(0.05, 0.08), P(0.35, 0.03), P(0.32, 0.95), P(1.0, 0.8)]), 1],
     // 3: two bumps to the right, meeting in the middle.
     ["3", arc(0.5, 0.28, 0.26, 0.22, LEFT + 0.5, TAU + DOWN).concat(arc(0.5, 0.73, 0.3, 0.23, UP, TAU / 2 + 0.4)), 1],
     ["3", poly([P(0.12, 0.06), P(0.85, 0.06), P(0.45, 0.45)]).concat(arc(0.5, 0.7, 0.3, 0.24, UP, TAU / 2 + 0.4)), 1],
@@ -363,6 +368,29 @@
     return best;
   }
 
+  // ---------- a, d, q and g ----------
+  // All four start with the same bowl; the stem decides. The bowl ends where
+  // the path comes back closest to where it started. A stem that ends level
+  // with the bowl is an a, one that first rises above it a d, one that drops
+  // below it a q, or a g when its tail curls back left.
+  function bowlLetter(pts) {
+    const start = pts[0];
+    let close = Math.floor(pts.length * 0.3), best = Infinity;
+    for (let i = close; i < pts.length * 0.85; i++) {
+      const d = dist(pts[i], start);
+      if (d < best) { best = d; close = i; }
+    }
+    const bowl = box(pts.slice(0, close + 1)), rest = box(pts.slice(close));
+    const h = bowl.h || 1;
+    if (bowl.y0 - rest.y0 > 0.35 * h) return "d";
+    if (rest.y1 - bowl.y1 > 0.35 * h) {
+      const tail = pts.slice(Math.floor(pts.length * 0.8));
+      const bottom = tail.reduce((m, q) => (q.y > m.y ? q : m));
+      return tail[tail.length - 1].x < bottom.x - 0.2 * h ? "g" : "q";
+    }
+    return "a";
+  }
+
   // ---------- the answer ----------
   // Match needed to answer. Drawings of every shape here score 0.94 or more
   // even when drawn sloppily; letters this matcher does not know (k, f, y,
@@ -379,7 +407,60 @@
   }
   // strokes: arrays of {x, y}. opts.size: the drawing area's height in
   // pixels. opts.task: "chars" or "symbols", for the shapes that are both.
+  // ---------- more than one character ----------
+  // Characters written side by side ("12") are split where the strokes stop
+  // overlapping left to right. Dots join the character they sit over.
+  function characters(strokes, padH) {
+    const items = strokes.map((s) => ({ s, b: box(s) }));
+    const dotSize = 0.07 * padH;
+    const marks = items.filter((it) => Math.max(it.b.w, it.b.h) > dotSize);
+    const dots = items.filter((it) => !marks.includes(it));
+    if (marks.length < 2) return { groups: [strokes], gap: 0 };
+    marks.sort((p, q) => p.b.x0 - q.b.x0);
+    const groups = [];
+    for (const it of marks) {
+      const g = groups[groups.length - 1];
+      if (g && it.b.x0 <= g.x1) { g.items.push(it); g.x1 = Math.max(g.x1, it.b.x1); }
+      else groups.push({ items: [it], x0: it.b.x0, x1: it.b.x1 });
+    }
+    for (const d of dots) {
+      const home = groups.reduce((m, g) => {
+        const off = Math.max(g.x0 - d.b.cx, d.b.cx - g.x1, 0);
+        return !m || off < m.off ? { g, off } : m;
+      }, null);
+      home.g.items.push(d);
+    }
+    let gap = Infinity;
+    for (let i = 1; i < groups.length; i++) gap = Math.min(gap, groups[i].x0 - groups[i - 1].x1);
+    const height = box(strokes.flat()).h || 1;
+    // Keep drawing order inside each character.
+    const order = new Map(strokes.map((s, i) => [s, i]));
+    return {
+      groups: groups.map((g) => g.items.map((it) => it.s).sort((p, q) => order.get(p) - order.get(q))),
+      gap: gap / height,
+    };
+  }
+
+  // strokes: arrays of {x, y}. opts.size: the drawing area's height in
+  // pixels. opts.task: "chars" or "symbols". Returns one character, or, for
+  // characters written side by side, { sequence: [one per character] }.
   function recognise(strokes, opts = {}) {
+    const clean = strokes.filter((s) => s && s.length);
+    if (!clean.length) return null;
+    const { groups, gap } = characters(clean, opts.size || 170);
+    if (groups.length < 2 || opts.ranking) return recogniseOne(clean, opts);
+    const whole = recogniseOne(clean, opts);
+    const parts = groups.map((g) => recogniseOne(g, opts));
+    const allRead = parts.every((p) => p && p.label);
+    // A clear gap means separate characters. A narrow one (a sloppy H whose
+    // bar misses a stem) is one character if it reads as one.
+    if (allRead && (gap > 0.08 || !whole.label)) return { sequence: parts };
+    if (whole.label) return whole;
+    if (parts.some((p) => p && p.label)) return { sequence: parts };
+    return whole;
+  }
+
+  function recogniseOne(strokes, opts = {}) {
     const task = opts.task === "chars" ? "chars" : "symbols";
     const padH = opts.size || 170;
     const clean = strokes.filter((s) => s && s.length);
@@ -433,6 +514,7 @@
         const top = sharpestTurn(pts, 0.1, 0.45);
         best.shape = top.turn > 95 * DEG ? "Z" : "2";
       }
+      if (["a", "d", "q", "g"].includes(best.shape)) best.shape = bowlLetter(pts);
       found = { shape: best.shape };
       score = best.sc;
     }
