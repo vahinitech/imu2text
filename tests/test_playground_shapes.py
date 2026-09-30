@@ -540,6 +540,39 @@ def test_two_letters_side_by_side(pair):
     assert read.count(pair) >= 7, read
 
 
+def test_the_reported_12_on_the_letters_task_reads_1_2():
+    # Reported: drawn on the Letters task, the 1 was read as the letter l.
+    got = recognise([{"strokes": _reported("12"), "task": "chars", "size": 215}])
+    assert [c["label"] for c in got[0]["sequence"]] == ["1", "2"]
+
+
+@pytest.mark.parametrize(
+    "first,second,task,want",
+    [
+        # A clear digit makes its neighbour a digit: O is 0 next to a 2.
+        ("2", "O", "chars", "20"),
+        # A clear letter makes a vertical line the letter l, even on numbers.
+        ("b", "l", "symbols", "bl"),
+    ],
+)
+def test_characters_written_together_are_read_together(first, second, task, want):
+    rng = random.Random(want + task)
+    line = {"l": [path((0.5, 0.02), (0.52, 0.98))]}
+    sketches = {**SKETCHES, **MULTI, **line}
+    cases = []
+    for _ in range(8):
+        a = draw(sketches[first], rng, height=90, left=40)
+        right = max(p["x"] for st in a for p in st) + 18
+        cases.append(
+            {
+                "strokes": a + draw(sketches[second], rng, height=90, left=right),
+                "task": task,
+            }
+        )
+    read = ["".join(c["label"] or "?" for c in g["sequence"]) for g in recognise(cases)]
+    assert read.count(want) >= 7, read
+
+
 def test_one_character_with_a_gap_between_its_strokes_stays_one():
     # An H whose bar stops short of both stems, and a = and a ÷.
     rng = random.Random(9)
