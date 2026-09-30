@@ -96,7 +96,7 @@
         <h2 id="pen-h" class="stage-card__h"><span class="step">1</span>How the pen works <span class="stage-tag">simulation</span></h2>
         <p class="hint">Give the AI one character, one of two ways. The pen feels movement, not ink.</p>
         <div class="src" id="src-draw">
-          <p class="src__head"><span class="src__tag">A</span>Draw it <span class="src__sub">lift the pen between parts, as in ÷ or =</span></p>
+          <p class="src__head"><span class="src__tag">A</span>Draw it <span class="src__sub">draw every part, then press Recognize</span></p>
           <section id="write" class="stage-pen" aria-label="Draw a character">
             <div class="book__pad">
               <canvas id="w-draw" aria-label="Drawing area"></canvas>
@@ -111,11 +111,13 @@
                 <circle class="pen__led" cx="15" cy="34" r="2.6"/>
                 <path class="pen__tip" d="M4 136 l8 -22 8 22 -6 8 -4 0z"/>
               </svg>
-              <div class="book__wait" id="w-wait" hidden><span></span></div>
             </div>
             <div class="book__bus" id="w-bus"></div>
             <p class="w-shape" id="w-shape" aria-live="polite"></p>
-            <button class="v-btn v-btn--ghost v-btn--sm" id="w-clear" type="button">Clear</button>
+            <div class="w-actions">
+              <button class="v-btn v-btn--sm" id="w-read" type="button" disabled>Recognize</button>
+              <button class="v-btn v-btn--ghost v-btn--sm" id="w-clear" type="button">Clear</button>
+            </div>
           </section>
         </div>
         <div class="src stage-samples" id="src-pick">

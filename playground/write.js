@@ -2,9 +2,9 @@
 //
 // The mouse (or a finger) stands in for the sensor pen that recorded the
 // Fraunhofer OnHW dataset. While you draw, five sensor groups animate (an
-// animation, not data). When the pen has been up for a moment, shapes.js
-// reads the strokes as one character; a character in several parts (÷, =, +)
-// is drawn by lifting the pen between them. The page then shows the model's
+// animation, not data). Nothing is read until you press Recognize, so a
+// character in several parts (t, ÷, E) or several characters (12) can take
+// as long as they take; then shapes.js reads the strokes. The page then shows the model's
 // answer for a REAL recording of that character from the OnHW test set
 // (app.js), because the model reads pen motion and a drawing has none.
 //
@@ -20,7 +20,7 @@
   const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(`--v-${name}`).trim();
   const INK = token("pen-ink");
   const $ = (id) => document.getElementById(id);
-  const draw = $("w-draw"), pad = draw.parentNode, hint = $("w-hint"), shapeEl = $("w-shape"), wait = $("w-wait");
+  const draw = $("w-draw"), pad = draw.parentNode, hint = $("w-hint"), shapeEl = $("w-shape"), readBtn = $("w-read");
   function fit(cv) {
     const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
     cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d);
@@ -79,21 +79,19 @@
     pad.addEventListener("pointerenter", () => pen.classList.add("show"));
     pad.addEventListener("pointerleave", () => pen.classList.remove("show"));
     pad.addEventListener("pointermove", (e) => {
-      // Moving the pen over the pad between strokes means another part is
-      // coming: start the wait again.
-      if (!drawing && timer) startWaiting();
       const r = pad.getBoundingClientRect();
       pen.style.transform = `translate(${e.clientX - r.left - tip.x}px,${e.clientY - r.top - tip.y}px) rotate(${drawing ? 28 : 33}deg)`;
     });
   }
 
   // ---------- drawing ----------
-  // Strokes belong to one character until the pen stays up, and still, for
-  // WAIT_MS; then it is read. A mouse moving over the pad restarts the wait.
-  // After a character is read, the next stroke starts a new one; after "not
-  // sure" it adds to the same drawing, so a slow second stroke is not lost.
-  const WAIT_MS = reduce ? 900 : 1200;
-  let strokes = [], cur = null, lastPt = null, drawing = false, timer = null, finished = false;
+  // Strokes collect until Recognize is pressed. Reading on a pause guessed
+  // when the writer had finished, and guessed wrong between the parts of a
+  // t or an E. After a drawing is read, the next stroke starts a new one;
+  // after "not sure" it adds to the same drawing.
+  let strokes = [], cur = null, lastPt = null, drawing = false, finished = false;
+  const unread = () => strokes.length > 0 && !finished;
+  function showReadable() { readBtn.disabled = !unread(); }
   function pos(e) { const r = draw.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, t: performance.now() }; }
   function line(g, a, b, w) {
     g.strokeStyle = INK; g.lineWidth = w; g.lineCap = "round"; g.lineJoin = "round";
@@ -107,15 +105,14 @@
       for (let j = 1; j < st.length; j++) line(gD, st[j - 1], st[j], 3.2);
     });
   }
-  function stopWaiting() { clearTimeout(timer); timer = null; wait.hidden = true; }
   function clear() {
-    strokes = []; cur = null; finished = false; stopWaiting();
+    strokes = []; cur = null; finished = false;
     gD.clearRect(0, 0, draw.width, draw.height); hint.classList.remove("off"); shapeEl.textContent = ""; calmBus();
+    showReadable();
   }
   draw.addEventListener("pointerdown", (e) => {
     e.preventDefault(); draw.setPointerCapture(e.pointerId);
     if (finished) clear();
-    stopWaiting();
     startDrawing();
     drawing = true; cur = [pos(e)]; lastPt = cur[0];
     dot(gD, cur[0]);
@@ -136,27 +133,19 @@
     if (cur && cur.length) strokes.push(cur);   // a single point is a dot
     cur = null;
     if (!strokes.length) return;
-    shapeEl.textContent = "Pen up. Draw the next part, or wait and it is read.";
-    startWaiting();
-    renderModel();   // Recognize can read it now
-  }
-  function startWaiting() {
-    clearTimeout(timer);
-    wait.hidden = false;
-    // Restart the bar's animation for this wait.
-    const bar = wait.firstElementChild;
-    bar.style.animation = "none"; void bar.offsetWidth;
-    bar.style.animation = ""; bar.style.animationDuration = `${WAIT_MS}ms`;
-    timer = setTimeout(read, WAIT_MS);
+    shapeEl.textContent = "Add another part, or press Recognize when you have finished.";
+    showReadable();
+    renderModel();   // the Recognize button in card 2 can read it now
   }
   draw.addEventListener("pointerup", endStroke);
   draw.addEventListener("pointercancel", endStroke);
   $("w-clear").addEventListener("click", () => { clear(); showPick(); });
+  readBtn.addEventListener("click", () => { if (unread()) read(); });
 
   // ---------- strokes → a character → a real recording → Recognize ----------
   function read() {
-    stopWaiting();
     finished = true;
+    showReadable();
     const task = state.task === "symbols" || state.task === "equations" ? "symbols" : "chars";
     const got = window.PlaygroundShapes.recognise(strokes, { size: draw.getBoundingClientRect().height, task });
     if (!got) { shapeEl.textContent = ""; return; }
@@ -164,6 +153,7 @@
     if (!got.label) {
       // Keep the strokes: the next one adds to this drawing. Clear starts over.
       finished = false;
+      showReadable();
       shapeEl.textContent = `${got.reason} Add a stroke, or press Clear.`;
       drawnNothing();
       return;
@@ -210,6 +200,7 @@
     const first = seq.findIndex((c) => c.label);
     if (first < 0) {
       finished = false;
+      showReadable();
       shapeEl.textContent = "Not sure about any of those characters. Add a stroke, or press Clear.";
       drawnNothing();
       return;
@@ -217,12 +208,13 @@
     pick(first);
   }
 
-  // app.js reads these: the Recognize button reads a waiting drawing at once,
-  // and picking a recording clears the pad.
+  // app.js reads these: the Recognize button in card 2 reads an unread
+  // drawing, and picking a recording clears the pad.
   window.PlaygroundDraw = {
-    pending: () => Boolean(timer),
+    pending: unread,
     readNow: read,
     clear,
   };
   calmBus();
+  showReadable();
 })();
