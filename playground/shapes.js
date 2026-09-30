@@ -443,6 +443,34 @@
   }
   // strokes: arrays of {x, y}. opts.size: the drawing area's height in
   // pixels. opts.task: "chars" or "symbols", for the shapes that are both.
+  // ---------- the drawing reader ----------
+  const RULE_SYMBOLS = new Set(["-", "+", "=", "·", ":", "÷"]);
+  // Below this probability the reader's best guess is "not sure".
+  const READ_MIN = 0.3;
+  // The page moves to the other task only when the reader is at least this
+  // sure. Measured on UJI's 20 test writers: digits drawn on the Numbers
+  // task read 96.3% right at 0.9 against 86.8% at 0.5, because a 0 that
+  // looks like o or a 1 like l stays a digit; a clear letter drawn there
+  // (a, b, n) still moves to Letters. results/drawing_reader has the table.
+  const SWITCH = 0.9;
+  // Inside a drawing of several characters the neighbours carry the task,
+  // so a character leaves it only when the reader is all but certain.
+  const SWITCH_IN_SEQUENCE = 0.97;
+  function readWithNet(reader, strokes, task, switchAt = SWITCH) {
+    const ranking = reader.read(strokes);
+    if (!ranking) return null;
+    const inTask = (label) => (task === "symbols") === /^[0-9]$/.test(label);
+    // "Not sure" asks whether the drawing is clearly some character; which
+    // of its lookalikes (0 or O, 1 or l) is then the task's call.
+    if (ranking[0].p < READ_MIN) return null;
+    let best = ranking[0];
+    const own = ranking.find((r) => inTask(r.label));
+    if (!inTask(best.label) && best.p < switchAt && own) best = own;
+    // The reader's own choice of small or capital beat the drawing-size rule
+    // on the test writers (77.1% against 75.8% of letters), so it stands.
+    return { shape: best.label, p: best.p, sure: ranking[0].p, keepCase: true };
+  }
+
   // ---------- more than one character ----------
   // Characters written side by side ("12") are split where the strokes stop
   // overlapping left to right. Dots join the character they sit over.
@@ -500,16 +528,24 @@
   function retask(groups, parts, opts, task) {
     return parts.map((p, i) => (p && p.label && TWINS.has(p.label) && p.task !== task ? recogniseOne(groups[i], { ...opts, task }) : p));
   }
-  // When every character is a twin, the same characters read the other way
-  // ("10" and "lo"), for the page to offer. Null otherwise: next to a clear
-  // 2, "l2" is no reading at all.
+  // The same characters read wholly in the other task ("10" and "lo", or
+  // "ID" and "10"), for the page to offer, when every character has a
+  // believable reading there. The drawing reader gives each character's
+  // probability in that task; the templates only offer twins.
+  const OTHER_MIN = 0.05;
   function otherReading(groups, parts, opts) {
     const read = parts.filter((p) => p && p.label);
-    const twins = read.filter((p) => TWINS.has(p.label));
-    if (!twins.length || twins.length !== read.length) return null;
-    const task = twins[0].task === "symbols" ? "chars" : "symbols";
-    const other = parts.map((p, i) => (p && p.label && TWINS.has(p.label) ? recogniseOne(groups[i], { ...opts, task }) : p));
-    const same = other.every((p, i) => (p && p.label) === (parts[i] && parts[i].label));
+    if (read.length !== parts.length || !read.length) return null;
+    const task = read.filter((p) => p.task === "symbols").length * 2 >= read.length ? "chars" : "symbols";
+    const reader = root.PlaygroundReader;
+    const other = parts.map((p, i) => {
+      if (p.task === task) return p;
+      if (!reader && !TWINS.has(p.label)) return null;
+      const q = recogniseOne(groups[i], { ...opts, task, switchAt: 2 });
+      return q && q.label && q.task === task && (!reader || q.score >= OTHER_MIN) ? q : null;
+    });
+    if (other.some((p) => !p)) return null;
+    const same = other.every((p, i) => p.label === parts[i].label);
     return same ? null : other;
   }
 
@@ -522,12 +558,19 @@
     const { groups, gap } = characters(clean, opts.size || 170);
     if (groups.length < 2 || opts.ranking) return recogniseOne(clean, opts);
     const whole = recogniseOne(clean, opts);
-    const parts = agree(groups, groups.map((g) => recogniseOne(g, opts)), opts);
+    const inSeq = { ...opts, switchAt: SWITCH_IN_SEQUENCE };
+    const parts = agree(groups, groups.map((g) => recogniseOne(g, inSeq)), inSeq);
     const allRead = parts.every((p) => p && p.label);
     // A clear gap means separate characters. A narrow one (a sloppy H whose
     // bar misses a stem) is one character if it reads as one.
-    const withOther = () => ({ sequence: parts, other: otherReading(groups, parts, opts) });
-    if (allRead && (gap > 0.08 || !whole.label)) return withOther();
+    const withOther = () => ({ sequence: parts, other: otherReading(groups, parts, inSeq) });
+    // Several characters when there is a clear gap, or when they read more
+    // surely one at a time than the drawing does as one character: the
+    // reader always reads something, so "the whole reads" is not enough.
+    // "Sure" is how clearly a part is some character at all, before the task
+    // picks among lookalikes: the 2 of a 12 drawn on Letters is 0.97 sure.
+    const partSure = allRead ? parts.reduce((a, p) => a + (p.sure || 0), 0) / parts.length : 0;
+    if (allRead && (gap > 0.08 || !whole.label || partSure >= (whole.sure || 0))) return withOther();
     if (whole.label) return whole;
     if (parts.some((p) => p && p.label)) return withOther();
     return whole;
@@ -545,7 +588,18 @@
     const parts = clean.map((s) => part(s, dotLimit));
 
     let found = fromParts(parts, all, task);
-    let score = 1;
+    let score = 1, sure = 1;
+    // Letters and digits go to the drawing reader (reader.js), a network
+    // trained on 40 real writers; the rules above keep the symbols it does
+    // not know. The templates below are used only when it is not loaded.
+    const reader = root.PlaygroundReader;
+    if (reader && !(found && RULE_SYMBOLS.has(found.shape))) {
+      const got = readWithNet(reader, clean, task, opts.switchAt);
+      if (!got) return { label: null, reason: `Not sure what that was. Try again, a little bigger or neater: ${known(task)}.` };
+      found = { shape: got.shape, keepCase: true };
+      score = got.p;
+      sure = got.sure;
+    }
     if (!found) {
       const body = clean.filter((s, i) => parts[i].kind !== "dot");
       const flat = body.flat();
@@ -613,11 +667,11 @@
     let label = shape, note = "";
     if (shape === "÷") { label = ":"; note = "The recordings write division as :, so the AI reads that sign."; }
     if (shape === "·") note = "The multiplication dot.";
-    if (SAME_SHAPE.has(shape) && all.h < 0.4 * padH) {
+    if (!found.keepCase && SAME_SHAPE.has(shape) && all.h < 0.4 * padH) {
       label = shape.toLowerCase();
       note = "Small, so read as a small letter.";
     }
-    return { label, shape: shape === "÷" ? "÷" : label, note, score, task: SYMBOLS.has(label) ? "symbols" : "chars" };
+    return { label, shape: shape === "÷" ? "÷" : label, note, score, sure, task: SYMBOLS.has(label) ? "symbols" : "chars" };
   }
 
   const api = { recognise, known, resample, toVector };

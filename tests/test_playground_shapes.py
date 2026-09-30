@@ -32,7 +32,13 @@ PAD_H = 170  # the drawing area's height on the page, in CSS pixels
 
 pytestmark = pytest.mark.skipif(NODE is None, reason="needs Node.js")
 
+# The page loads the drawing reader's weights and runtime before shapes.js,
+# and so does this runner: the tests read drawings the way the page does.
 RUNNER = """
+const path = require("path");
+globalThis.window = globalThis;
+require(path.join(path.dirname(process.argv[1]), "reader-weights.js"));
+require(path.join(path.dirname(process.argv[1]), "reader.js"));
 const S = require(process.argv[1]);
 let input = "";
 process.stdin.on("data", (d) => { input += d; });
