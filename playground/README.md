@@ -71,7 +71,7 @@ The cards in step 4 of the page are the open tasks. Each links to an issue.
 |---|---|
 | `index.html`, `style.css`, `app.js` | the page; plain JavaScript, no dependencies |
 | `charts.js` | "Compare the algorithms" and "How sure is the AI?" charts |
-| `write.js` | card 1, "Draw it": the pad, the sensor animation, and the wait for the next part of a character (lift the pen between the parts of ÷, = or +) |
+| `write.js` | card 1, "Draw it": the pad and the sensor animation. Strokes collect until Recognize is pressed, so a character in several parts (t, ÷, E) or several characters (12) is read only when the writer says it is finished |
 | `shapes.js` | reads a drawing as one character: dots and straight lines by rule, other shapes against templates. It is not the AI; the page then shows the model's output for a real recording of that character (`drawn` and `drawn_letters` in `data/public.js`, the median recording of each class). `tests/test_playground_shapes.py` runs it under Node |
 | `stages.js` | the methods shown, with measured accuracies and sources |
 | `data/public.js` | generated model outputs and the synthetic signal |

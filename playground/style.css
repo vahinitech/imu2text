@@ -179,7 +179,7 @@ details.dev p { margin: 6px 0; }
 .w-seq { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 4px; vertical-align: middle; }
 .w-seq .v-chip { padding: 2px 10px; }
 .w-seq .v-chip[aria-pressed="true"] { border-color: var(--v-accent); background: var(--v-accent-soft); color: var(--v-accent-text); }
-#w-clear { align-self: flex-start; }
+.w-actions { display: flex; gap: var(--v-space-2); }
 .stage-samples { margin-top: auto; }
 /* Card 1 offers two inputs; the one not in use is dimmed but still works. */
 .src { border: 1px solid var(--v-border); border-radius: var(--v-radius-md); padding: 8px 10px; transition: opacity var(--v-dur-base), border-color var(--v-dur-base), box-shadow var(--v-dur-base); }
@@ -190,9 +190,6 @@ details.dev p { margin: 6px 0; }
 .src__tag { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--v-accent-soft); color: var(--v-accent-text); font-size: var(--v-text-xs); }
 .src__sub { font-weight: var(--v-weight-regular); font-size: var(--v-text-xs); color: var(--v-text-muted); }
 .book__pen--img { width: 40px; height: 148px; }
-.book__wait { position: absolute; left: 10px; right: 10px; bottom: 8px; height: 4px; border-radius: var(--v-radius-pill); background: var(--v-paper-edge); overflow: hidden; pointer-events: none; }
-.book__wait span { display: block; height: 100%; background: var(--v-accent); transform-origin: left center; animation: wait-fill linear forwards; animation-duration: 1200ms; }
-@keyframes wait-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .input-line { margin: 0; padding: 6px 10px; border-left: 3px solid var(--v-accent); background: var(--v-accent-soft); border-radius: var(--v-radius-sm); font-size: var(--v-text-sm); color: var(--v-text-2); }
 .input-line:empty { display: none; }
 .trail { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; font-size: var(--v-text-sm); color: var(--v-text-muted); }

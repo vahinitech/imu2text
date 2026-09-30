@@ -756,7 +756,7 @@ function renderModel() {
   const waiting = document.getElementById("waiting");
   waiting.hidden = state.revealed;
   waiting.replaceChildren(...(state.source === "draw"
-    ? ["Finish drawing, or press ", el("strong", {}, "Recognize"), "."]
+    ? ["Draw every part, then press ", el("strong", {}, "Recognize"), "."]
     : ["Draw a character or pick a recording, then press ", el("strong", {}, "Recognize"), "."]));
   if (!state.revealed || !s0) {
     renderDev("dev-model");
