@@ -144,7 +144,20 @@
     ["m", poly([P(0.08, 0.25), P(0.08, 0.95), P(0.08, 0.5)]).concat(arc(0.29, 0.5, 0.21, 0.25, LEFT, TAU)).concat(poly([P(0.5, 0.5), P(0.5, 0.95), P(0.5, 0.5)])).concat(arc(0.71, 0.5, 0.21, 0.25, LEFT, TAU)).concat(poly([P(0.92, 0.5), P(0.92, 0.95)])), 1],
     ["r", poly([P(0.25, 0.2), P(0.25, 0.98), P(0.25, 0.55)]).concat(arc(0.55, 0.55, 0.3, 0.3, LEFT, LEFT + TAU * 0.36)), 1],
     ["b", poly([P(0.2, 0.0), P(0.2, 0.95), P(0.2, 0.62)]).concat(arc(0.5, 0.7, 0.3, 0.26, LEFT, LEFT + TAU)), 1],
-    ["p", poly([P(0.2, 0.3), P(0.2, 1.0), P(0.2, 0.36)]).concat(arc(0.5, 0.44, 0.3, 0.22, LEFT, LEFT + TAU)), 1],
+    // P and p are one shape; the drawing's size decides (SAME_SHAPE).
+    ["P", poly([P(0.2, 0.3), P(0.2, 1.0), P(0.2, 0.36)]).concat(arc(0.5, 0.44, 0.3, 0.22, LEFT, LEFT + TAU)), 1],
+    ["P", poly([P(0.25, 0.0), P(0.25, 1.0), P(0.25, 0.0)]).concat(arc(0.25, 0.27, 0.5, 0.27, UP, DOWN)), 1],
+    // Capitals written in one stroke: down the stem, back up, then the bowls.
+    ["B", poly([P(0.2, 0.0), P(0.2, 1.0), P(0.2, 0.0)]).concat(arc(0.2, 0.25, 0.5, 0.25, UP, DOWN)).concat(arc(0.2, 0.75, 0.6, 0.25, UP, DOWN)), 1],
+    ["D", poly([P(0.2, 0.0), P(0.2, 1.0), P(0.2, 0.0)]).concat(arc(0.2, 0.5, 0.65, 0.5, UP, DOWN)), 1],
+    ["R", poly([P(0.25, 0.0), P(0.25, 1.0), P(0.25, 0.0)]).concat(arc(0.25, 0.27, 0.5, 0.27, UP, DOWN)).concat(poly([P(0.25, 0.54), P(0.8, 1.0)])), 1],
+    ["G", arc(0.5, 0.5, 0.42, 0.45, -TAU / 9, -TAU / 9 - TAU * 0.78).concat(poly([P(0.9, 0.62), P(0.9, 0.55), P(0.55, 0.55)])), 1],
+    ["J", poly([P(0.7, 0.0), P(0.7, 0.7)]).concat(arc(0.45, 0.7, 0.25, 0.28, RIGHT, TAU / 2)), 1],
+    ["J", poly([P(0.2, 0.0), P(0.9, 0.0), P(0.6, 0.0), P(0.6, 0.7)]).concat(arc(0.38, 0.7, 0.22, 0.28, RIGHT, TAU / 2)), 1],
+    // y: a u with a long tail that turns back left; k: stem, back up, a
+    // loop out to the right, then the leg.
+    ["y", poly([P(0.12, 0.0), P(0.15, 0.3)]).concat(arc(0.4, 0.3, 0.25, 0.2, TAU / 2, 0)).concat(poly([P(0.65, 0.3), P(0.65, 0.0), P(0.65, 0.8)])).concat(arc(0.42, 0.8, 0.23, 0.2, 0, TAU / 2)), 1],
+    ["k", poly([P(0.2, 0.0), P(0.2, 1.0), P(0.2, 0.7), P(0.7, 0.4), P(0.3, 0.68), P(0.78, 1.0)]), 1],
     // Small letters that start with a bowl drawn anticlockwise from its top right.
     ["a", arc(0.42, 0.6, 0.32, 0.34, -TAU / 8, -TAU / 8 - TAU).concat(poly([P(0.72, 0.3), P(0.74, 0.97)])), 1],
     ["d", arc(0.42, 0.66, 0.32, 0.3, -TAU / 8, -TAU / 8 - TAU).concat(poly([P(0.72, 0.4), P(0.75, 0.0), P(0.75, 0.97)])), 1],
@@ -172,6 +185,16 @@
     ["f", [arc(0.55, 0.17, 0.2, 0.15, -TAU / 12, -TAU / 2).concat(poly([P(0.35, 0.17), P(0.35, 1.0)])), poly([P(0.12, 0.42), P(0.65, 0.42)])], 2],
     ["A", [poly([P(0.1, 1.0), P(0.5, 0.0), P(0.9, 1.0)]), poly([P(0.3, 0.62), P(0.7, 0.62)])], 2],
     ["K", [poly([P(0.2, 0.0), P(0.2, 1.0)]), poly([P(0.8, 0.0), P(0.22, 0.55), P(0.8, 1.0)])], 2],
+    ["B", [poly([P(0.2, 0.0), P(0.2, 1.0)]), arc(0.2, 0.25, 0.5, 0.25, UP, DOWN).concat(arc(0.2, 0.75, 0.6, 0.25, UP, DOWN))], 2],
+    ["D", [poly([P(0.2, 0.0), P(0.2, 1.0)]), arc(0.2, 0.5, 0.65, 0.5, UP, DOWN)], 2],
+    ["P", [poly([P(0.25, 0.0), P(0.25, 1.0)]), arc(0.25, 0.27, 0.5, 0.27, UP, DOWN)], 2],
+    ["R", [poly([P(0.25, 0.0), P(0.25, 1.0)]), arc(0.25, 0.27, 0.5, 0.27, UP, DOWN).concat(poly([P(0.25, 0.54), P(0.8, 1.0)]))], 2],
+    ["Q", [arc(0.47, 0.45, 0.4, 0.43, UP, UP - TAU), poly([P(0.55, 0.65), P(0.95, 1.0)])], 2],
+    ["k", [poly([P(0.2, 0.0), P(0.2, 1.0)]), poly([P(0.72, 0.4), P(0.24, 0.7), P(0.78, 1.0)])], 2],
+    ["y", [poly([P(0.1, 0.0), P(0.5, 0.5)]), poly([P(0.9, 0.0), P(0.25, 1.0)])], 2],
+    // Two crossed diagonals are read by rule; this catches shaky ones.
+    ["X", [poly([P(0.1, 0.1), P(0.9, 0.9)]), poly([P(0.9, 0.1), P(0.1, 0.9)])], 2],
+    ["I", [poly([P(0.1, 0.0), P(0.9, 0.0)]), poly([P(0.5, 0.0), P(0.5, 1.0)]), poly([P(0.1, 1.0), P(0.9, 1.0)])], 3],
     ["Y", [poly([P(0.1, 0.0), P(0.5, 0.48), P(0.9, 0.0)]), poly([P(0.5, 0.48), P(0.5, 1.0)])], 2],
     ["H", [poly([P(0.15, 0.0), P(0.15, 1.0)]), poly([P(0.85, 0.0), P(0.85, 1.0)]), poly([P(0.15, 0.5), P(0.85, 0.5)])], 3],
     ["F", [poly([P(0.2, 0.0), P(0.2, 1.0)]), poly([P(0.2, 0.0), P(0.85, 0.0)]), poly([P(0.2, 0.48), P(0.7, 0.48)])], 3],
@@ -206,7 +229,7 @@
   const SYMBOLS = new Set(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "-", "·", ":", "="]);
   // Letters whose small and capital forms are the same shape; the drawing's
   // height decides between them.
-  const SAME_SHAPE = new Set(["C", "O", "S", "U", "V", "W", "X", "Z"]);
+  const SAME_SHAPE = new Set(["C", "O", "P", "S", "U", "V", "W", "X", "Z"]);
 
   // Does the straight segment p (a, z) cross the drawn stroke anywhere?
   function crossesStroke(p, stroke, slack) {
@@ -254,6 +277,17 @@
     const [a, b] = grow(p), [c, d] = grow(q);
     const cross = (o, e, f) => (e.x - o.x) * (f.y - o.y) - (e.y - o.y) * (f.x - o.x);
     return cross(a, b, c) * cross(a, b, d) <= 0 && cross(c, d, a) * cross(c, d, b) <= 0;
+  }
+
+  // Where two segments cross, as a share of each one's length: both must be
+  // between 0.2 and 0.8.
+  function crossMid(p, q) {
+    const r = { x: p.z.x - p.a.x, y: p.z.y - p.a.y }, s = { x: q.z.x - q.a.x, y: q.z.y - q.a.y };
+    const den = r.x * s.y - r.y * s.x;
+    if (!den) return false;
+    const t = ((q.a.x - p.a.x) * s.y - (q.a.y - p.a.y) * s.x) / den;
+    const u = ((q.a.x - p.a.x) * r.y - (q.a.y - p.a.y) * r.x) / den;
+    return t > 0.2 && t < 0.8 && u > 0.2 && u < 0.8;
   }
 
   function fromParts(parts, all, task) {
@@ -324,7 +358,9 @@
         if (at < 0.18) return { shape: "T" };
         return { shape: at < 0.42 && task === "chars" ? "t" : "+" };
       }
-      if (p.dir === "d" && q.dir === "d" && p.slope !== q.slope && segmentsCross(p, q, slack)) return { shape: "X" };
+      // Two diagonals crossing near their middles: X. A y's arms meet near
+      // the end of one of them, so it is left to the templates.
+      if (p.dir === "d" && q.dir === "d" && p.slope !== q.slope && segmentsCross(p, q, slack) && crossMid(p, q)) return { shape: "X" };
     }
     return null;
   }
@@ -402,7 +438,7 @@
   const isDigit = (shape) => /^[0-9]$/.test(shape);
   function known(task) {
     return task === "chars"
-      ? "a, b, d, e, f, g, h, i, m, n, p, q, r, t, and A, C, E, F, H, K, L, M, N, O, S, T, U, V, W, X, Y, Z"
+      ? "every letter A to Z and a to z; small and capital letters of the same shape (c C, o O, p P, s S, u U, v V, w W, x X, z Z) are told apart by size"
       : "0 to 9, and - + = · ÷";
   }
   // strokes: arrays of {x, y}. opts.size: the drawing area's height in
@@ -481,7 +517,18 @@
       const n = body.length;
       // One stroke: its own path, which the match reads either way. More:
       // every stroke order, each stroke turned to its canonical direction.
-      const paths = n === 1 ? [pts] : (n <= 4 ? orders(body.map(canonical)) : [body]).map((o) => resample(o.flat()));
+      // A closed stroke (the ring of a Q) has no top-to-bottom direction,
+      // so both directions are tried.
+      const choices = body.map((st) => {
+        const c = canonical(st);
+        const b = box(st);
+        const closed = dist(st[0], st[st.length - 1]) < 0.2 * Math.max(b.w, b.h);
+        return closed ? [c, c.slice().reverse()] : [c];
+      });
+      const pick = (i) => (i === choices.length ? [[]] : choices[i].flatMap((c) => pick(i + 1).map((rest) => [c, ...rest])));
+      const paths = n === 1
+        ? [pts]
+        : (n <= 4 ? pick(0).flatMap(orders) : [body]).map((o) => resample(o.flat()));
       const vectors = [];
       for (const path of paths) {
         vectors.push(toVector(path));
@@ -515,6 +562,9 @@
         best.shape = top.turn > 95 * DEG ? "Z" : "2";
       }
       if (["a", "d", "q", "g"].includes(best.shape)) best.shape = bowlLetter(pts);
+      // A hook with a dot over it is a small j.
+      const dotsOver = parts.filter((q) => q.kind === "dot" && q.b.cy < box(flat).y0);
+      if (best.shape === "J" && dotsOver.length === 1) best.shape = "j";
       found = { shape: best.shape };
       score = best.sc;
     }

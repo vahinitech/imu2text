@@ -245,19 +245,14 @@ UNKNOWN_MULTI = {
 }
 LETTERS = set("OCSUVWMNLZeiTXhnmrbpadqg")
 
-# Letters the matcher does not know, drawn in one stroke. Each must come back
-# "not sure", never as the nearest template.
+# Shapes that are not a letter the matcher reads: an f or t without its bar,
+# a y as one zigzag, &, a spiral, a zigzag. Each must come back "not sure",
+# never as the nearest template.
 UNKNOWN = {
-    "k": [
-        path(
-            (0.2, 0.02), (0.2, 0.98), (0.2, 0.6), (0.75, 0.3), (0.35, 0.55), (0.8, 0.98)
-        )
-    ],
     "f": [curve(0.6, 0.2, 0.2, 0.18, -20, -180) + path((0.4, 0.2), (0.4, 1.0))],
     "y": [
         path((0.1, 0.05), (0.45, 0.55)) + path((0.45, 0.55), (0.85, 0.05), (0.3, 1.0))
     ],
-    "j": [path((0.6, 0.05), (0.6, 0.8)) + curve(0.4, 0.8, 0.2, 0.18, 0, 160)],
     "t": [path((0.5, 0.0), (0.5, 0.85)) + curve(0.65, 0.85, 0.15, 0.12, 180, 90)],
     "&": [
         path((0.85, 0.95), (0.3, 0.3))
@@ -366,7 +361,7 @@ def test_division_is_drawn_in_three_parts_and_read_as_the_colon_sign():
 def test_every_known_shape_is_read(shape):
     got = recognise(cases_for(shape))
     labels = [g["label"] for g in got]
-    want = {"÷": ":"}.get(shape, shape)
+    want = {"÷": ":", "p": "P"}.get(shape, shape)  # a large p is a P
     assert labels.count(want) >= 11, labels
 
 
@@ -598,6 +593,103 @@ def test_bowl_letters_are_told_apart_by_the_stem(shape, sketch):
 def cases_for_sketch(sketch, seed):
     rng = random.Random(seed)
     return [{"strokes": draw(sketch, rng), "task": "chars"} for _ in range(12)]
+
+
+# Every one of the 52 letters the model reads, as a person would draw it:
+# (sketch, height in pixels). Small and capital letters of the same shape
+# are drawn small for the small letter.
+ALPHABET = {
+    "B": (
+        [
+            path((0.22, 0.02), (0.2, 0.98), (0.21, 0.03))
+            + curve(0.21, 0.26, 0.48, 0.24, -90, 90)
+            + curve(0.21, 0.74, 0.58, 0.25, -90, 90)
+        ],
+        120,
+    ),
+    "D": (
+        [
+            path((0.22, 0.02), (0.2, 0.98), (0.21, 0.03))
+            + curve(0.21, 0.5, 0.62, 0.48, -90, 90)
+        ],
+        120,
+    ),
+    "G": (
+        [
+            curve(0.5, 0.5, 0.4, 0.44, -45, -320)
+            + path((0.9, 0.6), (0.9, 0.53), (0.55, 0.53))
+        ],
+        120,
+    ),
+    "I": (
+        [
+            path((0.12, 0.02), (0.88, 0.02)),
+            path((0.5, 0.02), (0.5, 0.98)),
+            path((0.12, 0.98), (0.88, 0.98)),
+        ],
+        120,
+    ),
+    "J": ([path((0.72, 0.02), (0.7, 0.7)) + curve(0.46, 0.7, 0.24, 0.27, 0, 175)], 120),
+    "P": (
+        [
+            path((0.27, 0.02), (0.25, 0.98), (0.26, 0.03))
+            + curve(0.26, 0.28, 0.48, 0.26, -90, 90)
+        ],
+        120,
+    ),
+    "Q": (
+        [curve(0.47, 0.45, 0.4, 0.42, -90, 270), path((0.55, 0.68), (0.95, 0.98))],
+        120,
+    ),
+    "R": (
+        [
+            path((0.27, 0.02), (0.25, 0.98), (0.26, 0.03))
+            + curve(0.26, 0.28, 0.48, 0.26, -90, 90)
+            + path((0.26, 0.54), (0.82, 0.98))
+        ],
+        120,
+    ),
+    "j": (
+        [
+            path((0.72, 0.1), (0.7, 0.7)) + curve(0.46, 0.7, 0.24, 0.27, 0, 175),
+            dot(0.71, -0.1),
+        ],
+        120,
+    ),
+    "k": (
+        [path((0.2, 0.02), (0.2, 0.98)), path((0.7, 0.42), (0.25, 0.7), (0.78, 0.98))],
+        120,
+    ),
+    "y": ([path((0.12, 0.02), (0.5, 0.5)), path((0.88, 0.02), (0.28, 0.98))], 120),
+    "l": ([path((0.5, 0.02), (0.52, 0.98))], 120),
+    "i": (SKETCHES["i"], 120),
+    **{
+        c: ((SKETCHES.get(c) or MULTI.get(c)), 120)
+        for c in "ACEFHKLMNOSTUVWXYZabdefghmnqrt"
+    },
+    **{c: (SKETCHES[c.upper()], 50) for c in "cosuvwxz"},
+    "p": (SKETCHES["p"], 50),
+}
+
+
+def test_the_alphabet_covers_every_letter_the_model_reads():
+    assert sorted(ALPHABET) == sorted(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    )
+
+
+@pytest.mark.parametrize("letter", sorted(ALPHABET))
+def test_every_letter_can_be_drawn(letter):
+    sketch, height = ALPHABET[letter]
+    rng = random.Random("abc" + letter)
+    got = recognise(
+        [
+            {"strokes": draw(sketch, rng, height=height), "task": "chars"}
+            for _ in range(12)
+        ]
+    )
+    labels = [g.get("label") for g in got]
+    assert labels.count(letter) >= 10, labels
 
 
 def test_a_scribble_is_refused_with_the_known_shapes():
