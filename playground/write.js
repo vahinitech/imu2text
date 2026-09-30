@@ -79,14 +79,19 @@
     pad.addEventListener("pointerenter", () => pen.classList.add("show"));
     pad.addEventListener("pointerleave", () => pen.classList.remove("show"));
     pad.addEventListener("pointermove", (e) => {
+      // Moving the pen over the pad between strokes means another part is
+      // coming: start the wait again.
+      if (!drawing && timer) startWaiting();
       const r = pad.getBoundingClientRect();
       pen.style.transform = `translate(${e.clientX - r.left - tip.x}px,${e.clientY - r.top - tip.y}px) rotate(${drawing ? 28 : 33}deg)`;
     });
   }
 
   // ---------- drawing ----------
-  // Strokes belong to one character until the pen stays up for WAIT_MS; then
-  // it is read. The next stroke after that starts a new character.
+  // Strokes belong to one character until the pen stays up, and still, for
+  // WAIT_MS; then it is read. A mouse moving over the pad restarts the wait.
+  // After a character is read, the next stroke starts a new one; after "not
+  // sure" it adds to the same drawing, so a slow second stroke is not lost.
   const WAIT_MS = reduce ? 900 : 1200;
   let strokes = [], cur = null, lastPt = null, drawing = false, timer = null, finished = false;
   function pos(e) { const r = draw.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, t: performance.now() }; }
@@ -132,13 +137,17 @@
     cur = null;
     if (!strokes.length) return;
     shapeEl.textContent = "Pen up. Draw the next part, or wait and it is read.";
+    startWaiting();
+    renderModel();   // Recognize can read it now
+  }
+  function startWaiting() {
+    clearTimeout(timer);
     wait.hidden = false;
     // Restart the bar's animation for this wait.
     const bar = wait.firstElementChild;
     bar.style.animation = "none"; void bar.offsetWidth;
     bar.style.animation = ""; bar.style.animationDuration = `${WAIT_MS}ms`;
     timer = setTimeout(read, WAIT_MS);
-    renderModel();   // Recognize can read it now
   }
   draw.addEventListener("pointerup", endStroke);
   draw.addEventListener("pointercancel", endStroke);
@@ -151,7 +160,14 @@
     const task = state.task === "symbols" || state.task === "equations" ? "symbols" : "chars";
     const got = window.PlaygroundShapes.recognise(strokes, { size: draw.getBoundingClientRect().height, task });
     if (!got) { shapeEl.textContent = ""; return; }
-    if (!got.label) { shapeEl.textContent = got.reason; drawnNothing(); return; }
+    if (got.sequence) { readSequence(got.sequence); return; }
+    if (!got.label) {
+      // Keep the strokes: the next one adds to this drawing. Clear starts over.
+      finished = false;
+      shapeEl.textContent = `${got.reason} Add a stroke, or press Clear.`;
+      drawnNothing();
+      return;
+    }
     const moved = got.task !== state.task;
     const found = useDrawing(got);
     if (!found) {
@@ -161,6 +177,44 @@
     shapeEl.textContent = `Looks like ${got.shape}.${got.note ? ` ${got.note}` : ""}` +
       `${moved ? ` Switched to ${TASKS[got.task].label}.` : ""} The AI now reads a real pen recording of “${got.label}”.`;
     recognize();
+  }
+
+  // Several characters side by side ("12"). The recordings hold one
+  // character each, so the AI reads them one at a time: the first straight
+  // away, the others from a button each.
+  function readSequence(seq) {
+    const shown = seq.map((c) => (c.label ? c.shape : "?")).join("");
+    const pick = (i) => {
+      const c = seq[i];
+      const found = useDrawing(c);
+      shapeEl.replaceChildren(
+        `Looks like ${shown}: ${seq.length} characters. The AI reads one character at a time. ` +
+        (found ? `Now: a real pen recording of “${c.label}”. ` : `There is no recording of “${c.label}” here. `),
+      );
+      const row = document.createElement("span");
+      row.className = "w-seq";
+      seq.forEach((ch, j) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "v-chip";
+        b.textContent = ch.label ? ch.shape : "?";
+        b.setAttribute("aria-pressed", String(j === i));
+        b.setAttribute("aria-label", ch.label ? `Read character ${j + 1}, ${ch.shape}` : `Character ${j + 1}: not sure what it is`);
+        if (!ch.label) b.disabled = true;
+        else b.addEventListener("click", () => pick(j));
+        row.append(b);
+      });
+      shapeEl.append(row);
+      if (found) recognize();
+    };
+    const first = seq.findIndex((c) => c.label);
+    if (first < 0) {
+      finished = false;
+      shapeEl.textContent = "Not sure about any of those characters. Add a stroke, or press Clear.";
+      drawnNothing();
+      return;
+    }
+    pick(first);
   }
 
   // app.js reads these: the Recognize button reads a waiting drawing at once,

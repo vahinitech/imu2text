@@ -7,7 +7,14 @@ the matcher compares against. Bugs reported on the published page:
 
 * a minus sign was read as U (the matcher had no straight-line rule);
 * a 2 was read as Z (the 2 template's arc was 18 degrees long);
-* a ÷ could not be drawn: lifting the pen for the dots ended the character.
+* a ÷ could not be drawn: lifting the pen for the dots ended the character;
+* a small h was read as V: the matcher knew no h, and accepted any template
+  scoring 0.8, which an unknown letter's nearest template usually does;
+* a t in two strokes (a hooked stem, then a bar) was "not sure": two-stroke
+  shapes were only straight crossings and the digits 4 and 5;
+* 11 was read as 4 and 12 as "not sure": everything on the pad was taken as
+  one character. Small a, b and n drawn on the numbers task were read as 9,
+  5 and 8 by the matcher that had no small letters.
 """
 
 import json
@@ -141,16 +148,146 @@ SKETCHES = {
     "i": [path((0.5, 0.35), (0.5, 0.95)), dot(0.5, 0.1)],
     "T": [path((0.1, 0.08), (0.9, 0.08)), path((0.5, 0.08), (0.5, 0.95))],
     "X": [path((0.1, 0.1), (0.9, 0.9)), path((0.9, 0.1), (0.1, 0.9))],
+    # Small letters in one stroke; the stems of h n m r b p go back up
+    # before the arch, as a pen does.
+    "h": [
+        path((0.22, 0.03), (0.2, 0.97), (0.21, 0.62))
+        + curve(0.5, 0.66, 0.29, 0.19, 180, 360)
+        + path((0.79, 0.66), (0.8, 0.97))
+    ],
+    "n": [
+        path((0.17, 0.25), (0.15, 0.95), (0.16, 0.52))
+        + curve(0.5, 0.52, 0.34, 0.28, 185, 360)
+        + path((0.84, 0.52), (0.86, 0.95))
+    ],
+    "m": [
+        path((0.1, 0.3), (0.09, 0.95), (0.1, 0.52))
+        + curve(0.3, 0.52, 0.2, 0.22, 180, 360)
+        + path((0.5, 0.52), (0.5, 0.93), (0.5, 0.53))
+        + curve(0.7, 0.52, 0.2, 0.22, 180, 360)
+        + path((0.9, 0.52), (0.91, 0.95))
+    ],
+    "r": [
+        path((0.27, 0.25), (0.25, 0.97), (0.26, 0.6))
+        + curve(0.56, 0.58, 0.3, 0.28, 180, 305)
+    ],
+    "b": [
+        path((0.22, 0.02), (0.2, 0.95), (0.21, 0.65))
+        + curve(0.5, 0.71, 0.29, 0.24, 180, 540)
+    ],
+    "p": [
+        path((0.22, 0.3), (0.2, 1.0), (0.21, 0.38))
+        + curve(0.5, 0.46, 0.29, 0.2, 180, 540)
+    ],
+    "a": [curve(0.43, 0.62, 0.3, 0.32, -40, -400) + path((0.7, 0.32), (0.73, 0.97))],
+    "d": [
+        curve(0.43, 0.66, 0.3, 0.28, -40, -400)
+        + path((0.7, 0.45), (0.74, 0.02), (0.75, 0.97))
+    ],
+    "q": [curve(0.43, 0.35, 0.3, 0.28, -40, -400) + path((0.7, 0.15), (0.73, 1.0))],
+    "g": [
+        curve(0.43, 0.3, 0.3, 0.24, -40, -400)
+        + path((0.7, 0.12), (0.73, 0.78))
+        + curve(0.45, 0.78, 0.28, 0.19, 0, 170)
+    ],
 }
-LETTERS = set("OCSUVWMNLZeiTX")
+# Letters in several strokes, as written: stem first, then bars.
+MULTI = {
+    "t": [
+        path((0.45, 0.02), (0.46, 0.8)) + curve(0.63, 0.8, 0.17, 0.15, 180, 45),
+        path((0.12, 0.33), (0.82, 0.3)),
+    ],
+    "f": [
+        curve(0.56, 0.18, 0.2, 0.15, -30, -180) + path((0.36, 0.18), (0.35, 0.98)),
+        path((0.1, 0.43), (0.66, 0.41)),
+    ],
+    "A": [path((0.1, 0.98), (0.5, 0.02), (0.9, 0.98)), path((0.28, 0.62), (0.72, 0.6))],
+    "K": [
+        path((0.2, 0.02), (0.2, 0.98)),
+        path((0.8, 0.02), (0.24, 0.55), (0.82, 0.98)),
+    ],
+    "Y": [path((0.1, 0.02), (0.5, 0.5), (0.9, 0.02)), path((0.5, 0.5), (0.5, 0.98))],
+    "H": [
+        path((0.15, 0.02), (0.15, 0.98)),
+        path((0.85, 0.02), (0.85, 0.98)),
+        path((0.15, 0.5), (0.85, 0.5)),
+    ],
+    "F": [
+        path((0.2, 0.02), (0.2, 0.98)),
+        path((0.2, 0.02), (0.85, 0.02)),
+        path((0.2, 0.48), (0.7, 0.48)),
+    ],
+    "E": [
+        path((0.2, 0.02), (0.2, 0.98)),
+        path((0.2, 0.02), (0.85, 0.02)),
+        path((0.2, 0.5), (0.7, 0.5)),
+        path((0.2, 0.98), (0.85, 0.98)),
+    ],
+}
+UNKNOWN_MULTI = {
+    "#": [
+        path((0.35, 0.05), (0.3, 0.95)),
+        path((0.7, 0.05), (0.65, 0.95)),
+        path((0.1, 0.35), (0.9, 0.35)),
+        path((0.1, 0.65), (0.9, 0.65)),
+    ],
+    "pi": [
+        path((0.1, 0.2), (0.9, 0.2)),
+        path((0.3, 0.2), (0.3, 0.95)),
+        path((0.7, 0.2), (0.72, 0.95)),
+    ],
+    # A circle crossed by a line (Φ): one shape, not a letter here.
+    "phi": [curve(0.5, 0.5, 0.3, 0.3, 0, 360), path((0.5, 0.02), (0.5, 0.98))],
+    "two scribbles": [
+        path((0.1, 0.1), (0.4, 0.8), (0.2, 0.5), (0.5, 0.2)),
+        path((0.6, 0.9), (0.9, 0.3), (0.7, 0.6)),
+    ],
+}
+LETTERS = set("OCSUVWMNLZeiTXhnmrbpadqg")
+
+# Shapes that are not a letter the matcher reads: an f or t without its bar,
+# a y as one zigzag, &, a spiral, a zigzag. Each must come back "not sure",
+# never as the nearest template.
+UNKNOWN = {
+    "f": [curve(0.6, 0.2, 0.2, 0.18, -20, -180) + path((0.4, 0.2), (0.4, 1.0))],
+    "y": [
+        path((0.1, 0.05), (0.45, 0.55)) + path((0.45, 0.55), (0.85, 0.05), (0.3, 1.0))
+    ],
+    "t": [path((0.5, 0.0), (0.5, 0.85)) + curve(0.65, 0.85, 0.15, 0.12, 180, 90)],
+    "&": [
+        path((0.85, 0.95), (0.3, 0.3))
+        + curve(0.4, 0.25, 0.15, 0.15, 180, 360)
+        + path((0.55, 0.25), (0.15, 0.7))
+        + curve(0.4, 0.75, 0.25, 0.2, 180, 90)
+        + path((0.4, 0.95), (0.85, 0.5))
+    ],
+    "spiral": [
+        [
+            (0.5 + 0.4 * t / 40 * math.cos(t / 4), 0.5 + 0.4 * t / 40 * math.sin(t / 4))
+            for t in range(40)
+        ]
+    ],
+    "zigzag": [
+        path(
+            (0.05, 0.5),
+            (0.2, 0.2),
+            (0.35, 0.8),
+            (0.5, 0.2),
+            (0.65, 0.8),
+            (0.8, 0.2),
+            (0.95, 0.8),
+        )
+    ],
+}
 
 
-def draw(sketch, rng, height=120, jitter=1.2, slant=8, stretch=0.15):
+def draw(sketch, rng, height=120, jitter=1.2, slant=8, stretch=0.15, left=None):
     """Place a unit sketch on the pad as a person would: sized, slanted,
     stretched, jittered, with mouse events at uneven spacing."""
     sx = height * (1 + rng.uniform(-stretch, stretch))
     shear = math.tan(math.radians(rng.uniform(-slant, slant)))
-    ox, oy = 150 + rng.uniform(-20, 20), (PAD_H - height) / 2
+    ox = 150 + rng.uniform(-20, 20) if left is None else left
+    oy = (PAD_H - height) / 2
     strokes = []
     for stroke in sketch:
         pts, k = [], 0
@@ -224,7 +361,7 @@ def test_division_is_drawn_in_three_parts_and_read_as_the_colon_sign():
 def test_every_known_shape_is_read(shape):
     got = recognise(cases_for(shape))
     labels = [g["label"] for g in got]
-    want = {"÷": ":"}.get(shape, shape)
+    want = {"÷": ":", "p": "P"}.get(shape, shape)  # a large p is a P
     assert labels.count(want) >= 11, labels
 
 
@@ -241,6 +378,318 @@ def test_multi_part_symbols_do_not_depend_on_stroke_order():
             [{"strokes": draw(SKETCHES[shape][::-1], rng), "task": "symbols"}]
         )
         assert got[0]["label"] == shape
+
+
+def test_the_reported_small_h_is_h_not_v():
+    # Pixels of the stroke in the report: a stem leaning about 23 degrees,
+    # back up the stem, a narrow arch, and a right leg ending above the foot.
+    pts = [(85 + 42 * k / 30, 252 + 98 * k / 30) for k in range(30)]
+    pts += [(127 - 6 * k / 12, 350 - 45 * k / 12) for k in range(12)]
+    for k in range(16):
+        t = k / 16
+        pts.append(
+            (
+                (1 - t) ** 2 * 121 + 2 * t * (1 - t) * 136 + t * t * 152,
+                (1 - t) ** 2 * 305 + 2 * t * (1 - t) * 270 + t * t * 300,
+            )
+        )
+    pts += [(152 + 8 * k / 10, 300 + 38 * k / 10) for k in range(11)]
+    stroke = [{"x": x - 30, "y": y - 183} for x, y in pts]
+    got = recognise([{"strokes": [stroke], "task": "chars", "size": 215}])[0]
+    assert got["label"] == "h"
+
+
+@pytest.mark.parametrize("shape", ["h", "n", "b", "d"])
+def test_slanted_handwriting_is_straightened(shape):
+    got = recognise(cases_for(shape, slant=24))
+    assert [g["label"] for g in got].count(shape) >= 11
+
+
+@pytest.mark.parametrize("name", sorted(UNKNOWN))
+def test_unknown_letters_are_refused_not_guessed(name):
+    rng = random.Random(name)
+    got = recognise(
+        [{"strokes": draw(UNKNOWN[name], rng), "task": "chars"} for _ in range(12)]
+    )
+    assert {g["label"] for g in got} == {None}, [g.get("label") for g in got]
+
+
+def test_a_letter_that_shares_a_digit_shape_follows_the_task():
+    q = [dict(c, task="chars") for c in cases_for("q")]
+    nine = [dict(c, task="symbols") for c in cases_for("9")]
+    assert [g["label"] for g in recognise(q)].count("q") >= 11
+    assert [g["label"] for g in recognise(nine)].count("9") >= 11
+
+
+def test_the_reported_two_stroke_t_is_t_in_either_order():
+    # Screenshot pixels: a stem with a hook to the right at the foot, and a
+    # wide bar about half way down; the pad starts at about (30, 183).
+    stem = [(174, 241 + 94 * k / 20) for k in range(21)]
+    stem += [(180, 335), (186, 346), (193, 350), (203, 345), (216, 333)]
+    bar = [(115 + 145 * k / 20, 298 - 9 * k / 20) for k in range(21)]
+    strokes = [[{"x": x - 30, "y": y - 183} for x, y in st] for st in (stem, bar)]
+    got = recognise(
+        [
+            {"strokes": strokes, "task": "chars", "size": 215},
+            {"strokes": strokes[::-1], "task": "chars", "size": 215},
+        ]
+    )
+    assert [g["label"] for g in got] == ["t", "t"]
+
+
+@pytest.mark.parametrize("shape", sorted(MULTI))
+def test_multi_stroke_letters_in_any_order_and_direction(shape):
+    rng = random.Random(shape)
+    sketch = MULTI[shape]
+    # As written, in reverse order, and with every other stroke drawn backwards.
+    variants = [
+        sketch,
+        sketch[::-1],
+        [st[::-1] if i % 2 else st for i, st in enumerate(sketch)],
+    ]
+    cases = [
+        {"strokes": draw(v, rng), "task": "chars"} for v in variants for _ in range(6)
+    ]
+    labels = [g["label"] for g in recognise(cases)]
+    assert labels.count(shape) >= 17, labels
+
+
+@pytest.mark.parametrize("name", sorted(UNKNOWN_MULTI))
+def test_unknown_multi_stroke_shapes_are_refused(name):
+    rng = random.Random(name)
+    got = recognise(
+        [
+            {"strokes": draw(UNKNOWN_MULTI[name], rng), "task": "chars"}
+            for _ in range(12)
+        ]
+    )
+    assert {g["label"] for g in got} == {None}
+
+
+def test_a_plain_cross_is_t_for_letters_and_plus_for_numbers():
+    rng = random.Random(5)
+    high_bar = [path((0.5, 0.02), (0.5, 0.98)), path((0.15, 0.3), (0.85, 0.3))]
+    cases = [
+        {"strokes": draw(high_bar, rng), "task": "chars"},
+        {"strokes": draw(high_bar, rng), "task": "symbols"},
+        {"strokes": draw(SKETCHES["+"], rng), "task": "chars"},
+    ]
+    assert [g["label"] for g in recognise(cases)] == ["t", "+", "+"]
+
+
+REPORTED = Path(__file__).resolve().parent / "fixtures" / "playground_reported.json"
+
+
+def _reported(name):
+    """Strokes rebuilt from the report's screenshots, pad pixels."""
+    return json.loads(REPORTED.read_text(encoding="utf-8"))[name]
+
+
+@pytest.mark.parametrize("name", ["n", "a", "b"])
+def test_the_reported_small_letters_on_the_numbers_task(name):
+    got = recognise(
+        [
+            {"strokes": _reported(name), "task": "symbols", "size": 215},
+            {"strokes": _reported(name), "task": "chars", "size": 215},
+        ]
+    )
+    assert [g["label"] for g in got] == [name, name]
+    assert {g["task"] for g in got} == {"chars"}
+
+
+def test_the_reported_11_and_12_are_two_characters():
+    got = recognise(
+        [
+            {"strokes": _reported("11"), "task": "symbols", "size": 215},
+            {"strokes": _reported("12"), "task": "symbols", "size": 215},
+        ]
+    )
+    assert [[c["label"] for c in g["sequence"]] for g in got] == [
+        ["1", "1"],
+        ["1", "2"],
+    ]
+
+
+def _pair(first, second, rng, gap=18):
+    """Two characters side by side, each 90 px high."""
+    a = draw(SKETCHES.get(first) or MULTI[first], rng, height=90, left=40)
+    right = max(p["x"] for st in a for p in st) + gap
+    b = draw(SKETCHES.get(second) or MULTI[second], rng, height=90, left=right)
+    return a + b
+
+
+@pytest.mark.parametrize("pair", ["12", "17", "23", "40", "58", "69", "93", "71"])
+def test_two_digits_side_by_side(pair):
+    rng = random.Random(pair)
+    cases = [
+        {"strokes": _pair(pair[0], pair[1], rng), "task": "symbols"} for _ in range(8)
+    ]
+    got = recognise(cases)
+    read = ["".join(c["label"] or "?" for c in g.get("sequence", [g])) for g in got]
+    assert read.count(pair) >= 7, read
+
+
+@pytest.mark.parametrize("pair", ["ab", "hn", "Ce", "tO"])
+def test_two_letters_side_by_side(pair):
+    rng = random.Random(pair)
+    cases = [
+        {"strokes": _pair(pair[0], pair[1], rng), "task": "chars"} for _ in range(8)
+    ]
+    got = recognise(cases)
+    read = ["".join(c["label"] or "?" for c in g.get("sequence", [g])) for g in got]
+    assert read.count(pair) >= 7, read
+
+
+def test_one_character_with_a_gap_between_its_strokes_stays_one():
+    # An H whose bar stops short of both stems, and a = and a ÷.
+    rng = random.Random(9)
+    loose_h = [
+        path((0.15, 0.02), (0.15, 0.98)),
+        path((0.85, 0.02), (0.85, 0.98)),
+        path((0.19, 0.5), (0.81, 0.5)),
+    ]
+    cases = [
+        {"strokes": draw(loose_h, rng), "task": "chars"},
+        {"strokes": draw(SKETCHES["="], rng), "task": "symbols"},
+        {"strokes": draw(SKETCHES["÷"], rng), "task": "symbols"},
+    ]
+    assert [g.get("label") for g in recognise(cases)] == ["H", "=", ":"]
+
+
+@pytest.mark.parametrize(
+    "shape,sketch",
+    [
+        # The same bowl; only the stem differs.
+        (
+            "a",
+            [
+                curve(0.43, 0.62, 0.3, 0.32, -40, -400)
+                + path((0.7, 0.32), (0.73, 0.95), (0.85, 0.88))
+            ],
+        ),
+        (
+            "d",
+            [
+                curve(0.43, 0.66, 0.3, 0.28, -40, -400)
+                + path((0.7, 0.45), (0.74, 0.0), (0.75, 0.97))
+            ],
+        ),
+        ("q", [curve(0.43, 0.3, 0.3, 0.26, -40, -400) + path((0.7, 0.1), (0.73, 1.0))]),
+        (
+            "g",
+            [
+                curve(0.43, 0.28, 0.3, 0.24, -40, -400)
+                + path((0.7, 0.1), (0.73, 0.8))
+                + curve(0.45, 0.8, 0.28, 0.2, 0, 170)
+            ],
+        ),
+    ],
+)
+def test_bowl_letters_are_told_apart_by_the_stem(shape, sketch):
+    got = recognise(cases_for_sketch(sketch, shape))
+    assert [g["label"] for g in got].count(shape) >= 11
+
+
+def cases_for_sketch(sketch, seed):
+    rng = random.Random(seed)
+    return [{"strokes": draw(sketch, rng), "task": "chars"} for _ in range(12)]
+
+
+# Every one of the 52 letters the model reads, as a person would draw it:
+# (sketch, height in pixels). Small and capital letters of the same shape
+# are drawn small for the small letter.
+ALPHABET = {
+    "B": (
+        [
+            path((0.22, 0.02), (0.2, 0.98), (0.21, 0.03))
+            + curve(0.21, 0.26, 0.48, 0.24, -90, 90)
+            + curve(0.21, 0.74, 0.58, 0.25, -90, 90)
+        ],
+        120,
+    ),
+    "D": (
+        [
+            path((0.22, 0.02), (0.2, 0.98), (0.21, 0.03))
+            + curve(0.21, 0.5, 0.62, 0.48, -90, 90)
+        ],
+        120,
+    ),
+    "G": (
+        [
+            curve(0.5, 0.5, 0.4, 0.44, -45, -320)
+            + path((0.9, 0.6), (0.9, 0.53), (0.55, 0.53))
+        ],
+        120,
+    ),
+    "I": (
+        [
+            path((0.12, 0.02), (0.88, 0.02)),
+            path((0.5, 0.02), (0.5, 0.98)),
+            path((0.12, 0.98), (0.88, 0.98)),
+        ],
+        120,
+    ),
+    "J": ([path((0.72, 0.02), (0.7, 0.7)) + curve(0.46, 0.7, 0.24, 0.27, 0, 175)], 120),
+    "P": (
+        [
+            path((0.27, 0.02), (0.25, 0.98), (0.26, 0.03))
+            + curve(0.26, 0.28, 0.48, 0.26, -90, 90)
+        ],
+        120,
+    ),
+    "Q": (
+        [curve(0.47, 0.45, 0.4, 0.42, -90, 270), path((0.55, 0.68), (0.95, 0.98))],
+        120,
+    ),
+    "R": (
+        [
+            path((0.27, 0.02), (0.25, 0.98), (0.26, 0.03))
+            + curve(0.26, 0.28, 0.48, 0.26, -90, 90)
+            + path((0.26, 0.54), (0.82, 0.98))
+        ],
+        120,
+    ),
+    "j": (
+        [
+            path((0.72, 0.1), (0.7, 0.7)) + curve(0.46, 0.7, 0.24, 0.27, 0, 175),
+            dot(0.71, -0.1),
+        ],
+        120,
+    ),
+    "k": (
+        [path((0.2, 0.02), (0.2, 0.98)), path((0.7, 0.42), (0.25, 0.7), (0.78, 0.98))],
+        120,
+    ),
+    "y": ([path((0.12, 0.02), (0.5, 0.5)), path((0.88, 0.02), (0.28, 0.98))], 120),
+    "l": ([path((0.5, 0.02), (0.52, 0.98))], 120),
+    "i": (SKETCHES["i"], 120),
+    **{
+        c: ((SKETCHES.get(c) or MULTI.get(c)), 120)
+        for c in "ACEFHKLMNOSTUVWXYZabdefghmnqrt"
+    },
+    **{c: (SKETCHES[c.upper()], 50) for c in "cosuvwxz"},
+    "p": (SKETCHES["p"], 50),
+}
+
+
+def test_the_alphabet_covers_every_letter_the_model_reads():
+    assert sorted(ALPHABET) == sorted(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    )
+
+
+@pytest.mark.parametrize("letter", sorted(ALPHABET))
+def test_every_letter_can_be_drawn(letter):
+    sketch, height = ALPHABET[letter]
+    rng = random.Random("abc" + letter)
+    got = recognise(
+        [
+            {"strokes": draw(sketch, rng, height=height), "task": "chars"}
+            for _ in range(12)
+        ]
+    )
+    labels = [g.get("label") for g in got]
+    assert labels.count(letter) >= 10, labels
 
 
 def test_a_scribble_is_refused_with_the_known_shapes():
