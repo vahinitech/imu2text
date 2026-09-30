@@ -477,6 +477,21 @@
     };
   }
 
+  // Shapes that are a letter or a digit depending on the task: a vertical
+  // line (l, I, 1), a ring (O, o, 0) and a Z (Z, z, 2).
+  const TWINS = new Set(["l", "I", "1", "O", "o", "0", "Z", "z"]);
+  // Characters written together are read together: next to a digit that is
+  // clearly a digit, a twin is read as a digit too, and next to a clear
+  // letter as a letter. "12" drawn on the Letters task used to read l, 2.
+  function agree(groups, parts, opts) {
+    const clear = parts.filter((p) => p && p.label && !TWINS.has(p.label));
+    const digits = clear.some((p) => p.task === "symbols");
+    const letters = clear.some((p) => p.task === "chars");
+    if (digits === letters) return parts;
+    const task = digits ? "symbols" : "chars";
+    return parts.map((p, i) => (p && p.label && TWINS.has(p.label) && p.task !== task ? recogniseOne(groups[i], { ...opts, task }) : p));
+  }
+
   // strokes: arrays of {x, y}. opts.size: the drawing area's height in
   // pixels. opts.task: "chars" or "symbols". Returns one character, or, for
   // characters written side by side, { sequence: [one per character] }.
@@ -486,7 +501,7 @@
     const { groups, gap } = characters(clean, opts.size || 170);
     if (groups.length < 2 || opts.ranking) return recogniseOne(clean, opts);
     const whole = recogniseOne(clean, opts);
-    const parts = groups.map((g) => recogniseOne(g, opts));
+    const parts = agree(groups, groups.map((g) => recogniseOne(g, opts)), opts);
     const allRead = parts.every((p) => p && p.label);
     // A clear gap means separate characters. A narrow one (a sloppy H whose
     // bar misses a stem) is one character if it reads as one.
