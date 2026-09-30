@@ -149,7 +149,7 @@
     const task = state.task === "symbols" || state.task === "equations" ? "symbols" : "chars";
     const got = window.PlaygroundShapes.recognise(strokes, { size: draw.getBoundingClientRect().height, task });
     if (!got) { shapeEl.textContent = ""; return; }
-    if (got.sequence) { readSequence(got.sequence); return; }
+    if (got.sequence) { readSequence(got.sequence, got.other); return; }
     if (!got.label) {
       // Keep the strokes: the next one adds to this drawing. Clear starts over.
       finished = false;
@@ -172,7 +172,9 @@
   // Several characters side by side ("12"). The recordings hold one
   // character each, so the AI reads them one at a time: the first straight
   // away, the others from a button each.
-  function readSequence(seq) {
+  // other: the same characters read the other way (letters for digits, or
+  // digits for letters), offered as a button when some shape could be either.
+  function readSequence(seq, other) {
     const shown = seq.map((c) => (c.label ? c.shape : "?")).join("");
     const pick = (i) => {
       const c = seq[i];
@@ -195,6 +197,14 @@
         row.append(b);
       });
       shapeEl.append(row);
+      if (other) {
+        const swap = document.createElement("button");
+        swap.type = "button";
+        swap.className = "linkbtn w-swap";
+        swap.textContent = `Read as ${other.map((ch) => (ch.label ? ch.shape : "?")).join("")} instead`;
+        swap.addEventListener("click", () => readSequence(other, seq));
+        shapeEl.append(" ", swap);
+      }
       if (found) recognize();
     };
     const first = seq.findIndex((c) => c.label);
