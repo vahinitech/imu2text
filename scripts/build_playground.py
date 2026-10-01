@@ -124,6 +124,28 @@ def one_per_class(
     return out
 
 
+def class_accuracy(true: np.ndarray, proba: np.ndarray, n_classes: int) -> list:
+    """Per class: how many test items it has and the share read right, in %.
+
+    The page shows one recording per drawn character, the class median
+    (``one_per_class``), and that recording is read right whenever the class
+    mostly is. This is the rate to show next to it, so a demo answer is not
+    taken for the model's accuracy.
+    """
+    top = proba.argmax(1)
+    out = []
+    for c in range(n_classes):
+        idx = true == c
+        n = int(idx.sum())
+        out.append(
+            {
+                "n": n,
+                "right": round(float((top[idx] == c).mean() * 100), 1) if n else None,
+            }
+        )
+    return out
+
+
 def rounded(a: np.ndarray, digits: int = 3) -> list:
     """Nested lists with fixed precision, to keep the exported file small."""
     return np.round(np.asarray(a, dtype=np.float64), digits).tolist()
@@ -308,6 +330,7 @@ def task_records(path: str, seed: int = 0) -> dict:
         "source": path.replace(os.sep, "/"),
         "samples": samples,
         "drawn": drawn,
+        "class_accuracy": class_accuracy(true, proba, len(classes)),
     }
 
 
@@ -547,6 +570,16 @@ def main() -> None:
             ],
             groups,
         ),
+        "class_accuracy": {
+            name: class_accuracy(
+                g[0]["true"][np.isin(g[0]["handedness"], (0, -1))],
+                np.mean([m["proba"] for m in g], axis=0)[
+                    np.isin(g[0]["handedness"], (0, -1))
+                ],
+                len(classes),
+            )
+            for name, g in groups.items()
+        },
         "left_letters": (
             letter_records(
                 groups["with_left"],

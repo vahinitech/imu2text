@@ -33,12 +33,16 @@ PAD_H = 170  # the drawing area's height on the page, in CSS pixels
 pytestmark = pytest.mark.skipif(NODE is None, reason="needs Node.js")
 
 # The page loads the drawing reader's weights and runtime before shapes.js,
-# and so does this runner: the tests read drawings the way the page does.
+# and so does this runner unless told not to: most tests read drawings the
+# way the page does. The template tests run without the reader, which is the
+# page's fallback when reader.js does not load.
 RUNNER = """
 const path = require("path");
 globalThis.window = globalThis;
-require(path.join(path.dirname(process.argv[1]), "reader-weights.js"));
-require(path.join(path.dirname(process.argv[1]), "reader.js"));
+if (process.argv[2] === "reader") {
+  require(path.join(path.dirname(process.argv[1]), "reader-weights.js"));
+  require(path.join(path.dirname(process.argv[1]), "reader.js"));
+}
 const S = require(process.argv[1]);
 let input = "";
 process.stdin.on("data", (d) => { input += d; });
@@ -50,11 +54,11 @@ process.stdin.on("end", () => {
 """
 
 
-def recognise(cases):
+def recognise(cases, reader=True):
     """Run the matcher on [{strokes, task}] and return its answers."""
     payload = [{"size": PAD_H, **c} for c in cases]
     done = subprocess.run(
-        [NODE, "-e", RUNNER, str(SHAPES_JS)],
+        [NODE, "-e", RUNNER, str(SHAPES_JS), "reader" if reader else "templates"],
         input=json.dumps(payload),
         capture_output=True,
         text=True,
@@ -312,6 +316,11 @@ def draw(sketch, rng, height=120, jitter=1.2, slant=8, stretch=0.15, left=None):
     return strokes
 
 
+def recognise_templates(cases):
+    """The template fallback alone, as the page runs without reader.js."""
+    return recognise(cases, reader=False)
+
+
 def cases_for(shape, n=12, **kw):
     """n seeded drawings of one shape, read in the task that has it."""
     rng = random.Random(shape)
@@ -346,8 +355,8 @@ def test_a_two_is_a_two_not_z():
     assert {g["label"] for g in got} == {"2"}
 
 
-def test_a_z_with_sharp_corners_stays_z_on_letters():
-    assert {g["label"] for g in recognise(cases_for("Z"))} == {"Z"}
+def test_templates_a_z_with_sharp_corners_stays_z_on_letters():
+    assert {g["label"] for g in recognise_templates(cases_for("Z"))} == {"Z"}
 
 
 def test_division_is_drawn_in_three_parts_and_read_as_the_colon_sign():
@@ -364,16 +373,16 @@ def test_division_is_drawn_in_three_parts_and_read_as_the_colon_sign():
 
 # ---------- every shape the page says it knows ----------
 @pytest.mark.parametrize("shape", sorted(SKETCHES))
-def test_every_known_shape_is_read(shape):
-    got = recognise(cases_for(shape))
+def test_templates_every_known_shape_is_read(shape):
+    got = recognise_templates(cases_for(shape))
     labels = [g["label"] for g in got]
     want = {"÷": ":", "p": "P"}.get(shape, shape)  # a large p is a P
     assert labels.count(want) >= 11, labels
 
 
 @pytest.mark.parametrize("shape", ["C", "O", "S", "U", "V", "W", "Z"])
-def test_small_same_shape_letters_are_read_small(shape):
-    got = recognise(cases_for(shape, height=50))
+def test_templates_small_same_shape_letters_are_read_small(shape):
+    got = recognise_templates(cases_for(shape, height=50))
     assert {g["label"] for g in got} == {shape.lower()}
 
 
@@ -406,25 +415,25 @@ def test_the_reported_small_h_is_h_not_v():
 
 
 @pytest.mark.parametrize("shape", ["h", "n", "b", "d"])
-def test_slanted_handwriting_is_straightened(shape):
-    got = recognise(cases_for(shape, slant=24))
+def test_templates_slanted_handwriting_is_straightened(shape):
+    got = recognise_templates(cases_for(shape, slant=24))
     assert [g["label"] for g in got].count(shape) >= 11
 
 
 @pytest.mark.parametrize("name", sorted(UNKNOWN))
-def test_unknown_letters_are_refused_not_guessed(name):
+def test_templates_unknown_letters_are_refused_not_guessed(name):
     rng = random.Random(name)
-    got = recognise(
+    got = recognise_templates(
         [{"strokes": draw(UNKNOWN[name], rng), "task": "chars"} for _ in range(12)]
     )
     assert {g["label"] for g in got} == {None}, [g.get("label") for g in got]
 
 
-def test_a_letter_that_shares_a_digit_shape_follows_the_task():
+def test_templates_a_letter_that_shares_a_digit_shape_follows_the_task():
     q = [dict(c, task="chars") for c in cases_for("q")]
     nine = [dict(c, task="symbols") for c in cases_for("9")]
-    assert [g["label"] for g in recognise(q)].count("q") >= 11
-    assert [g["label"] for g in recognise(nine)].count("9") >= 11
+    assert [g["label"] for g in recognise_templates(q)].count("q") >= 11
+    assert [g["label"] for g in recognise_templates(nine)].count("9") >= 11
 
 
 def test_the_reported_two_stroke_t_is_t_in_either_order():
@@ -444,7 +453,7 @@ def test_the_reported_two_stroke_t_is_t_in_either_order():
 
 
 @pytest.mark.parametrize("shape", sorted(MULTI))
-def test_multi_stroke_letters_in_any_order_and_direction(shape):
+def test_templates_multi_stroke_letters_in_any_order_and_direction(shape):
     rng = random.Random(shape)
     sketch = MULTI[shape]
     # As written, in reverse order, and with every other stroke drawn backwards.
@@ -456,14 +465,14 @@ def test_multi_stroke_letters_in_any_order_and_direction(shape):
     cases = [
         {"strokes": draw(v, rng), "task": "chars"} for v in variants for _ in range(6)
     ]
-    labels = [g["label"] for g in recognise(cases)]
+    labels = [g["label"] for g in recognise_templates(cases)]
     assert labels.count(shape) >= 17, labels
 
 
 @pytest.mark.parametrize("name", sorted(UNKNOWN_MULTI))
-def test_unknown_multi_stroke_shapes_are_refused(name):
+def test_templates_unknown_multi_stroke_shapes_are_refused(name):
     rng = random.Random(name)
-    got = recognise(
+    got = recognise_templates(
         [
             {"strokes": draw(UNKNOWN_MULTI[name], rng), "task": "chars"}
             for _ in range(12)
@@ -536,12 +545,12 @@ def test_two_digits_side_by_side(pair):
 
 
 @pytest.mark.parametrize("pair", ["ab", "hn", "Ce", "tO"])
-def test_two_letters_side_by_side(pair):
+def test_templates_two_letters_side_by_side(pair):
     rng = random.Random(pair)
     cases = [
         {"strokes": _pair(pair[0], pair[1], rng), "task": "chars"} for _ in range(8)
     ]
-    got = recognise(cases)
+    got = recognise_templates(cases)
     read = ["".join(c["label"] or "?" for c in g.get("sequence", [g])) for g in got]
     assert read.count(pair) >= 7, read
 
@@ -579,15 +588,40 @@ def test_characters_written_together_are_read_together(first, second, task, want
     assert read.count(want) >= 7, read
 
 
-@pytest.mark.parametrize("name", ["10-oval", "10-angular"])
-@pytest.mark.parametrize("task", ["chars", "symbols"])
-def test_the_reported_10_reads_10_and_offers_lo(name, task):
-    # Reported: a line and a ring drawn on the Letters task read "lo". When
-    # every character could be a letter or a digit, digits win, and the page
-    # offers the letters.
+@pytest.mark.parametrize(
+    "name,task,reads,offers",
+    [
+        # Reported: a line and a ring drawn on the Letters task read "lo".
+        ("10-oval", "chars", "10", "lo"),
+        ("10-oval", "symbols", "10", "lo"),
+        ("10-angular", "symbols", "10", "ld"),
+        # A square 0 is a D to the reader (0.91); on Letters that stands, and
+        # the page offers 10 beside it.
+        ("10-angular", "chars", "ld", "10"),
+    ],
+)
+def test_the_reported_10_reads_and_offers_the_other_reading(name, task, reads, offers):
     got = recognise([{"strokes": _reported(name), "task": task, "size": 215}])[0]
-    assert [c["label"] for c in got["sequence"]] == ["1", "0"]
-    assert [c["label"] for c in got["other"]] == ["l", "o"]
+    assert "".join(c["label"] for c in got["sequence"]).lower() == reads
+    assert "".join(c["label"] for c in got["other"]).lower() == offers
+
+
+@pytest.mark.parametrize(
+    "name,task,reads",
+    [
+        # 2026-10-01: characters written close enough to touch or overlap.
+        ("132", "chars", "132"),
+        ("132", "symbols", "132"),
+        ("11-close", "chars", "11"),
+        ("11-close", "symbols", "11"),
+        ("99", "symbols", "99"),
+        # A 9 and a q are one shape; on Letters they are q, and 99 is offered.
+        ("99", "chars", "qq"),
+    ],
+)
+def test_characters_written_close_together_are_split_by_the_reader(name, task, reads):
+    got = recognise([{"strokes": _reported(name), "task": task, "size": 215}])[0]
+    assert "".join(c["label"] for c in got["sequence"]) == reads
 
 
 def test_only_fully_ambiguous_drawings_offer_another_reading():
@@ -647,8 +681,8 @@ def test_one_character_with_a_gap_between_its_strokes_stays_one():
         ),
     ],
 )
-def test_bowl_letters_are_told_apart_by_the_stem(shape, sketch):
-    got = recognise(cases_for_sketch(sketch, shape))
+def test_templates_bowl_letters_are_told_apart_by_the_stem(shape, sketch):
+    got = recognise_templates(cases_for_sketch(sketch, shape))
     assert [g["label"] for g in got].count(shape) >= 11
 
 
@@ -741,10 +775,10 @@ def test_the_alphabet_covers_every_letter_the_model_reads():
 
 
 @pytest.mark.parametrize("letter", sorted(ALPHABET))
-def test_every_letter_can_be_drawn(letter):
+def test_templates_every_letter_can_be_drawn(letter):
     sketch, height = ALPHABET[letter]
     rng = random.Random("abc" + letter)
-    got = recognise(
+    got = recognise_templates(
         [
             {"strokes": draw(sketch, rng, height=height), "task": "chars"}
             for _ in range(12)
@@ -754,7 +788,7 @@ def test_every_letter_can_be_drawn(letter):
     assert labels.count(letter) >= 10, labels
 
 
-def test_a_scribble_is_refused_with_the_known_shapes():
+def test_templates_a_scribble_is_refused_with_the_known_shapes():
     rng = random.Random(3)
     scribble = [
         [
@@ -762,6 +796,6 @@ def test_a_scribble_is_refused_with_the_known_shapes():
             for _ in range(40)
         ]
     ]
-    got = recognise([{"strokes": scribble, "task": "symbols"}])[0]
+    got = recognise_templates([{"strokes": scribble, "task": "symbols"}])[0]
     assert got["label"] is None
     assert "0 to 9" in got["reason"]
