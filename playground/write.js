@@ -29,36 +29,28 @@
   let gD = fit(draw);
   window.addEventListener("resize", () => { gD = fit(draw); repaint(); });
 
-  // ---------- sensor lines: the OnHW pen's five groups (13 channels) ----------
-  // Colours go through the CSSOM: the page's CSP blocks inline style attributes.
-  const CH = [["Front acc.", "chart-1", "wave"], ["Rear acc.", "chart-2", "wave"], ["Gyro", "chart-3", "wave"],
-    ["Magnet", "chart-1", "wave"], ["Force", "warning", "level"]];
+  // ---------- your movement, live ----------
+  // The five lines under the pad are the drawing's own movement, worked out
+  // from the pointer's positions and times (movement.js): the last two
+  // seconds, each line scaled to its own largest value.
+  const M = window.PlaygroundMovement;
   const bus = $("w-bus");
-  bus.innerHTML = CH.map((c) => `<div class="w-chan"><em>${c[0]}</em>` +
+  bus.innerHTML = M.CHANNELS.map((c) => `<div class="w-chan"><em>${c.name}</em>` +
     '<svg class="w-wave" viewBox="0 0 100 16" preserveAspectRatio="none"><polyline points="0,8 100,8"/></svg></div>').join("");
-  [...bus.children].forEach((el, i) => el.style.setProperty("--ch", `var(--v-${CH[i][1]})`));
+  [...bus.children].forEach((el, i) => el.style.setProperty("--ch", `var(--v-${M.CHANNELS[i].colour})`));
   const waveEls = [...bus.querySelectorAll("polyline")];
-  const levelHistory = CH.map((c) => (c[2] === "level" ? new Array(21).fill(8) : null));
-  let tick = 0;
-  function pulseBus(speed) {
-    tick += 1;
-    const amp = Math.min(6.5, 1 + speed * 0.42);
+  const WINDOW = 2 * M.RATE;
+  function showMovement(m) {
     waveEls.forEach((el, i) => {
-      let pts;
-      if (CH[i][2] === "level") {
-        const h = levelHistory[i]; h.shift(); h.push(8 - amp);
-        pts = h.map((y, x) => `${x * 5},${y.toFixed(1)}`);
-      } else {
-        pts = [];
-        for (let x = 0; x <= 100; x += 5) pts.push(`${x},${(8 + Math.sin(x * 0.24 + tick * 0.3 + i * 1.7) * amp).toFixed(1)}`);
-      }
-      el.setAttribute("points", pts.join(" "));
+      const c = M.CHANNELS[i];
+      const v = m ? m[c.key].slice(-WINDOW) : [];
+      if (v.length < 2) { el.setAttribute("points", "0,8 100,8"); return; }
+      const top = Math.max(...v.map(Math.abs), c.key === "down" ? 1 : 1e-6);
+      const mid = c.signed ? 8 : 14, half = c.signed ? 6.5 : 12.5;
+      el.setAttribute("points", v.map((y, j) => `${((j / (WINDOW - 1)) * 100).toFixed(1)},${(mid - (y / top) * half).toFixed(1)}`).join(" "));
     });
   }
-  function calmBus() {
-    levelHistory.forEach((h) => { if (h) h.fill(8); });
-    waveEls.forEach((el) => el.setAttribute("points", "0,8 100,8"));
-  }
+  function calmBus() { showMovement(null); }
 
   // ---------- the pen follows a mouse ----------
   // The Vahini pen (/site/design/v1/pen.svg, from the vahini-web component
@@ -92,7 +84,7 @@
   let strokes = [], cur = null, lastPt = null, drawing = false, finished = false;
   const unread = () => strokes.length > 0 && !finished;
   function showReadable() { readBtn.disabled = !unread(); }
-  function pos(e) { const r = draw.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, t: performance.now() }; }
+  function pos(e) { const r = draw.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, t: e.timeStamp || performance.now() }; }
   function line(g, a, b, w) {
     g.strokeStyle = INK; g.lineWidth = w; g.lineCap = "round"; g.lineJoin = "round";
     g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
@@ -123,13 +115,13 @@
     if (!drawing) return;
     const p = pos(e), dt = Math.max(1, p.t - lastPt.t);
     const speed = Math.hypot(p.x - lastPt.x, p.y - lastPt.y) / dt * 16;
-    pulseBus(speed);
+    showMovement(M.movement([...strokes, cur]));
     line(gD, lastPt, p, Math.max(2.1, 4.6 - Math.min(2.4, speed * 0.3)));
     cur.push(p); lastPt = p;
   });
   function endStroke() {
     if (!drawing) return;
-    drawing = false; calmBus();
+    drawing = false;
     if (cur && cur.length) strokes.push(cur);   // a single point is a dot
     cur = null;
     if (!strokes.length) return;
@@ -149,23 +141,47 @@
     const task = state.task === "symbols" || state.task === "equations" ? "symbols" : "chars";
     const got = window.PlaygroundShapes.recognise(strokes, { size: draw.getBoundingClientRect().height, task });
     if (!got) { shapeEl.textContent = ""; return; }
-    if (got.sequence) { readSequence(got.sequence, got.other); return; }
-    if (!got.label) {
+    const chars = got.sequence || [got];
+    if (!chars.some((c) => c.label)) {
       // Keep the strokes: the next one adds to this drawing. Clear starts over.
       finished = false;
       showReadable();
-      shapeEl.textContent = `${got.reason} Add a stroke, or press Clear.`;
+      shapeEl.textContent = `${got.reason || "Not sure what that was."} Add a stroke, or press Clear.`;
       drawnNothing();
       return;
     }
+    // What the page shows about a drawing comes from the drawing: the
+    // reader's answer and the drawing's own movement. The pen AI is a
+    // separate step the person chooses (card 3), on recordings by others.
+    showReading(chars, got.other || null);
+  }
+  function showReading(chars, other) {
+    const text = chars.map((c) => (c.label ? c.shape : "?")).join("");
+    shapeEl.replaceChildren(`Looks like ${text}. The drawing reader's answer is in card 3.`);
+    if (other) {
+      const swap = document.createElement("button");
+      swap.type = "button";
+      swap.className = "linkbtn w-swap";
+      swap.textContent = `Read as ${other.map((ch) => (ch.label ? ch.shape : "?")).join("")} instead`;
+      swap.addEventListener("click", () => showReading(other, chars));
+      shapeEl.append(" ", swap);
+    }
+    showReaderResult(chars, M.movement(strokes));
+  }
+  // The pen AI on real recordings of the characters the drawing reader
+  // named, by other writers: what card 3's button opens.
+  function penFor(chars) {
+    const got = chars.length > 1 ? null : chars[0];
+    if (!got) { readSequence(chars, null); return; }
     const moved = got.task !== state.task;
+    state.sequence = null;
     const found = useDrawing(got);
     if (!found) {
       shapeEl.textContent = `Looks like ${got.shape}, but there is no recording of it here. Pick one below.`;
       return;
     }
-    shapeEl.textContent = `Looks like ${got.shape}.${got.note ? ` ${got.note}` : ""}` +
-      `${moved ? ` Switched to ${TASKS[got.task].label}.` : ""} The AI now reads a real pen recording of “${got.label}”.`;
+    shapeEl.textContent = `Looks like ${got.shape}.${moved ? ` Switched to ${TASKS[got.task].label}.` : ""}` +
+      ` The pen AI now reads a real pen recording of “${got.label}” by another writer.`;
     recognize();
   }
 
@@ -178,10 +194,11 @@
     const shown = seq.map((c) => (c.label ? c.shape : "?")).join("");
     const pick = (i) => {
       const c = seq[i];
+      state.sequence = { chars: seq, index: i };
       const found = useDrawing(c);
       shapeEl.replaceChildren(
-        `Looks like ${shown}: ${seq.length} characters. The AI reads one character at a time. ` +
-        (found ? `Now: a real pen recording of “${c.label}”. ` : `There is no recording of “${c.label}” here. `),
+        `Looks like ${shown}. The pen AI reads one character at a time, on real pen recordings by other writers. ` +
+        (found ? `Now: “${c.label}”. ` : `There is no recording of “${c.label}” here. `),
       );
       const row = document.createElement("span");
       row.className = "w-seq";
@@ -223,6 +240,7 @@
   window.PlaygroundDraw = {
     pending: unread,
     readNow: read,
+    penFor,
     clear,
   };
   calmBus();

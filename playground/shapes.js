@@ -306,7 +306,11 @@
       const L = lines[0];
       if (!dots.length) {
         if (L.dir === "h") return { shape: "-" };
-        if (L.dir === "v") return { shape: task === "chars" ? "l" : "1" };
+        if (L.dir === "v") return { shape: task === "chars" ? "l" : "1", line: true };
+        // A lone straight stroke leaning more than 35 degrees from flat is a
+        // 1 written with a slant (a hurried 11 leans its second 1 to 40
+        // degrees); the drawing reader learned mostly upright ones.
+        if (L.angle > 35) return { shape: task === "chars" ? "l" : "1", line: true };
         return null;
       }
       const within = (d) => d.b.cx > L.b.x0 - L.size * 0.25 && d.b.cx < L.b.x1 + L.size * 0.25;
@@ -443,6 +447,34 @@
   }
   // strokes: arrays of {x, y}. opts.size: the drawing area's height in
   // pixels. opts.task: "chars" or "symbols", for the shapes that are both.
+  // ---------- the drawing reader ----------
+  const RULE_SYMBOLS = new Set(["-", "+", "=", "·", ":", "÷"]);
+  // Below this probability the reader's best guess is "not sure".
+  const READ_MIN = 0.3;
+  // The page moves to the other task only when the reader is at least this
+  // sure. Measured on UJI's 20 test writers: digits drawn on the Numbers
+  // task read 96.3% right at 0.9 against 86.8% at 0.5, because a 0 that
+  // looks like o or a 1 like l stays a digit; a clear letter drawn there
+  // (a, b, n) still moves to Letters. results/drawing_reader has the table.
+  const SWITCH = 0.9;
+  // Inside a drawing of several characters the neighbours carry the task,
+  // so a character leaves it only when the reader is all but certain.
+  const SWITCH_IN_SEQUENCE = 0.97;
+  function readWithNet(reader, strokes, task, switchAt = SWITCH) {
+    const ranking = reader.read(strokes);
+    if (!ranking) return null;
+    const inTask = (label) => (task === "symbols") === /^[0-9]$/.test(label);
+    // "Not sure" asks whether the drawing is clearly some character; which
+    // of its lookalikes (0 or O, 1 or l) is then the task's call.
+    if (ranking[0].p < READ_MIN) return null;
+    let best = ranking[0];
+    const own = ranking.find((r) => inTask(r.label));
+    if (!inTask(best.label) && best.p < switchAt && own) best = own;
+    // The reader's own choice of small or capital beat the drawing-size rule
+    // on the test writers (77.1% against 75.8% of letters), so it stands.
+    return { shape: best.label, p: best.p, sure: ranking[0].p, keepCase: true, top: ranking.slice(0, 3) };
+  }
+
   // ---------- more than one character ----------
   // Characters written side by side ("12") are split where the strokes stop
   // overlapping left to right. Dots join the character they sit over.
@@ -500,33 +532,148 @@
   function retask(groups, parts, opts, task) {
     return parts.map((p, i) => (p && p.label && TWINS.has(p.label) && p.task !== task ? recogniseOne(groups[i], { ...opts, task }) : p));
   }
-  // When every character is a twin, the same characters read the other way
-  // ("10" and "lo"), for the page to offer. Null otherwise: next to a clear
-  // 2, "l2" is no reading at all.
+  // The same characters read wholly in the other task ("10" and "lo", or
+  // "ID" and "10"), for the page to offer, when every character has a
+  // believable reading there. The drawing reader gives each character's
+  // probability in that task; the templates only offer twins.
+  const OTHER_MIN = 0.05;
   function otherReading(groups, parts, opts) {
     const read = parts.filter((p) => p && p.label);
-    const twins = read.filter((p) => TWINS.has(p.label));
-    if (!twins.length || twins.length !== read.length) return null;
-    const task = twins[0].task === "symbols" ? "chars" : "symbols";
-    const other = parts.map((p, i) => (p && p.label && TWINS.has(p.label) ? recogniseOne(groups[i], { ...opts, task }) : p));
-    const same = other.every((p, i) => (p && p.label) === (parts[i] && parts[i].label));
+    if (read.length !== parts.length || !read.length) return null;
+    const task = read.filter((p) => p.task === "symbols").length * 2 >= read.length ? "chars" : "symbols";
+    const reader = root.PlaygroundReader;
+    const other = parts.map((p, i) => {
+      if (p.task === task) return p;
+      if (!reader && !TWINS.has(p.label)) return null;
+      const q = recogniseOne(groups[i], { ...opts, task, switchAt: 2 });
+      return q && q.label && q.task === task && (!reader || q.score >= OTHER_MIN) ? q : null;
+    });
+    if (other.some((p) => !p)) return null;
+    const same = other.every((p, i) => p.label === parts[i].label);
     return same ? null : other;
   }
 
   // strokes: arrays of {x, y}. opts.size: the drawing area's height in
   // pixels. opts.task: "chars" or "symbols". Returns one character, or, for
   // characters written side by side, { sequence: [one per character] }.
+  // ---------- splitting with the reader ----------
+  // Characters written close together touch or overlap, so gaps alone glue
+  // "132" into one shape. With the reader loaded, every way of cutting the
+  // strokes (sorted left to right) into consecutive characters is scored,
+  // and the grouping whose characters read most clearly wins. A character's
+  // score counts its lookalikes together (1, l and I; 0, O and o; 2 and Z;
+  // 5 and S; any letter with its other case), since the task picks among
+  // them later. PER_CHAR and OVERLAP were set on sequences made from UJI's
+  // held-out writers (scripts/drawing_reader.py, --sequences).
+  const FAMILIES = [["1", "l", "I", "|"], ["0", "O", "o"], ["2", "Z", "z"], ["5", "S", "s"]];
+  const family = (label) => {
+    const f = FAMILIES.find((g) => g.includes(label));
+    return f ? f[0] : label.toLowerCase();
+  };
+  let PER_CHAR = 1.0, OVERLAP = 0.12, RULE_SCORE = 0.6, GAP = 0.08, LINE_SCORE = 0.9, TOUCH = 0.04, APART = 1.2;
+  function groupScore(reader, strokes, padH) {
+    const all = box(strokes.flat());
+    const dotLimit = Math.max(4, Math.min(0.07 * padH, strokes.length > 1 ? 0.3 * Math.max(all.w, all.h) : Infinity));
+    const ruled = fromParts(strokes.map((st) => part(st, dotLimit)), all, "symbols");
+    if (ruled && RULE_SYMBOLS.has(ruled.shape)) return RULE_SCORE;
+    if (ruled && ruled.line) return LINE_SCORE;
+    const ranking = reader.read(strokes);
+    if (!ranking) return 0;
+    const fam = family(ranking[0].label);
+    return ranking.reduce((a, r) => a + (family(r.label) === fam ? r.p : 0), 0);
+  }
+  function splitWithReader(reader, strokes, padH) {
+    const items = strokes.map((st) => ({ st, b: box(st) }));
+    const dotSize = 0.07 * padH;
+    const marks = items.filter((it) => Math.max(it.b.w, it.b.h) > dotSize).sort((p, q) => p.b.cx - q.b.cx);
+    const dots = items.filter((it) => !marks.includes(it));
+    const n = marks.length;
+    if (n < 2 || n > 8) return null;
+    const height = box(strokes.flat()).h || 1;
+    // A cut after mark i is allowed when everything left of it ends (almost)
+    // before everything right of it starts.
+    // A clear gap always separates characters: the reader has never seen two
+    // characters in one frame and can be sure of a wrong single letter.
+    const allowed = [], forced = [], apart = new Set();
+    const nearest = (A, B) => {
+      let d = Infinity;
+      for (const a of A) for (const p of a.st) for (const b of B) for (const q of b.st) d = Math.min(d, dist(p, q));
+      return d;
+    };
+    for (let i = 1; i < n; i++) {
+      const leftEnd = Math.max(...marks.slice(0, i).map((m) => m.b.x1));
+      const rightStart = Math.min(...marks.slice(i).map((m) => m.b.x0));
+      if (rightStart - leftEnd > GAP * height) forced.push(i);
+      else if (leftEnd - rightStart <= OVERLAP * height) {
+        allowed.push(i);
+        // The strokes of one letter meet where they join; two characters
+        // written close usually do not touch.
+        if (nearest(marks.slice(0, i), marks.slice(i)) > TOUCH * height) apart.add(i);
+      }
+    }
+    if (!allowed.length && !forced.length) return null;
+    const memo = new Map();
+    const groupOf = (a, z) => {
+      const key = `${a}-${z}`;
+      if (!memo.has(key)) {
+        const own = marks.slice(a, z).map((m) => m.st);
+        const x0 = Math.min(...marks.slice(a, z).map((m) => m.b.x0)), x1 = Math.max(...marks.slice(a, z).map((m) => m.b.x1));
+        memo.set(key, { own, x0, x1 });
+      }
+      return memo.get(key);
+    };
+    const scored = new Map();
+    let best = null;
+    for (let mask = 0; mask < 1 << allowed.length; mask++) {
+      const cuts = [...forced, ...allowed.filter((_, j) => mask & (1 << j))].sort((a, b) => a - b);
+      const bounds = [0, ...cuts, n];
+      const groups = [];
+      for (let g = 0; g + 1 < bounds.length; g++) groups.push({ ...groupOf(bounds[g], bounds[g + 1]), key: `${bounds[g]}-${bounds[g + 1]}`, dots: [] });
+      // Each dot joins the group it sits over, or the nearest one.
+      for (const d of dots) {
+        const home = groups.reduce((m, g) => {
+          const off = Math.max(g.x0 - d.b.cx, d.b.cx - g.x1, 0);
+          return !m || off < m.off ? { g, off } : m;
+        }, null);
+        home.g.dots.push(d.st);
+      }
+      let logSum = 0;
+      for (const g of groups) {
+        const key = `${g.key}|${g.dots.length}`;
+        if (!scored.has(key)) scored.set(key, groupScore(reader, [...g.own, ...g.dots], padH));
+        logSum += Math.log(Math.max(scored.get(key), 1e-6));
+      }
+      const bonus = cuts.filter((c) => apart.has(c)).length;
+      const score = Math.exp(logSum / groups.length) * PER_CHAR ** (groups.length - 1) * APART ** bonus;
+      if (!best || score > best.score) best = { score, groups: groups.map((g) => [...g.own, ...g.dots]) };
+    }
+    return best;
+  }
+
   function recognise(strokes, opts = {}) {
     const clean = strokes.filter((s) => s && s.length);
     if (!clean.length) return null;
+    const reader = root.PlaygroundReader;
+    if (reader && !opts.ranking) {
+      const split = splitWithReader(reader, clean, opts.size || 170);
+      if (!split || split.groups.length < 2) return recogniseOne(clean, opts);
+      const inSeq = { ...opts, switchAt: SWITCH_IN_SEQUENCE };
+      const parts = agree(split.groups, split.groups.map((g) => recogniseOne(g, inSeq)), inSeq);
+      return { sequence: parts, other: parts.every((p) => p && p.label) ? otherReading(split.groups, parts, inSeq) : null };
+    }
     const { groups, gap } = characters(clean, opts.size || 170);
     if (groups.length < 2 || opts.ranking) return recogniseOne(clean, opts);
     const whole = recogniseOne(clean, opts);
-    const parts = agree(groups, groups.map((g) => recogniseOne(g, opts)), opts);
+    const inSeq = { ...opts, switchAt: SWITCH_IN_SEQUENCE };
+    const parts = agree(groups, groups.map((g) => recogniseOne(g, inSeq)), inSeq);
     const allRead = parts.every((p) => p && p.label);
     // A clear gap means separate characters. A narrow one (a sloppy H whose
     // bar misses a stem) is one character if it reads as one.
-    const withOther = () => ({ sequence: parts, other: otherReading(groups, parts, opts) });
+    const withOther = () => ({ sequence: parts, other: otherReading(groups, parts, inSeq) });
+    // Several characters when there is a clear gap, or when they read more
+    // surely one at a time than the drawing does as one character: the
+    // reader always reads something, so "the whole reads" is not enough.
+    // Without the reader: a clear gap, or a whole that reads as nothing.
     if (allRead && (gap > 0.08 || !whole.label)) return withOther();
     if (whole.label) return whole;
     if (parts.some((p) => p && p.label)) return withOther();
@@ -545,7 +692,19 @@
     const parts = clean.map((s) => part(s, dotLimit));
 
     let found = fromParts(parts, all, task);
-    let score = 1;
+    let score = 1, sure = 1, top = null;
+    // Letters and digits go to the drawing reader (reader.js), a network
+    // trained on 40 real writers; the rules above keep the symbols it does
+    // not know. The templates below are used only when it is not loaded.
+    const reader = root.PlaygroundReader;
+    if (reader && !(found && (RULE_SYMBOLS.has(found.shape) || found.line))) {
+      const got = readWithNet(reader, clean, task, opts.switchAt);
+      if (!got) return { label: null, reason: `Not sure what that was. Try again, a little bigger or neater: ${known(task)}.` };
+      found = { shape: got.shape, keepCase: true };
+      score = got.p;
+      sure = got.sure;
+      top = got.top;
+    }
     if (!found) {
       const body = clean.filter((s, i) => parts[i].kind !== "dot");
       const flat = body.flat();
@@ -613,14 +772,19 @@
     let label = shape, note = "";
     if (shape === "÷") { label = ":"; note = "The recordings write division as :, so the AI reads that sign."; }
     if (shape === "·") note = "The multiplication dot.";
-    if (SAME_SHAPE.has(shape) && all.h < 0.4 * padH) {
+    if (!found.keepCase && SAME_SHAPE.has(shape) && all.h < 0.4 * padH) {
       label = shape.toLowerCase();
       note = "Small, so read as a small letter.";
     }
-    return { label, shape: shape === "÷" ? "÷" : label, note, score, task: SYMBOLS.has(label) ? "symbols" : "chars" };
+    // top: the drawing reader's three best guesses for this drawing, when it
+    // read it; a rule (a line, a symbol) is one certain answer.
+    if (!top) top = [{ label, p: 1, rule: true }];
+    return { label, shape: shape === "÷" ? "÷" : label, note, score, sure, top, task: SYMBOLS.has(label) ? "symbols" : "chars" };
   }
 
-  const api = { recognise, known, resample, toVector };
+  // tune() lets the evaluation in scripts/drawing_reader.py try settings.
+  const tune = (o) => { if (o.perChar) PER_CHAR = o.perChar; if (o.overlap !== undefined) OVERLAP = o.overlap; if (o.ruleScore) RULE_SCORE = o.ruleScore; if (o.gap !== undefined) GAP = o.gap; if (o.apart) APART = o.apart; if (o.touch !== undefined) TOUCH = o.touch; };
+  const api = { recognise, known, resample, toVector, tune };
   root.PlaygroundShapes = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

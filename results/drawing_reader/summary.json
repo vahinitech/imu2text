@@ -1,0 +1,41 @@
+{
+  "data": "UJI Pen Characters v2, published split: 40 train writers, 20 test",
+  "classes": 62,
+  "seed": 0,
+  "deterministic": false,
+  "copies": 24,
+  "epochs_run": 26,
+  "weights": 66254,
+  "validation": {
+    "n": 744,
+    "accuracy": 78.89784946236558,
+    "top3": 98.11827956989248,
+    "case_insensitive": 92.06989247311827,
+    "digits": 85.83333333333333,
+    "letters": 77.56410256410257
+  },
+  "test_float": {
+    "n": 2480,
+    "accuracy": 77.90322580645162,
+    "top3": 95.44354838709678,
+    "case_insensitive": 89.51612903225806,
+    "digits": 84.25,
+    "letters": 76.6826923076923
+  },
+  "test_int8": {
+    "n": 2480,
+    "accuracy": 78.06451612903226,
+    "top3": 95.3225806451613,
+    "case_insensitive": 89.55645161290322,
+    "digits": 84.0,
+    "letters": 76.92307692307693
+  },
+  "test_template_matcher": {
+    "n": 2480,
+    "accuracy": 30.241935483870968,
+    "case_insensitive": 36.65322580645161,
+    "digits": 48.0,
+    "letters": 26.826923076923077,
+    "not_sure": 54.63709677419355
+  }
+}

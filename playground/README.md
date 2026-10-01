@@ -71,8 +71,10 @@ The cards in step 4 of the page are the open tasks. Each links to an issue.
 |---|---|
 | `index.html`, `style.css`, `app.js` | the page; plain JavaScript, no dependencies |
 | `charts.js` | "Compare the algorithms" and "How sure is the AI?" charts |
-| `write.js` | card 1, "Draw it": the pad and the sensor animation. Strokes collect until Recognize is pressed, so a character in several parts (t, ÷, E) or several characters (12) is read only when the writer says it is finished |
-| `shapes.js` | reads a drawing as one character: dots and straight lines by rule, other shapes against templates. It is not the AI; the page then shows the model's output for a real recording of that character (`drawn` and `drawn_letters` in `data/public.js`, the median recording of each class). `tests/test_playground_shapes.py` runs it under Node |
+| `write.js` | card 1, "Draw it": the pad and the drawing's live movement. Strokes collect until Recognize is pressed, so a character in several parts (t, ÷, E) or several characters (12) is read only when the writer says it is finished |
+| `movement.js` | speed, acceleration, turning and pen up or down, worked out from the drawing's positions and times; `tests/test_playground_movement.py` |
+| `reader.js`, `reader-weights.js` | the drawing reader: a 66k-weight CNN trained on UJI Pen Characters (CC BY 4.0) by `scripts/drawing_reader.py`, run in plain JavaScript |
+| `shapes.js` | splits a drawing into characters and reads each with the reader, within the chosen task; dots and lines by rule; templates when the reader is missing. Cards 2 and 3 then show the drawing's movement and the reader's answer. The pen AI's output for a real recording of each character (`drawn` and `drawn_letters` in `data/public.js`, the class median, with `class_accuracy`) opens from its own button. `tests/test_playground_shapes.py` runs it under Node; `docs/drawing_pad.md` explains and scores the chain |
 | `stages.js` | the methods shown, with measured accuracies and sources |
 | `data/public.js` | generated model outputs and the synthetic signal |
 | `data/local.js` | generated real recordings, local only |
