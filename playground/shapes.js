@@ -483,13 +483,34 @@
   // Characters written together are read together: next to a digit that is
   // clearly a digit, a twin is read as a digit too, and next to a clear
   // letter as a letter. "12" drawn on the Letters task used to read l, 2.
+  // When every character is a twin, they are read as digits whatever the
+  // page's task: characters written side by side are nearly always a number
+  // ("10", not "lo"), and the letter recordings hold one letter each.
   function agree(groups, parts, opts) {
-    const clear = parts.filter((p) => p && p.label && !TWINS.has(p.label));
+    const read = parts.filter((p) => p && p.label);
+    const clear = read.filter((p) => !TWINS.has(p.label));
     const digits = clear.some((p) => p.task === "symbols");
     const letters = clear.some((p) => p.task === "chars");
-    if (digits === letters) return parts;
-    const task = digits ? "symbols" : "chars";
+    let task;
+    if (digits !== letters) task = digits ? "symbols" : "chars";
+    else if (!clear.length && read.length > 1) task = "symbols";
+    else return parts;
+    return retask(groups, parts, opts, task);
+  }
+  function retask(groups, parts, opts, task) {
     return parts.map((p, i) => (p && p.label && TWINS.has(p.label) && p.task !== task ? recogniseOne(groups[i], { ...opts, task }) : p));
+  }
+  // When every character is a twin, the same characters read the other way
+  // ("10" and "lo"), for the page to offer. Null otherwise: next to a clear
+  // 2, "l2" is no reading at all.
+  function otherReading(groups, parts, opts) {
+    const read = parts.filter((p) => p && p.label);
+    const twins = read.filter((p) => TWINS.has(p.label));
+    if (!twins.length || twins.length !== read.length) return null;
+    const task = twins[0].task === "symbols" ? "chars" : "symbols";
+    const other = parts.map((p, i) => (p && p.label && TWINS.has(p.label) ? recogniseOne(groups[i], { ...opts, task }) : p));
+    const same = other.every((p, i) => (p && p.label) === (parts[i] && parts[i].label));
+    return same ? null : other;
   }
 
   // strokes: arrays of {x, y}. opts.size: the drawing area's height in
@@ -505,9 +526,10 @@
     const allRead = parts.every((p) => p && p.label);
     // A clear gap means separate characters. A narrow one (a sloppy H whose
     // bar misses a stem) is one character if it reads as one.
-    if (allRead && (gap > 0.08 || !whole.label)) return { sequence: parts };
+    const withOther = () => ({ sequence: parts, other: otherReading(groups, parts, opts) });
+    if (allRead && (gap > 0.08 || !whole.label)) return withOther();
     if (whole.label) return whole;
-    if (parts.some((p) => p && p.label)) return { sequence: parts };
+    if (parts.some((p) => p && p.label)) return withOther();
     return whole;
   }
 

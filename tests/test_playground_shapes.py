@@ -573,6 +573,29 @@ def test_characters_written_together_are_read_together(first, second, task, want
     assert read.count(want) >= 7, read
 
 
+@pytest.mark.parametrize("name", ["10-oval", "10-angular"])
+@pytest.mark.parametrize("task", ["chars", "symbols"])
+def test_the_reported_10_reads_10_and_offers_lo(name, task):
+    # Reported: a line and a ring drawn on the Letters task read "lo". When
+    # every character could be a letter or a digit, digits win, and the page
+    # offers the letters.
+    got = recognise([{"strokes": _reported(name), "task": task, "size": 215}])[0]
+    assert [c["label"] for c in got["sequence"]] == ["1", "0"]
+    assert [c["label"] for c in got["other"]] == ["l", "o"]
+
+
+def test_only_fully_ambiguous_drawings_offer_another_reading():
+    got = recognise(
+        [
+            {"strokes": _reported("12"), "task": "chars", "size": 215},
+            {"strokes": _reported("11"), "task": "chars", "size": 215},
+        ]
+    )
+    assert got[0]["other"] is None  # "l2" is no reading
+    assert [c["label"] for c in got[1]["sequence"]] == ["1", "1"]
+    assert [c["label"] for c in got[1]["other"]] == ["l", "l"]
+
+
 def test_one_character_with_a_gap_between_its_strokes_stays_one():
     # An H whose bar stops short of both stems, and a = and a ÷.
     rng = random.Random(9)
