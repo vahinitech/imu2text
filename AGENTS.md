@@ -9,6 +9,26 @@ imu2text trains handwriting recognisers on the Fraunhofer OnHW datasets (an
 IMU pen, 13 channels at 100 Hz) and reports writer-independent accuracy on the
 official splits.
 
+## Where to work
+
+The OnHW archives live only on the production server, so two kinds of task
+run there, in an SSH session: training or any accuracy run, and
+`tests/test_real_data.py`. Everything else (code, docs, the playground,
+tests without `ONHW_DATA_DIR`, reviews, PRs) runs on the owner's laptop, in a
+Local session on a checkout made by vahini-web's `tools/dev-setup.sh`. If you
+are on the server for a task that does not need the data, say so before
+starting and ask the owner to move it to a Local session, or to open a Cloud
+session (claude.ai/code) if no laptop is at hand. The server is production,
+shared with other sites and short of RAM: ask before any training run there.
+
+On the server, start in a worktree from `origin/main`
+(`git worktree add .claude/worktrees/<topic> -b <branch> origin/main`) and
+remove it when its PR merges. The long-lived clone `~/imu2text` holds the
+datasets and the virtualenv; do not edit, pull, reset or rebase it, and leave
+its local changes for their owner. When a playground change merges here,
+vahini-web's pin-bump workflow opens the PR that puts it on
+playground.vahinitech.com; nothing in this repo deploys.
+
 ## Before you commit
 
 ```bash
