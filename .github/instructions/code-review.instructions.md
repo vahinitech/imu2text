@@ -35,6 +35,11 @@ the file and line for every comment.
 - On OnHW-chars 52-class, most remaining errors are case confusions. A PR
   adding capacity to raise that number should say what it expects to fix and
   include `--error-analysis` output.
+- A decoder change reports how many outputs are empty or abstained, before
+  and after. A strict lexicon decoder that abstains often is usually pruning
+  the right word.
+- Augmentation runs on raw sensor counts, before normalisation; a value it
+  writes (a dropped channel, padding) must be one the sensor can produce.
 - `legacy/cnn_gnn.py` is not extended and its numbers are never quoted.
 
 ## Loaders and data

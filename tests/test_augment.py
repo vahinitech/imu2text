@@ -278,3 +278,17 @@ def test_random_crop_keeps_length_across_fractions(seq):
     rng = np.random.default_rng(0)
     for frac in (0.5, 0.7, 0.85, 0.99):
         assert A.random_crop(seq, rng, min_frac=frac).shape == seq.shape
+
+
+def test_channel_dropout_holds_a_dropped_channel_at_its_mean(seq):
+    """A dropped channel stays in range: constant at its own mean, never 0."""
+    rng = np.random.default_rng(3)
+    shifted = seq + 1000.0  # raw counts are far from 0 on some axes
+    for _ in range(50):
+        out = A.channel_dropout(shifted, rng, p_drop=0.5)
+        changed = ~np.all(out == shifted, axis=0)
+        if changed.any():
+            break
+    assert changed.any(), "dropout never fired"
+    for c in np.flatnonzero(changed):
+        assert np.allclose(out[:, c], shifted[:, c].mean())

@@ -313,7 +313,7 @@
         <h3>Words run together</h3>
         <p>In a word the model also has to find where each letter starts and ends.
           The word model here trained for only 15 rounds and reads
-          <span data-bind="words.exact_lexicon" data-fmt="pct">32.73%</span> of words
+          <span data-bind="words.exact_lexicon" data-fmt="pct">40.78%</span> of words
           exactly.</p>
       </article>
       <article class="v-card">
@@ -364,7 +364,7 @@
           <tr><td>Letters</td><td>new left-handed people</td><td>5 models, also learned from left-handed people</td><td data-bind="left_summary.ensemble_accuracy" data-fmt="pct">59.47%</td></tr>
           <tr><td>Numbers and symbols (15)</td><td>new people</td><td>one model</td><td data-bind="tasks.symbols_indep.accuracy" data-fmt="pct">71.03%</td></tr>
           <tr><td>Numbers and symbols (15)</td><td>familiar people</td><td>one model</td><td data-bind="tasks.symbols_dep.accuracy" data-fmt="pct">94.71%</td></tr>
-          <tr><td>Words</td><td>new people</td><td>word reader with a word list</td><td><span data-bind="words.exact_lexicon" data-fmt="pct">32.73%</span> of words exactly</td></tr>
+          <tr><td>Words</td><td>new people</td><td>word reader with a word list</td><td><span data-bind="words.exact_lexicon" data-fmt="pct">40.78%</span> of words exactly</td></tr>
         </tbody>
       </table>
     </div>
@@ -496,7 +496,7 @@
         <div class="deal__item" id="term-entropy"><dt>Entropy (bits)</dt><dd>How spread out the AI's scores are. 0 bits: all on one letter. Higher: it hesitates between several.</dd></div>
         <div class="deal__item" id="term-disagreement"><dt>Disagreement (mutual information)</dt><dd>The part of the doubt that comes from the 5 runs giving different answers.</dd></div>
         <div class="deal__item" id="term-confusion"><dt>Confusion matrix</dt><dd>A grid of which letter was written (rows) and what the AI read (columns). Off the diagonal are mistakes.</dd></div>
-        <div class="deal__item" id="term-word-list"><dt>Word list (lexicon)</dt><dd>A list of allowed words. The model picks the closest one, or gives no answer if none fits.</dd></div>
+        <div class="deal__item" id="term-word-list"><dt>Word list (lexicon)</dt><dd>A list of allowed words. The model scores every word on the list and picks the most likely one.</dd></div>
         <div class="deal__item" id="term-cer"><dt>Character error rate (CER)</dt><dd>How many letters are wrong, as a share of the word's length. Lower is better.</dd></div>
       </dl>
     </div>

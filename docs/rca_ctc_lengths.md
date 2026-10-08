@@ -178,6 +178,7 @@ seed-0 deterministic configuration described above.
 | Grouped-validation model: greedy → lexicon | 59.31% → 65.35% | 5.50% → 22.77% |
 | Parent → final refit, greedy | 59.30% → 53.95% | 5.54% → 8.90% |
 | Final refit: greedy → lexicon | 53.95% → 56.85% | 8.90% → 32.73% |
+| Final refit: greedy → exact lexicon scoring | 53.95% → 45.39% | 8.90% → 40.78% |
 
 The same-split improvement is **3.60 CER percentage points**. A paired bootstrap
 resampling the 11 complete test writers, 5,000 times at seed 0, gives a 95%
@@ -218,7 +219,11 @@ accuracy is **32.57%** on training against **8.90%** on test, a large
 generalization gap. The final lexicon recovers 1,261 additional exact words
 without spoiling an exact match, but adds 837 character edits and returns 1,348
 empty results. Its 32.73% word accuracy depends on the closed training
-vocabulary and is not an open-vocabulary recognition figure.
+vocabulary and is not an open-vocabulary recognition figure. The empty results
+were the beam search pruning complete words, not abstentions by the model:
+scoring every training word exactly on the same weights gives no empty results,
+45.39% CER and 40.78% exact words
+([refit_seed0_exact.json](../results/ctc/refit_seed0_exact.json)).
 
 The saved inference weights were reloaded into a fresh model and compared with
 the in-memory model before reporting success. Their checksum and the training

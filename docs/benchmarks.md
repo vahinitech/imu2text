@@ -22,6 +22,7 @@ right-handed writers.
 | OnHW-equations (split), digits / whole numbers | official WI, seed 0 | 87.35 / 76.10 | n/a | [Numbers](#numbers) |
 | OnHW-words500, 30 epochs, lexicon | official WI | CER 32.65 / WER 40.23 | not in these tables | [Words](#onhw-words500) |
 | OnHW-words500, 15 epochs, refit, greedy | `Words500_indep_02` fold 0 | CER 53.95% / WER 91.10% | n/a | [Words](#onhw-words500) |
+| OnHW-words500, same refit, exact lexicon scoring | `Words500_indep_02` fold 0 | 40.78% words exact, CER 45.39% | n/a | [Words](#onhw-words500) |
 | OnHW-chars_L (left-handed), 52 classes | constructed WI, 9 writers | 26.86 | n/a | [Coverage](#coverage-by-dataset) |
 
 The 52-class ceiling is the sensor: 43.1% of the remaining errors are a letter
@@ -370,6 +371,7 @@ result. Exact word accuracy counts whole-word matches.
 | Same writer-validation model, training-only lexicon | 16,416 / 3,499 | 65.35% | 77.23% | 22.77% |
 | Final refit on all official training writers, greedy | 19,915 / n/a | 53.95% | 91.10% | 8.90% |
 | Same final refit, training-only lexicon | 19,915 / n/a | 56.85% | 67.27% | 32.73% |
+| Same final refit, exact lexicon scoring | 19,915 / n/a | **45.39%** | **59.22%** | **40.78%** |
 
 - **Same split:** the fix cuts CER by **3.60 percentage points** (paired
   bootstrap over the 11 test writers, 95% interval 1.52–5.67). One run.
@@ -395,6 +397,18 @@ result. Exact word accuracy counts whole-word matches.
   with higher CER than greedy. In the 30-epoch run the lexicon lowered CER
   instead (38.08 to 32.65); the two runs differ in epochs and training data,
   and this study did not isolate why.
+- **Exact lexicon scoring:** the empty results came from the beam search, not
+  the model. It keeps 8 prefixes per frame, and with 501 words sharing many
+  prefixes the complete words were pruned before the end, so strict mode had
+  nothing to return. `LexiconDecoder` now computes the CTC likelihood of every
+  training word for each recording (`ctc_word_log_likelihoods` in
+  `imu2text/words.py`) and returns the most likely one. On the same refit
+  weights and the same 5,292 test words: no empty results, CER 45.39% (from
+  56.85%), WER 59.22% (from 67.27%), 40.78% of words exact (from 32.73%).
+  Nothing was retrained; the lexicon is still the training words, and greedy
+  decoding reproduces the saved predictions exactly. Report and predictions:
+  [refit_seed0_exact.json](../results/ctc/refit_seed0_exact.json), from
+  `python -m scripts.redecode_ctc` with the exported refit weights.
 - **Case inside words** (issue #11, `scripts/case_in_words.py`, from the saved
   predictions). With the word list, the final refit reads 33.67% of test words
   right ignoring case, and 97.2% of those are also right in case (99.46% of

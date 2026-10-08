@@ -527,7 +527,7 @@ def main() -> None:
     )
     ap.add_argument(
         "--words",
-        default="results/ctc/refit_seed0.json.predictions.npz",
+        default="results/ctc/refit_seed0_exact.json.predictions.npz",
         help="saved Words500 CTC predictions (refs, hyps, lexicon_hyps)",
     )
     ap.add_argument(

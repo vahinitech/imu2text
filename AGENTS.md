@@ -101,8 +101,10 @@ Docs, comments, commit messages and PR bodies follow
 | `imu2text/download.py` | archive catalog and downloader |
 | `imu2text/augment.py` | augmentation policies |
 | `scripts/` | benchmark, ensemble and figure scripts |
+| `scripts/score_numbers.py` | digit, whole-number and equation accuracy from saved symbols/equations predictions |
+| `scripts/redecode_ctc.py` | decodes a saved Words500 refit again (exact lexicon scoring) without retraining |
 | `legacy/cnn_gnn.py` | old single-script example; do not extend |
-| `results/` | committed predictions, tables and figures |
+| `results/` | committed predictions, tables and figures; `results/tasks/` holds the symbols and equations runs, `results/ctc/` the word runs |
 | `docs/` | benchmarks, datasets, roadmap, root-cause analyses |
 | `playground/` | the Vahini AI Playground page at playground.vahinitech.com; see `playground/README.md` |
 | `scripts/build_playground.py` | builds `playground/data/public.js` from committed results |
@@ -135,6 +137,21 @@ The package runs from the source tree. `pytest.ini` puts the repo root on
   when the drawing reader does not load. The drawing is never fed to the pen
   model; the page shows its output for a real recording of the character,
   labelled as a recording by another writer, with that character's rate.
+- **A decoder that pruned the right answer.** The Words500 lexicon beam
+  search kept 8 prefixes per frame and dropped complete words, so strict mode
+  returned 1,348 empty answers out of 5,292. Scoring every training word with
+  the full CTC likelihood, on the same weights, gave 40.78% exact words
+  against 32.73%. When a decoder abstains often, check the search before the
+  model, and keep the weights a refit exports so decoding can be redone.
+- **Augmentation in the wrong units.** `channel_dropout` set channels to 0
+  in raw counts, before the scaler, where 0 is far outside the data on the
+  gravity axes. Augmentation that writes a value must write one the sensor
+  can produce.
+- **Validation that is not the test protocol.** The OnHW-chars validation
+  slice is drawn sample by sample from the training writers: about 81%
+  against 72% on unseen writers, and it ranked the worst seed best. It still
+  drives early stopping and model selection; read it as writer-dependent.
+  See `docs/roadmap.md`.
 - **More capacity for a data limit.** On the 52-class task, 43% of the 72.5%
   model's errors are a letter read as its other case (38.4% for the 68.0%
   baseline), and the case-insensitive score of the 72.5% model is 84.3%.

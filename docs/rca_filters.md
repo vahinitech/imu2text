@@ -112,8 +112,9 @@ and the p10-p90 range is 16,313 to 17,050. Against the LSM6DSL's options:
 A pen spends most of its time reading 1 g, so the range is +/-2 g.
 
 **The gyroscope scale has to be inferred**, since no comparable constant is
-available. The signal never approaches the int16 limit (max 18,987 of 32,767),
-so it is not saturating and the range cannot be read off a clipped signal.
+available. The signal stays below the int16 limit (largest reading 30,727 of
+32,767 on OnHW-chars `both/indep/fold0` training, 13,498 on OnHW-chars_L), so
+it does not clip and the range cannot be read off a clipped signal.
 Integrating each candidate range over a character gives:
 
 | Full scale | LSB/dps | Peak rate | Total swing per character |

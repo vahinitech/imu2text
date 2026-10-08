@@ -527,3 +527,47 @@ def test_lexicon_bonus_decides_between_a_word_and_a_likelier_prefix():
 
     assert decode(0.0) == "ABC"
     assert decode(1.0) == "AB"
+
+
+def _brute_ctc(log_p, word):
+    """log P(word) by summing every alignment; only for tiny T."""
+    import itertools  # pylint: disable=import-outside-toplevel
+
+    blank = log_p.shape[1] - 1
+    total = -np.inf
+    for path in itertools.product(range(log_p.shape[1]), repeat=len(log_p)):
+        out, prev = [], None
+        for c in path:
+            if c not in (prev, blank):
+                out.append(c)
+            prev = c
+        if out == list(word):
+            total = np.logaddexp(total, sum(log_p[t, c] for t, c in enumerate(path)))
+    return total
+
+
+def test_ctc_word_log_likelihoods_match_brute_force():
+    rng = np.random.default_rng(0)
+    words = [[], [0], [1, 1], [0, 2], [2, 0, 1]]
+    for _ in range(20):
+        T = int(rng.integers(1, 6))
+        log_p = np.log(rng.dirichlet(np.ones(4), size=T))
+        got = W.ctc_word_log_likelihoods(log_p, words)
+        want = np.array([_brute_ctc(log_p, w) for w in words])
+        assert np.array_equal(np.isinf(got), np.isinf(want))
+        assert np.allclose(got[np.isfinite(want)], want[np.isfinite(want)])
+
+
+def test_exact_lexicon_decoder_never_returns_empty():
+    """Noisy posteriors that no beam spells out still give a lexicon word."""
+    lexicon = ["HALLO", "HILFE", "HAUS"]
+    decoder = W.LexiconDecoder(lexicon=lexicon)
+    rng = np.random.default_rng(1)
+    for _ in range(10):
+        post = rng.dirichlet(np.ones(len(decoder.charset) + 1), size=12)
+        assert decoder.decode_one(post) in lexicon
+
+
+def test_exact_lexicon_decoder_rejects_words_outside_the_charset():
+    with pytest.raises(ValueError, match="outside the charset"):
+        W.LexiconDecoder(lexicon=["HALLO", "x1"])

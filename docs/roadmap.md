@@ -41,6 +41,8 @@ of the IJDAR 2022 benchmark paper, which this repo does not hold.
 - Left-handed chars: `--onhw-chars-l` and `--both-hands` in `imu2text/models.py`, constructed splits only.
 - Seed ensembles with ECE, reliability and coverage plots: `scripts/ensemble_chars.py`, `scripts/plot_uncertainty.py`. Results for #13, including how confident the case errors are, in [uncertainty.md](uncertainty.md#results).
 - Dataset downloads, including the ICROW and wordsTraj archives: `imu2text/download.py`.
+- Digits, whole numbers and equations from the split-equations predictions: `load_equation_groups` in `imu2text/symbols.py`, `scripts/score_numbers.py`.
+- Exact lexicon decoding for Words500: `ctc_word_log_likelihoods` in `imu2text/words.py`, `scripts/redecode_ctc.py`.
 
 ## Next, in order
 
@@ -56,6 +58,35 @@ were filed:
 | [#12 hybrid classical + deep](https://github.com/vahinitech/imu2text/issues/12) | Filed with a prediction of 0 to +2 points, so a null result closes the direction cheaply |
 | [#15 sequence truncation study](https://github.com/vahinitech/imu2text/issues/15) | Cheap, and may interact with the case ceiling since capitals run longer |
 | [#16 verify the .npy loader contents](https://github.com/vahinitech/imu2text/issues/16) | Four of four loaders disagreed with the published format once already |
+
+A code review on 2026-10-08 found these levers in the current code. Each needs a
+training run before anyone can claim it helps:
+
+- **Padding reaches the classifier.** `cnn_bilstm` and `cnn_bilstm_attn` have no
+  mask, and about half of every OnHW-chars input is zero padding (median 44
+  steps against `--max-len 100`). The backward LSTM, the attention softmax and
+  the max pool all read it. Masked pooling plus the recording length as a
+  feature is the cheapest change aimed at the case errors, since capitals run
+  longer (mean 53.8 steps against 44.9).
+- **Validation comes from the training writers.** The 15% slice that drives
+  early stopping, the LR schedule and model selection is drawn sample by sample,
+  so it scores about 81% while the unseen writers score 72%, and it ranked seed
+  4 best when it was worst on test. The symbols and equations archives ship
+  writer IDs, so a writer-grouped validation slice is free there; for
+  OnHW-chars, the other folds' test writers that sit inside fold 0's training
+  half give one.
+- **Weight averaging and fresh augmentation.** The 5-run vote beats the average
+  run by 2.28 points, a sign of variance that an exponential moving average of
+  the weights could take out of a single model. Augmented copies are drawn once
+  and reused for all 30 epochs.
+- **The word model is under-fitted.** One 32-unit BiLSTM layer (about 73k
+  parameters), 15 epochs while validation loss was still falling, plain Adam
+  with no clipping or schedule. Training CER is 23.70%.
+- **The magnetometer is mostly an offset.** On OnHW-chars fold 0 training its
+  standard deviation inside a recording is 5 to 7 counts, against several
+  hundred between the recordings' means, so after global scaling
+  the model sees a per-recording constant. Subtracting each recording's own
+  mean is leak-free.
 
 After those, untracked and roughly in order:
 

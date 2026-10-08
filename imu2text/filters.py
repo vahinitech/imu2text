@@ -57,8 +57,9 @@ ACCEL_UNITS_PER_G = 16384.0
 #: configured full-scale range.
 #:
 #: 14.3 LSB/dps is the LSM6DSL's +/-2000 dps sensitivity, inferred as follows.
-#: The gyroscope never approaches the int16 limit (max 18,987 of 32,767), so
-#: it is not saturating and the range cannot be read off a clipped signal.
+#: The gyroscope stays below the int16 limit (largest reading 30,727 of 32,767
+#: on OnHW-chars both/indep fold 0 training, 13,498 on OnHW-chars_L), so it
+#: does not clip and the range cannot be read off a clipped signal.
 #: Integrating each candidate range over a character gives a total angular
 #: swing of 4.4, 8.7, 17.4 or 34.9 degrees for +/-250, 500, 1000 and 2000 dps.
 #: Only the last is a plausible amount of pen rotation while forming a letter.
