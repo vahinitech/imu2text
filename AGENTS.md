@@ -85,7 +85,11 @@ Docs, comments, commit messages and PR bodies follow
 - `writers.pkl` holds pseudonymous codes only. Nothing may log or store a
   real identity, and results are reported in aggregate.
 - Do not commit papers, datasets or model weights. Cite papers, download data
-  through `imu2text/download.py`, and publish weights outside git.
+  through `imu2text/download.py`, and publish weights outside git. Weights
+  trained on OnHW never go in git: the data is non-commercial. One exception:
+  the playground's drawing reader (`playground/reader-weights.js`, 88 KB),
+  trained on UJI Pen Characters under CC BY 4.0, with the attribution in the
+  file. EMNIST is not used, as its licence terms are unclear.
 
 ## Where things are
 
@@ -102,7 +106,7 @@ Docs, comments, commit messages and PR bodies follow
 | `docs/` | benchmarks, datasets, roadmap, root-cause analyses |
 | `playground/` | the Vahini AI Playground page at playground.vahinitech.com; see `playground/README.md` |
 | `scripts/build_playground.py` | builds `playground/data/public.js` from committed results |
-| `playground/shapes.js` | "Draw it": reads a drawing as one character, then the page shows the model's saved output for a real recording of it; tested by `tests/test_playground_shapes.py` under Node |
+| `playground/shapes.js`, `reader.js` | "Draw it": the drawing reader (a small CNN trained on UJI by `scripts/drawing_reader.py`) names each character of a drawing; the pen AI's saved output for a real recording of it opens separately. Tested by `tests/test_playground_shapes.py` under Node; the chain is scored by `scripts/drawing_pad_eval.py`, explained in `docs/drawing_pad.md` |
 | `tests/test_real_data.py` | loader tests on the real archives; needs `ONHW_DATA_DIR` |
 
 The package runs from the source tree. `pytest.ini` puts the repo root on
@@ -127,8 +131,10 @@ The package runs from the source tree. `pytest.ini` puts the repo root on
   3 as 1, and a minus read as U because nothing handled straight lines.
   The matcher had no test. `tests/test_playground_shapes.py` now draws
   every shape it claims to know, jittered and slanted, and a shape added to
-  `shapes.js` needs a case there. The drawing is never fed to the model;
-  the page shows the output for a real recording of the matched character.
+  `shapes.js` needs a case there. The templates are now only the fallback
+  when the drawing reader does not load. The drawing is never fed to the pen
+  model; the page shows its output for a real recording of the character,
+  labelled as a recording by another writer, with that character's rate.
 - **More capacity for a data limit.** On the 52-class task, 43% of the 72.5%
   model's errors are a letter read as its other case (38.4% for the 68.0%
   baseline), and the case-insensitive score of the 72.5% model is 84.3%.

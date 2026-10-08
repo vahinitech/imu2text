@@ -1,0 +1,388 @@
+{
+ "data": "UJI Pen Characters v2, published test split, 20 writers",
+ "reader": "results/drawing_reader/summary.json (one training run, seed 0)",
+ "pen_ai": {
+  "letters": "results/ensemble/right_seed*.npz, 5-seed ensemble, right-handed test writers",
+  "symbols": "results/tasks/symbols_indep.npz, seed 0",
+  "page_recordings_right": {
+   "chars": "46 of 52",
+   "symbols": "15 of 15"
+  },
+  "per_character": {
+   "chars": {
+    "A": {
+     "page_recording_right": true,
+     "rate": 0.8366013071895425,
+     "n": 153
+    },
+    "B": {
+     "page_recording_right": true,
+     "rate": 0.934640522875817,
+     "n": 153
+    },
+    "C": {
+     "page_recording_right": true,
+     "rate": 0.6862745098039216,
+     "n": 153
+    },
+    "D": {
+     "page_recording_right": true,
+     "rate": 0.8888888888888888,
+     "n": 153
+    },
+    "E": {
+     "page_recording_right": true,
+     "rate": 0.934640522875817,
+     "n": 153
+    },
+    "F": {
+     "page_recording_right": true,
+     "rate": 0.934640522875817,
+     "n": 153
+    },
+    "G": {
+     "page_recording_right": true,
+     "rate": 0.7124183006535948,
+     "n": 153
+    },
+    "H": {
+     "page_recording_right": true,
+     "rate": 0.9281045751633987,
+     "n": 153
+    },
+    "I": {
+     "page_recording_right": true,
+     "rate": 0.7908496732026143,
+     "n": 153
+    },
+    "J": {
+     "page_recording_right": true,
+     "rate": 0.803921568627451,
+     "n": 153
+    },
+    "K": {
+     "page_recording_right": true,
+     "rate": 0.7058823529411765,
+     "n": 153
+    },
+    "L": {
+     "page_recording_right": true,
+     "rate": 0.7843137254901961,
+     "n": 153
+    },
+    "M": {
+     "page_recording_right": true,
+     "rate": 0.8366013071895425,
+     "n": 153
+    },
+    "N": {
+     "page_recording_right": true,
+     "rate": 0.8954248366013072,
+     "n": 153
+    },
+    "O": {
+     "page_recording_right": true,
+     "rate": 0.7581699346405228,
+     "n": 153
+    },
+    "P": {
+     "page_recording_right": false,
+     "rate": 0.6274509803921569,
+     "n": 153
+    },
+    "Q": {
+     "page_recording_right": true,
+     "rate": 1.0,
+     "n": 153
+    },
+    "R": {
+     "page_recording_right": true,
+     "rate": 0.8823529411764706,
+     "n": 153
+    },
+    "S": {
+     "page_recording_right": true,
+     "rate": 0.6797385620915033,
+     "n": 153
+    },
+    "T": {
+     "page_recording_right": true,
+     "rate": 0.8431372549019608,
+     "n": 153
+    },
+    "U": {
+     "page_recording_right": true,
+     "rate": 0.6013071895424836,
+     "n": 153
+    },
+    "V": {
+     "page_recording_right": true,
+     "rate": 0.6535947712418301,
+     "n": 153
+    },
+    "W": {
+     "page_recording_right": true,
+     "rate": 0.5490196078431373,
+     "n": 153
+    },
+    "X": {
+     "page_recording_right": true,
+     "rate": 0.6013071895424836,
+     "n": 153
+    },
+    "Y": {
+     "page_recording_right": false,
+     "rate": 0.49019607843137253,
+     "n": 153
+    },
+    "Z": {
+     "page_recording_right": true,
+     "rate": 0.6535947712418301,
+     "n": 153
+    },
+    "a": {
+     "page_recording_right": true,
+     "rate": 0.7777777777777778,
+     "n": 153
+    },
+    "b": {
+     "page_recording_right": true,
+     "rate": 0.8823529411764706,
+     "n": 153
+    },
+    "c": {
+     "page_recording_right": true,
+     "rate": 0.6666666666666666,
+     "n": 153
+    },
+    "d": {
+     "page_recording_right": true,
+     "rate": 0.8758169934640523,
+     "n": 153
+    },
+    "e": {
+     "page_recording_right": true,
+     "rate": 0.9150326797385621,
+     "n": 153
+    },
+    "f": {
+     "page_recording_right": true,
+     "rate": 0.8431372549019608,
+     "n": 153
+    },
+    "g": {
+     "page_recording_right": true,
+     "rate": 0.8823529411764706,
+     "n": 153
+    },
+    "h": {
+     "page_recording_right": true,
+     "rate": 0.7254901960784313,
+     "n": 153
+    },
+    "i": {
+     "page_recording_right": true,
+     "rate": 0.9019607843137255,
+     "n": 153
+    },
+    "j": {
+     "page_recording_right": true,
+     "rate": 0.8496732026143791,
+     "n": 153
+    },
+    "k": {
+     "page_recording_right": true,
+     "rate": 0.5751633986928104,
+     "n": 153
+    },
+    "l": {
+     "page_recording_right": true,
+     "rate": 0.6470588235294118,
+     "n": 153
+    },
+    "m": {
+     "page_recording_right": true,
+     "rate": 0.8300653594771242,
+     "n": 153
+    },
+    "n": {
+     "page_recording_right": true,
+     "rate": 0.7320261437908496,
+     "n": 153
+    },
+    "o": {
+     "page_recording_right": true,
+     "rate": 0.6339869281045751,
+     "n": 153
+    },
+    "p": {
+     "page_recording_right": true,
+     "rate": 0.6797385620915033,
+     "n": 153
+    },
+    "q": {
+     "page_recording_right": true,
+     "rate": 0.7908496732026143,
+     "n": 153
+    },
+    "r": {
+     "page_recording_right": true,
+     "rate": 0.8366013071895425,
+     "n": 153
+    },
+    "s": {
+     "page_recording_right": false,
+     "rate": 0.5359477124183006,
+     "n": 153
+    },
+    "t": {
+     "page_recording_right": true,
+     "rate": 0.7647058823529411,
+     "n": 153
+    },
+    "u": {
+     "page_recording_right": false,
+     "rate": 0.5294117647058824,
+     "n": 153
+    },
+    "v": {
+     "page_recording_right": true,
+     "rate": 0.6601307189542484,
+     "n": 153
+    },
+    "w": {
+     "page_recording_right": true,
+     "rate": 0.6274509803921569,
+     "n": 153
+    },
+    "x": {
+     "page_recording_right": false,
+     "rate": 0.477124183006536,
+     "n": 153
+    },
+    "y": {
+     "page_recording_right": false,
+     "rate": 0.5751633986928104,
+     "n": 153
+    },
+    "z": {
+     "page_recording_right": true,
+     "rate": 0.49019607843137253,
+     "n": 153
+    }
+   },
+   "symbols": {
+    "0": {
+     "page_recording_right": true,
+     "rate": 0.8809523809523809,
+     "n": 42
+    },
+    "1": {
+     "page_recording_right": true,
+     "rate": 0.7317073170731707,
+     "n": 41
+    },
+    "2": {
+     "page_recording_right": true,
+     "rate": 0.7380952380952381,
+     "n": 42
+    },
+    "3": {
+     "page_recording_right": true,
+     "rate": 0.6829268292682927,
+     "n": 41
+    },
+    "4": {
+     "page_recording_right": true,
+     "rate": 0.575,
+     "n": 40
+    },
+    "5": {
+     "page_recording_right": true,
+     "rate": 0.6923076923076923,
+     "n": 39
+    },
+    "6": {
+     "page_recording_right": true,
+     "rate": 0.7619047619047619,
+     "n": 42
+    },
+    "7": {
+     "page_recording_right": true,
+     "rate": 0.6585365853658537,
+     "n": 41
+    },
+    "8": {
+     "page_recording_right": true,
+     "rate": 0.65,
+     "n": 40
+    },
+    "9": {
+     "page_recording_right": true,
+     "rate": 0.5714285714285714,
+     "n": 42
+    },
+    "+": {
+     "page_recording_right": true,
+     "rate": 0.75,
+     "n": 40
+    },
+    "-": {
+     "page_recording_right": true,
+     "rate": 0.8095238095238095,
+     "n": 42
+    },
+    "\u00b7": {
+     "page_recording_right": true,
+     "rate": 0.5853658536585366,
+     "n": 41
+    },
+    ":": {
+     "page_recording_right": true,
+     "rate": 0.9166666666666666,
+     "n": 36
+    },
+    "=": {
+     "page_recording_right": true,
+     "rate": 0.6666666666666666,
+     "n": 42
+    }
+   }
+  }
+ },
+ "px_per_mm": 12.0,
+ "single": {
+  "digits": {
+   "n": 400,
+   "reader_right": 96.2,
+   "reader_right_ignoring_case": 96.2,
+   "not_sure": 0,
+   "split_in_two": 3,
+   "chain_right_page_recording": 96.2,
+   "chain_right_expected_any_recording": 67.0
+  },
+  "letters": {
+   "n": 2080,
+   "reader_right": 76.3,
+   "reader_right_ignoring_case": 90.2,
+   "not_sure": 2,
+   "split_in_two": 28,
+   "chain_right_page_recording": 69.3,
+   "chain_right_expected_any_recording": 58.4
+  }
+ },
+ "sequences": {
+  "seed": 7,
+  "digits_2_or_3": {
+   "n": 200,
+   "exact": 94.5,
+   "ignoring_case": 94.5
+  },
+  "letter_pairs": {
+   "n": 200,
+   "exact": 56.0,
+   "ignoring_case": 82.5
+  }
+ },
+ "single_false_split": 1.2
+}

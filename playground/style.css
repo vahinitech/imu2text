@@ -196,6 +196,12 @@ details.dev p { margin: 6px 0; }
 .trail b { color: var(--v-text); font-size: var(--v-text-md); }
 .trail__arrow { color: var(--v-text-faint); }
 .bars-cap { margin: 0 0 4px; }
+.seq-summary { border-radius: var(--v-radius-md); padding: 10px 14px; font-size: var(--v-text-md); color: var(--v-text); border: 1px solid var(--v-border); }
+.seq-summary--good { background: var(--v-success-bg); border-color: var(--v-success); }
+.seq-summary--bad { background: var(--v-danger-bg); border-color: var(--v-danger); }
+.seq-summary__chars { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.seq-summary__char { background: var(--v-surface); border: 1px solid var(--v-border); border-radius: var(--v-radius-pill); padding: 2px 10px; font-size: var(--v-text-sm); }
+.seq-summary__char--now { border-color: var(--v-accent); box-shadow: 0 0 0 2px var(--v-accent-soft); }
 .sample-row { margin: 6px 0 0; }
 .sample-chip { position: relative; }
 .sample-chip::after { content: ""; position: absolute; right: 3px; top: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--v-text-faint); }
@@ -304,3 +310,32 @@ details.dev p { margin: 6px 0; }
   .deal, .deal__item { transition: none; }
   .deal:hover { transform: none; }
 }
+
+/* A drawing, read by the drawing reader (cards 2 and 3). */
+.move-chart { margin: 10px 0; overflow: hidden; }
+.move-chart svg { display: block; max-width: 100%; height: auto; }
+.move-chart__up { fill: var(--v-accent-soft); opacity: 0.6; }
+.move-chart__axis { stroke: var(--v-border); stroke-width: 1; }
+.move-chart__name { font-size: 12px; font-weight: 600; fill: currentColor; }
+.move-chart__unit { font-size: 11px; fill: currentColor; opacity: 0.7; }
+.draw-answer__head { font-size: 1.15rem; margin: 0 0 10px; }
+.draw-answer__head strong { font-size: 1.6rem; letter-spacing: 0.04em; }
+.draw-answer__char { margin: 0 0 12px; }
+.draw-answer__label { font-weight: 600; margin: 0 0 4px; }
+.draw-answer__bar { display: grid; grid-template-columns: 2ch 1fr 6ch; gap: 8px; align-items: center; font-size: 0.9rem; margin: 2px 0; }
+.draw-answer__bar > span:last-child { text-align: right; }
+.draw-answer__track { height: 8px; border-radius: 4px; background: var(--v-accent-soft); overflow: hidden; }
+.draw-answer__fill { display: block; height: 100%; background: var(--v-chart-1); }
+.draw-answer__pen { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--v-border); }
+.pen-rate { font-size: var(--v-text-sm); color: var(--v-text-2); margin: 8px 0; }
+.seq-summary__rate { font-size: var(--v-text-xs); color: var(--v-text-muted); }
+.seq-summary__note { display: block; font-size: var(--v-text-xs); color: var(--v-text-muted); margin-top: 6px; }
+/* Sections folded at the end of the page: the glossary and the other AI
+   designs, open for whoever wants them. */
+.fold__summary { cursor: pointer; list-style: none; display: block; padding: 4px 0 8px; }
+.fold__summary::-webkit-details-marker { display: none; }
+.fold__summary h2 { display: inline; margin: 0; }
+.fold__summary h2::after { content: " +"; color: var(--v-accent-text); }
+.fold[open] .fold__summary h2::after { content: " −"; }
+.fold__note { display: block; margin-top: 4px; font-size: var(--v-text-sm); color: var(--v-text-muted); }
+.fold[open] .fold__note { display: none; }

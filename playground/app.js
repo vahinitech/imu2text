@@ -50,6 +50,12 @@ const state = {
   // Where the recording comes from: "pick" (a chip) or "draw" (the recording
   // chosen for a drawing: { label, shape, note }).
   source: "pick", drawn: null,
+  // A drawing of several characters: { chars: [{label, shape, task}], index }.
+  sequence: null,
+  // What the drawing reader made of a drawing: { chars, movement }. While it
+  // is set, cards 2 and 3 show the drawing (view "reader") until the person
+  // asks for the pen AI (view "pen").
+  reading: null, drawView: "reader",
 };
 const score = { tried: 0, right: 0, seen: new Set() };
 
@@ -101,6 +107,8 @@ function startDrawing() {
   if (state.source === "draw" && !state.revealed) return;
   state.source = "draw";
   state.drawn = null;
+  state.sequence = null;
+  state.reading = null;
   if (!state.busy) state.revealed = false;
   renderTask();
   renderModel();
@@ -125,7 +133,171 @@ function useDrawing(got) {
 function showPick() {
   state.source = "pick";
   state.drawn = null;
+  state.sequence = null;
+  state.reading = null;
   showSource();
+}
+// ---------- a drawing, read by the drawing reader ----------
+// write.js hands over the characters the reader found and the drawing's own
+// movement. Nothing here comes from a pen recording.
+function showReaderResult(chars, movement) {
+  state.reading = { chars, movement };
+  state.drawView = "reader";
+  state.drawn = null;
+  state.sequence = null;
+  state.revealed = true;
+  renderModel();
+  document.getElementById("answer-card").scrollIntoView({ behavior: REDUCED_MOTION ? "auto" : "smooth", block: "nearest" });
+}
+function readerView() {
+  return state.source === "draw" && state.reading && state.drawView === "reader";
+}
+// The movement as five stacked lanes on one time axis, pen-up time shaded.
+function renderMovement(mv) {
+  const box = document.getElementById("move-chart");
+  box.replaceChildren();
+  if (!mv) { box.append(el("p", { class: "hint" }, "Too short to show movement.")); return; }
+  const M = window.PlaygroundMovement;
+  const W = widthOf("move-chart", 520), LANE = 44, GAP = 8, LEFT = 96, H = M.CHANNELS.length * (LANE + GAP) + 18;
+  const n = mv.down.length, xs = (i) => LEFT + (i / Math.max(n - 1, 1)) * (W - LEFT - 4);
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img",
+    "aria-label": `Your movement over ${mv.seconds.toFixed(1)} seconds: speed across, speed down, acceleration, turning and pen down` });
+  // Pen-up stretches, shaded across every lane.
+  for (let i = 0; i < n; i++) {
+    if (mv.down[i]) continue;
+    let j = i;
+    while (j + 1 < n && !mv.down[j + 1]) j++;
+    svg.append(svgEl("rect", { x: xs(i), y: 0, width: Math.max(xs(j) - xs(i), 1), height: H - 18, class: "move-chart__up" }));
+    i = j;
+  }
+  M.CHANNELS.forEach((ch, k) => {
+    const v = mv[ch.key], top = k * (LANE + GAP);
+    const peak = ch.key === "down" ? 1 : M.scaleOf(v);
+    const mid = ch.signed ? top + LANE / 2 : top + LANE;
+    const ys = (x) => (ch.signed ? mid - (x / peak) * (LANE / 2 - 2) : mid - (x / peak) * (LANE - 2));
+    svg.append(svgEl("line", { x1: LEFT, x2: W - 4, y1: mid, y2: mid, class: "move-chart__axis" }));
+    const clip = (x) => Math.max(-peak, Math.min(peak, x));
+    const pts = v.map((x, i) => `${xs(i).toFixed(1)},${ys(clip(x)).toFixed(1)}`).join(" ");
+    svg.append(svgEl("polyline", { points: pts, fill: "none", stroke: `var(--v-${ch.colour})`, "stroke-width": 1.6 }));
+    svg.append(svgEl("text", { x: 0, y: top + 16, class: "move-chart__name" }, ch.name));
+    if (ch.unit) svg.append(svgEl("text", { x: 0, y: top + 30, class: "move-chart__unit" }, `±${Math.round(peak)} ${ch.unit}`.replace("±", ch.signed ? "±" : "up to ")));
+  });
+  svg.append(svgEl("text", { x: LEFT, y: H - 4, class: "move-chart__unit" }, "0 s"));
+  svg.append(svgEl("text", { x: W - 4, y: H - 4, class: "move-chart__unit", "text-anchor": "end" }, `${mv.seconds.toFixed(2)} s`));
+  box.append(svg);
+}
+// Card 3 for a drawing: the reader's answer, each character's three best
+// scores, what that reader scores on writers it never saw, and the way to
+// the pen AI.
+function renderReaderAnswer() {
+  const box = document.getElementById("draw-answer");
+  const { chars } = state.reading;
+  const text = chars.map((c) => (c.label ? c.shape : "?")).join("");
+  box.replaceChildren(el("p", { class: "draw-answer__head" }, ""));
+  box.firstChild.append("The drawing reader read ", el("strong", {}, text));
+  chars.forEach((c, i) => {
+    const row = el("div", { class: "draw-answer__char" });
+    row.append(el("p", { class: "draw-answer__label" }, chars.length > 1 ? `Character ${i + 1}: ${c.label ? c.shape : "?"}` : `${c.label ? c.shape : "?"}`));
+    const top = (c.top || []).slice(0, 3);
+    if (top.length && top[0].rule) {
+      row.append(el("p", { class: "hint" }, "Read from its strokes: a line or a mark the reader does not cover."));
+    } else {
+      for (const t of top) {
+        const bar = el("div", { class: "draw-answer__bar" });
+        const fill = el("span", { class: "draw-answer__fill" });
+        fill.style.width = `${Math.max(t.p * 100, 1).toFixed(1)}%`;
+        bar.append(el("b", {}, t.label), el("span", { class: "draw-answer__track" }), el("span", {}, pct(t.p)));
+        bar.children[1].append(fill);
+        row.append(bar);
+      }
+      if (c.label && top.length && top[0].label !== c.shape) {
+        row.append(el("p", { class: "hint" }, `Its first guess was ${top[0].label}. ${TASKS[c.task] ? `In ${TASKS[c.task].label}` : "Here"}, the closest is ${c.shape}.`));
+      }
+    }
+    box.append(row);
+  });
+  box.append(el("p", { class: "hint" }, "On 20 writers it never saw (UJI Pen Characters, published test split, one training run, seed 0) it reads 78% of single letters and digits right, 90% if capitals and small letters count as the same. Small letters that look like their capital, like o and O, are where it slips most."));
+  const pen = el("div", { class: "draw-answer__pen" });
+  const go = el("button", { type: "button", class: "v-btn v-btn--sm v-btn--ghost" }, `See the pen AI read real pen recordings of ${text}`);
+  go.addEventListener("click", () => {
+    state.drawView = "pen";
+    if (window.PlaygroundDraw) window.PlaygroundDraw.penFor(chars);
+  });
+  pen.append(go, el("p", { class: "hint" }, "Recordings by other writers, made with a sensor pen (OnHW). Your drawing has no pen sensors, so the pen AI cannot read it."));
+  box.append(pen);
+}
+
+// What the pen AI answered for the recording a drawn character stands for,
+// whichever character card 3 is showing: { read, right } or null.
+function readingOf(ch) {
+  let rec, probs, classes;
+  if (ch.task === "chars") {
+    rec = PUB.drawn_letters.find((s) => s.label === ch.label);
+    if (!rec) return null;
+    const g = rec[state.group] || rec.right;
+    probs = state.model === "mean" ? g.mean : g.members[state.model];
+    classes = PUB.classes;
+  } else {
+    const run = PUB.tasks[`symbols_${available("symbols", state.protocol) ? state.protocol : "indep"}`];
+    rec = run && run.drawn.find((s) => s.label === ch.label);
+    if (!rec) return null;
+    probs = rec.probs;
+    classes = run.classes;
+  }
+  const read = classes[probs.indexOf(Math.max(...probs))];
+  return { read, right: read === ch.label };
+}
+// How often the pen AI reads a character right on recordings by new writers
+// (scripts/build_playground.py, class_accuracy): { right, n } or null.
+function penRate(label, task) {
+  if (task === "chars") {
+    const i = PUB.classes.indexOf(label), acc = PUB.class_accuracy && PUB.class_accuracy[state.group];
+    return i >= 0 && acc ? acc[i] : null;
+  }
+  const run = PUB.tasks[`symbols_${available("symbols", state.protocol) ? state.protocol : "indep"}`];
+  const i = run ? run.classes.indexOf(label) : -1;
+  return i >= 0 && run.class_accuracy ? run.class_accuracy[i] : null;
+}
+// The pen AI's answer for a drawing comes from one typical recording, which
+// is read right whenever the character mostly is. Say how often that is.
+function renderPenRate() {
+  const box = document.getElementById("pen-rate");
+  const r = state.source === "draw" && state.drawn && penRate(state.drawn.label, state.task);
+  if (!r || r.right === null || !state.revealed) { box.hidden = true; return; }
+  box.replaceChildren("This is one typical recording. Over ", el("strong", {}, `${r.n}`),
+    ` recordings of “${state.drawn.label}” by writers it never learned from, the pen AI reads it right `,
+    el("strong", {}, `${Math.round(r.right)}%`), " of the time.");
+  box.hidden = false;
+}
+
+// Card 3's headline for a drawing of several characters: what the AI read
+// for each, together, so "12" is never shown as just "1".
+function renderSequence() {
+  const box = document.getElementById("seq-summary");
+  const seq = state.source === "draw" && state.sequence;
+  if (!seq || !state.revealed) { box.hidden = true; box.replaceChildren(); return; }
+  const rows = seq.chars.map((c) => ({ c, r: c.label ? readingOf(c) : null }));
+  const read = rows.map(({ r }) => (r ? r.read : "?")).join("");
+  const right = rows.filter(({ r }) => r && r.right).length;
+  box.className = `seq-summary ${right === rows.length ? "seq-summary--good" : "seq-summary--bad"}`;
+  box.replaceChildren(
+    el("strong", {}, `On other writers' recordings, the pen AI read ${read}`),
+    document.createTextNode(right === rows.length ? (rows.length === 2 ? ": both characters right." : `: all ${rows.length} characters right.`) : `: ${right} of ${rows.length} characters right.`),
+  );
+  const list = el("span", { class: "seq-summary__chars" });
+  rows.forEach(({ c, r }, i) => {
+    const item = el("span", { class: `seq-summary__char${i === seq.index ? " seq-summary__char--now" : ""}` });
+    const rate = c.label && penRate(c.label, c.task);
+    item.append(el("b", {}, c.label ? c.shape : "?"), document.createTextNode(" → "),
+      el("b", {}, r ? r.read : "?"), document.createTextNode(r ? (r.right ? " ✓" : " ✗") : ""));
+    if (rate && rate.right !== null) item.append(el("span", { class: "seq-summary__rate", title: `Right on ${Math.round(rate.right)}% of ${rate.n} recordings by new writers` }, ` ${Math.round(rate.right)}%`));
+    list.append(item);
+  });
+  box.append(list);
+  if (rows.some(({ c }) => c.label && penRate(c.label, c.task))) {
+    box.append(el("span", { class: "seq-summary__note" }, "The % is how often the pen AI reads that character right on recordings by new writers."));
+  }
+  box.hidden = false;
 }
 
 // ---------- small helpers ----------
@@ -204,6 +376,8 @@ function writeHash() {
 // choice outside the pad selects a recording, so the drawing is cleared.
 function choose(update) {
   update();
+  state.sequence = null;
+  state.reading = null;
   state.revealed = false;
   if (state.source === "draw") {
     state.source = "pick";
@@ -416,7 +590,9 @@ function renderSignal() {
     STAGES.filters.map((f) => ({ value: f.id, label: f.name })), state.filter,
     (v) => { state.filter = v; renderSignal(); renderPipeline(); writeHash(); });
 
-  document.getElementById("signal-tag").textContent = sig.real ? "real recording" : "practice signal";
+  const tag = document.getElementById("signal-tag");
+  tag.dataset.pen = sig.real ? "real recording" : "practice signal";
+  if (!readerView()) tag.textContent = tag.dataset.pen;
   renderMini(sig);
   const box = document.getElementById("signal");
   box.replaceChildren();
@@ -705,6 +881,21 @@ function renderScore() {
 }
 
 function renderModel() {
+  const reader = readerView();
+  show("draw-model", reader);
+  show("pen-model", !reader);
+  show("draw-answer", reader);
+  show("pen-answer", !reader);
+  show("back-to-drawing", state.source === "draw" && Boolean(state.reading) && !reader);
+  document.getElementById("signal-tag").textContent = reader ? "your movement" : document.getElementById("signal-tag").dataset.pen || "practice signal";
+  if (reader) {
+    document.getElementById("waiting").hidden = true;
+    document.getElementById("recognize").disabled = true;
+    renderMovement(state.reading.movement);
+    renderReaderAnswer();
+    renderDev("dev-model");
+    return;
+  }
   const cur = current();
   const intro = document.getElementById("model-intro");
   const models = document.getElementById("models");
@@ -717,6 +908,7 @@ function renderModel() {
   verdictBox.className = "";
   document.getElementById("why").replaceChildren();
   show("why", false);
+  renderSequence();
   document.getElementById("model-result").replaceChildren();
   show("class-view", false);
   show("words-view", false);
@@ -726,6 +918,7 @@ function renderModel() {
   button.disabled = !cur || state.busy || (!s0 && !waitingDrawing);
   renderInput(s0);
   show("trail", false);
+  show("pen-rate", false);
   if (!cur) {
     intro.replaceChildren("Nothing to recognize yet for this choice.");
     renderDev("dev-model");
@@ -778,7 +971,11 @@ function renderModel() {
   const verdict = document.getElementById("verdict");
   verdict.className = `v-verdict ${correct ? "v-verdict--good" : "v-verdict--bad"}`;
   verdict.textContent = correct ? `Correct: it is ${truth}` : `Not quite: it was ${truth}`;
+  const seq = state.source === "draw" && state.sequence;
+  if (seq) verdict.prepend(`Character ${seq.index + 1} of ${seq.chars.length}. `);
+  renderSequence();
   renderTrail(truth);
+  renderPenRate();
   renderWhy(correct);
   resultCard();
   renderDev("dev-model");
@@ -1038,7 +1235,29 @@ bindNumbers();
 showLogo();
 document.getElementById("time").addEventListener("input", (e) => setTime(Number(e.target.value)));
 document.getElementById("download-csv").addEventListener("click", downloadCsv);
+// A link into a folded section (a glossary term, the nav's "Glossary")
+// opens the fold first, so the target is on screen.
+function openFolds() {
+  const id = decodeURIComponent(location.hash.slice(1));
+  const target = id && document.getElementById(id);
+  if (!target) return;
+  const fold = target.matches(".fold") ? target : target.closest(".fold") || target.querySelector(".fold");
+  if (fold && !fold.open) { fold.open = true; target.scrollIntoView({ block: "start" }); }
+}
+window.addEventListener("hashchange", openFolds);
+document.addEventListener("click", (e) => {
+  const a = e.target.closest('a[href^="#"]');
+  if (a && a.getAttribute("href") === location.hash) setTimeout(openFolds);
+});
 document.getElementById("recognize").addEventListener("click", recognize);
+document.getElementById("back-btn").addEventListener("click", () => {
+  state.drawView = "reader";
+  state.source = "draw";
+  state.drawn = null;
+  state.sequence = null;
+  state.revealed = true;
+  renderAll();
+});
 readHash();
 renderAll();
 renderOpen();
