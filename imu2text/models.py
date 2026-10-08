@@ -605,6 +605,61 @@ def build_cnn_bilstm_attn(maxlen: int, n_classes: int) -> Model:
     return Model(inp, out, name="cnn_bilstm_attn")
 
 
+def _step_mask(inp, n_pools: int = 2):
+    """(B, T', 1) float mask of real timesteps after ``n_pools`` MaxPool(2).
+
+    ``normalize_and_pad`` post-pads with zeros after scaling, so a padded step
+    is an all-zero row; a real step is all-zero only by coincidence. The mask
+    is pooled the way ``_cnn_trunk`` pools the signal, and the first step is
+    always kept so a very short recording still has one step to read.
+    """
+    m = layers.Lambda(
+        lambda t: tf.cast(tf.reduce_any(tf.not_equal(t, 0.0), axis=-1), tf.float32)[
+            ..., None
+        ]
+    )(inp)
+    for _ in range(n_pools):
+        m = layers.MaxPooling1D(2)(m)
+    return layers.Lambda(
+        lambda t: tf.maximum(t, tf.one_hot([0], tf.shape(t)[1])[0][None, :, None])
+    )(m)
+
+
+def build_cnn_bilstm_attn_masked(maxlen: int, n_classes: int) -> Model:
+    """``cnn_bilstm_attn`` with the zero padding masked out.
+
+    About half of every OnHW-chars input is padding (median 44 steps against
+    ``--max-len 100``). Unmasked, the backward LSTM reads it before the
+    stroke, the attention softmax spreads weight over it and the max pool is
+    floored by it. Here the BiLSTM gets the mask, padded steps get a score of
+    -1e9 before the softmax, and they are pushed to -1e9 before the max.
+    Everything else matches ``cnn_bilstm_attn``.
+    """
+    inp = layers.Input(shape=(maxlen, N_CHANNELS))
+    m = _step_mask(inp)  # (B, T', 1)
+    keep = layers.Lambda(lambda t: tf.cast(t[..., 0], tf.bool))(m)
+    x = _cnn_trunk(inp)
+    for _ in range(RNN_LAYERS):
+        x = layers.Bidirectional(layers.LSTM(RNN_UNITS, return_sequences=True))(
+            x, mask=keep
+        )
+    # Drop the Keras mask here: the pooling below masks by hand, and a mask
+    # reaching Softmax would make it broadcast over the wrong axis.
+    x = layers.Lambda(lambda t: tf.identity(t))(x)
+
+    penalty = layers.Lambda(lambda t: (1.0 - t) * -1e9)(m)
+    score = layers.Add()([layers.Dense(1, use_bias=False)(x), penalty])
+    weights = layers.Softmax(axis=1)(score)
+    context = layers.Flatten()(layers.Dot(axes=1)([weights, x]))
+    peak = layers.GlobalMaxPooling1D()(layers.Add()([x, penalty]))
+    pooled = layers.Concatenate()([context, peak])
+
+    h = layers.Dense(100, activation="relu")(pooled)
+    h = layers.Dropout(0.3)(h)
+    out = layers.Dense(n_classes, activation="softmax")(h)
+    return Model(inp, out, name="cnn_bilstm_attn_masked")
+
+
 def build_transformer(maxlen: int, n_classes: int) -> Model:
     """Patch-and-attend classifier: no convolution trunk, no recurrence.
 
@@ -719,6 +774,7 @@ BUILDERS: Dict[str, Callable[[int, int], Model]] = {
     "bilstm": build_bilstm,
     "cnn_bilstm": build_cnn_bilstm,
     "cnn_bilstm_attn": build_cnn_bilstm_attn,
+    "cnn_bilstm_attn_masked": build_cnn_bilstm_attn_masked,
     "transformer": build_transformer,
     "moe": build_moe,
 }
