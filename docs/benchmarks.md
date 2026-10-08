@@ -257,8 +257,8 @@ symbols WD 94.71% (473 test samples) and WI 71.03% (611). The table's 95.77
 and 72.83 are the same configuration without `--deterministic`, so the
 difference is run-to-run variation on a small test set, not a change. The
 equations WI rerun scores 86.16% (9,235 test slices) against 86.12% without
-`--deterministic`. Equations WD and OnHW-chars WD have not been rerun this way
-yet.
+`--deterministic`, and the equations WD rerun 96.17% (7,946) against 96.25%.
+OnHW-chars WD has not been rerun this way yet.
 
 ### Numbers
 
@@ -275,23 +275,29 @@ archive's own split. Counts are test samples.
 | Task | Split | All symbols | Digits | Operators | Numbers | Equations |
 |---|---|--:|--:|--:|--:|--:|
 | OnHW-equations (split) | official WI, 7 test writers | 86.16 (9,235) | 87.35 (7,354) | 81.50 (1,881) | 76.10 (2,812) | 36.00 (939) |
+| OnHW-equations (split) | official WD | 96.17 (7,946) | 96.35 (6,333) | 95.47 (1,613) | 93.21 (2,430) | 79.83 (833) |
 | OnHW-symbols | official WI | 71.03 (611) | 69.51 (410) | 74.13 (201) | n/a | n/a |
 | OnHW-symbols | official WD | 94.71 (473) | 95.32 (278) | 93.85 (195) | n/a | n/a |
 
-Numbers by length, equations WI:
+Numbers by length:
 
 | Digits in the number | 1 | 2 | 3 | 4 or more |
 |---|--:|--:|--:|--:|
-| Numbers | 1,081 | 638 | 399 | 694 |
-| Accuracy % | 89.45 | 76.33 | 73.43 | 56.63 |
+| WI: numbers | 1,081 | 638 | 399 | 694 |
+| WI: accuracy % | 89.45 | 76.33 | 73.43 | 56.63 |
+| WD: numbers | 942 | 526 | 356 | 606 |
+| WD: accuracy % | 97.35 | 92.02 | 90.73 | 89.27 |
 
-Accuracy falls with length about as fast as independent errors at 87% per
+On WI, accuracy falls with length about as fast as independent errors at 87% per
 digit would make it fall (0.87² = 76%, 0.87³ = 66%), so the long numbers are
 not failing for a reason of their own. One equation in three is read
-entirely right. The equations are random strings of the 15 symbols, not
+entirely right on new writers, four in five on writers the model trained
+on. The ten-point gap per symbol becomes a 17-point gap per number and a
+44-point gap per equation, because every extra symbol is another chance to
+miss. The equations are random strings of the 15 symbols, not
 arithmetic, so a check that both sides of `=` agree cannot help.
 
-The worst digit is 0 at 78.6%, and the largest digit confusions are 0 and 6
+On WI the worst digit is 0 at 78.6%, and the largest digit confusions are 0 and 6
 read as each other (97 and 93 of the 9,235 test slices), then 7 and 4 read
 as `+` (63 and 55). The single largest error is `-` read as `·` (99). 286
 digits came out as an operator. In the symbols WI split the weakest digits
@@ -307,17 +313,21 @@ python -m imu2text.models --models cnn_bilstm_attn \
     --augment 2 --aug-policy extended --label-smoothing 0.1 --lr-schedule \
     --epochs 30 --seed 0 --deterministic \
     --save-predictions results/tasks/equations_indep.npz
+# the same with OnHW-symbols_equations_dep and equations_dep.npz for WD
 
 python -m scripts.score_numbers \
     --task equations_indep=results/tasks/equations_indep.npz:data/OnHW-symbols_equations_indep \
+    --task equations_dep=results/tasks/equations_dep.npz:data/OnHW-symbols_equations_dep \
     --task symbols_indep=results/tasks/symbols_indep.npz \
     --task symbols_dep=results/tasks/symbols_dep.npz \
     --out results/tasks/numbers
 ```
 
-Single seed on the one shipped split. Train accuracy is 98.24%, validation
-(a stratified slice of the training writers) 96.16%, test 86.16%; the
-12-point gap to test is the seven unseen writers.
+Single seed on each shipped split. WI: train 98.24%, validation (a
+stratified slice of the training writers) 96.16%, test 86.16%. WD: train
+98.36%, validation 96.53%, test 96.17%. On WD, validation and test agree;
+on WI, test is 10 points lower, which is what moving to seven unseen writers
+costs.
 
 ## OnHW-words500
 

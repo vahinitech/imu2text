@@ -94,6 +94,101 @@
     "seed": 0,
     "split": "official equations split, writer-independent"
   },
+  "equations_dep": {
+    "n_symbols": 7946,
+    "symbol_acc": 96.17,
+    "n_digits": 6333,
+    "digit_acc": 96.35,
+    "n_operators": 1613,
+    "operator_acc": 95.47,
+    "digit_read_as_operator": 67,
+    "per_class": {
+      "0": {
+        "n": 455,
+        "acc": 93.63
+      },
+      "1": {
+        "n": 636,
+        "acc": 96.86
+      },
+      "2": {
+        "n": 620,
+        "acc": 95.65
+      },
+      "3": {
+        "n": 709,
+        "acc": 97.46
+      },
+      "4": {
+        "n": 652,
+        "acc": 94.79
+      },
+      "5": {
+        "n": 589,
+        "acc": 98.81
+      },
+      "6": {
+        "n": 714,
+        "acc": 96.64
+      },
+      "7": {
+        "n": 666,
+        "acc": 95.65
+      },
+      "8": {
+        "n": 646,
+        "acc": 96.59
+      },
+      "9": {
+        "n": 646,
+        "acc": 96.75
+      },
+      "+": {
+        "n": 321,
+        "acc": 97.51
+      },
+      "-": {
+        "n": 343,
+        "acc": 93.59
+      },
+      "·": {
+        "n": 349,
+        "acc": 93.41
+      },
+      ":": {
+        "n": 332,
+        "acc": 96.08
+      },
+      "=": {
+        "n": 268,
+        "acc": 97.39
+      }
+    },
+    "n_numbers": 2430,
+    "number_acc": 93.21,
+    "number_acc_by_length": {
+      "1": {
+        "n": 942,
+        "acc": 97.35
+      },
+      "2": {
+        "n": 526,
+        "acc": 92.02
+      },
+      "3": {
+        "n": 356,
+        "acc": 90.73
+      },
+      "4+": {
+        "n": 606,
+        "acc": 89.27
+      }
+    },
+    "n_equations": 833,
+    "equation_acc": 79.83,
+    "seed": 0,
+    "split": "official equations split, writer-dependent"
+  },
   "symbols_indep": {
     "n_symbols": 611,
     "symbol_acc": 71.03,
