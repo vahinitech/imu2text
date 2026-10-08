@@ -146,6 +146,29 @@ deterministic runs score **72.26%** with **zero changed test predictions** and
 [run metadata](../results/ctc/character_runs.json) and
 [error breakdowns](../results/ctc/chars_fixed_seed0.txt).
 
+### Masking the padding
+
+About half of every OnHW-chars input is zero padding (median 44 steps against
+`--max-len 100`), and the BiLSTM, attention softmax and max pool of
+`cnn_bilstm_attn` all read it. `cnn_bilstm_attn_masked` masks it out and is
+otherwise identical (`tests/test_masked_model.py` checks that its output no
+longer depends on the padding length). Official `both/indep/fold0`, 52
+classes, the best configuration above, `--deterministic`, seeds 0 to 3, both
+models with the in-range `channel_dropout`:
+
+| | Plain | Masked |
+|---|--:|--:|
+| Test, mean of 4 seeds | 72.45% | 72.67% |
+| Case-insensitive, mean | 84.09% | 84.66% |
+| 4-seed vote | 74.95% | 75.25% |
+
+**No clear gain.** Masked is ahead on three seeds and behind on one; the
+paired difference is +0.22 points with a standard deviation of 0.49
+(t = 0.89 on 3 degrees of freedom), inside the seed-to-seed spread. Masking
+stays available as `--models cnn_bilstm_attn_masked` and is not the default.
+Per seed: [results/masking/summary.md](../results/masking/summary.md), from
+`python -m scripts.compare_seeds`.
+
 ## Where the remaining error is
 
 ```bash
