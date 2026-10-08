@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Vahini Playground: see how AI reads handwriting from a sensor pen</title>
-  <meta name="description" content="Follow a handwritten letter, symbol or word from a sensor pen through filters and neural networks. Real results on unseen writers, open source.">
+  <meta name="description" content="Follow handwriting from a sensor pen through filters and neural networks (CNN, LSTM, attention), with animations and real results on unseen writers.">
   <link rel="canonical" href="https://playground.vahinitech.com/">
   <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#222831">
@@ -39,7 +39,10 @@
     "license": "https://www.apache.org/licenses/LICENSE-2.0",
     "codeRepository": "https://github.com/vahinitech/imu2text",
     "publisher": {"@type": "Organization", "name": "Vahini Technologies", "url": "https://vahinitech.com/"},
-    "about": ["Handwriting recognition", "Inertial measurement unit", "Machine learning"],
+    "about": ["Handwriting recognition", "Online handwriting recognition", "Inertial measurement unit", "Machine learning", "Deep learning", "Convolutional neural network", "Long short-term memory", "Attention (machine learning)"],
+    "teaches": ["What a neural network is", "How a CNN reads a signal", "How an LSTM and a BiLSTM read a sequence", "What attention adds", "Writer-independent versus writer-dependent testing", "Offline versus online handwriting recognition"],
+    "keywords": "handwriting recognition, sensor pen, IMU, CNN, LSTM, BiLSTM, attention, CNN-BiLSTM, deep learning, OnHW",
+    "audience": {"@type": "EducationalAudience", "educationalRole": "student"},
     "citation": {
       "@type": "ScholarlyArticle",
       "name": "The OnHW Dataset: Online Handwriting Recognition from IMU-Enhanced Ballpoint Pens with Machine Learning",
@@ -65,6 +68,7 @@
       <nav aria-label="Page">
         <a href="#workspace">Play</a>
         <a href="#how">How it works</a>
+        <a href="#nets">Neural networks</a>
         <a href="#designs">AI designs</a>
         <a href="#algos">Charts</a>
         <a href="#glossary">Glossary</a>
@@ -233,6 +237,408 @@
     </div>
   </section>
 
+
+  <section id="explain" class="wrap section" aria-labelledby="explain-h">
+    <h2 id="explain-h">Seven ideas, in motion</h2>
+    <p class="hint">The words that trip people up on this page, each as a short
+      loop. The drawings are sketches, not recordings; every number written in them
+      comes from a real run. The glossary below has the one-line meanings.</p>
+    <div class="explain-grid">
+
+      <figure class="v-card explain" aria-labelledby="ex-on-h">
+        <h3 id="ex-on-h">Offline and online handwriting</h3>
+        <svg class="ex ex--3" viewBox="0 0 360 190" role="img"
+          aria-label="The word cat three ways. Offline: a scan of finished ink becomes a grid of pixels, with no order or timing. Online on a tablet: the pen tip is recorded as x, y points in writing order. Online with a sensor pen, as on this page: the pen records its own movement over time, not where the ink is.">
+          <line x1="14" y1="96" x2="160" y2="96" class="ex-line"/>
+          <g class="ex-scene s1">
+            <path d="M44 64 C38 58 24 60 24 74 C24 88 38 90 44 82" class="ex-ink  d02"/><path d="M76 64 C70 58 56 60 56 74 C56 88 72 88 76 78 M76 60 L76 88" class="ex-ink  d10"/><path d="M96 50 L96 84 C96 90 102 92 108 86 M88 64 L106 64" class="ex-ink  d20"/>
+            <rect x="10" y="40" width="152" height="6" class="ex-scan"/>
+            <text x="200" y="20" class="label-strong">a photo: pixels</text>
+            <rect x="200" y="30" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="210.5" y="30" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="221" y="30" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="231.5" y="30" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="242" y="30" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="252.5" y="30" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="263" y="30" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="273.5" y="30" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="284" y="30" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="294.5" y="30" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="305" y="30" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="315.5" y="30" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="326" y="30" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="336.5" y="30" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="200" y="40.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="210.5" y="40.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="221" y="40.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="231.5" y="40.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="242" y="40.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="252.5" y="40.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="263" y="40.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="273.5" y="40.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="284" y="40.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="294.5" y="40.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="305" y="40.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="315.5" y="40.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="326" y="40.5" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="336.5" y="40.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="200" y="51" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="210.5" y="51" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="221" y="51" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="231.5" y="51" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="242" y="51" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="252.5" y="51" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="263" y="51" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="273.5" y="51" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="284" y="51" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="294.5" y="51" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="305" y="51" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="315.5" y="51" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="326" y="51" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="336.5" y="51" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="200" y="61.5" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="210.5" y="61.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="221" y="61.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="231.5" y="61.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="242" y="61.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="252.5" y="61.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="263" y="61.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="273.5" y="61.5" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="284" y="61.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="294.5" y="61.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="305" y="61.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="315.5" y="61.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="326" y="61.5" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="336.5" y="61.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="200" y="72" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="210.5" y="72" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="221" y="72" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="231.5" y="72" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="242" y="72" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="252.5" y="72" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="263" y="72" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="273.5" y="72" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="284" y="72" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="294.5" y="72" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="305" y="72" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="315.5" y="72" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="326" y="72" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="336.5" y="72" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="200" y="82.5" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="210.5" y="82.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="221" y="82.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="231.5" y="82.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="242" y="82.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="252.5" y="82.5" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="263" y="82.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="273.5" y="82.5" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="284" y="82.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="294.5" y="82.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="305" y="82.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="315.5" y="82.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="326" y="82.5" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="336.5" y="82.5" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="200" y="93" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="210.5" y="93" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="221" y="93" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="231.5" y="93" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="242" y="93" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="252.5" y="93" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="263" y="93" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="273.5" y="93" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/><rect x="284" y="93" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="294.5" y="93" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="305" y="93" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="315.5" y="93" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="326" y="93" width="9.5" height="9.5" rx="1.5" class="ex-px"/><rect x="336.5" y="93" width="9.5" height="9.5" rx="1.5" class="ex-px ex-px--on"/>
+            <text x="10" y="138" class="label-strong">Offline: a scan or photo of finished ink</text>
+            <text x="10" y="156">The shape only. Which stroke came first is lost.</text>
+            <text x="10" y="174">Examples: a scanned exam, a cheque, a photo of a note.</text>
+          </g>
+          <g class="ex-scene s2">
+            <path d="M44 64 C38 58 24 60 24 74 C24 88 38 90 44 82" class="ex-ink draw d02"/><path d="M76 64 C70 58 56 60 56 74 C56 88 72 88 76 78 M76 60 L76 88" class="ex-ink draw d10"/><path d="M96 50 L96 84 C96 90 102 92 108 86 M88 64 L106 64" class="ex-ink draw d20"/>
+            <g class="pop d02"><circle cx="44" cy="64" r="3" class="ex-dot"/><text x="44" y="56">1</text></g>
+            <g class="pop d10"><circle cx="76" cy="64" r="3" class="ex-dot"/><text x="80" y="58">2</text></g>
+            <g class="pop d20"><circle cx="96" cy="50" r="3" class="ex-dot"/><text x="100" y="48">3</text></g>
+            <text x="200" y="20" class="label-strong">points in order</text>
+            <text x="200" y="42" class="pop d02 ex-mono">x 44  y 64  t 0.00 s</text>
+            <text x="200" y="60" class="pop d06 ex-mono">x 30  y 60  t 0.05 s</text>
+            <text x="200" y="78" class="pop d10 ex-mono">x 76  y 64  t 0.42 s</text>
+            <text x="200" y="96" class="pop d20 ex-mono">x 96  y 50  t 0.90 s</text>
+            <text x="10" y="138" class="label-strong">Online: the pen tip, point by point</text>
+            <text x="10" y="156">Where the tip is, in writing order, with time.</text>
+            <text x="10" y="174">Examples: a stylus on a tablet or phone screen.</text>
+          </g>
+          <g class="ex-scene s3">
+            <path d="M44 64 C38 58 24 60 24 74 C24 88 38 90 44 82" class="ex-ink draw d02"/><path d="M76 64 C70 58 56 60 56 74 C56 88 72 88 76 78 M76 60 L76 88" class="ex-ink draw d10"/><path d="M96 50 L96 84 C96 90 102 92 108 86 M88 64 L106 64" class="ex-ink draw d20"/>
+            <g class="ex-pen ex-pen--word"><rect x="-4" y="-46" width="8" height="46" rx="3"/><path d="M-4 0 L0 8 L4 0 Z"/></g>
+            <text x="200" y="20" class="label-strong">movement over time</text>
+            <polyline points="200,40 214,32 228,50 242,30 256,48 270,36 284,52 298,34 312,46 326,38 344,42" class="ex-sig draw"/>
+            <polyline points="200,72 214,80 228,62 242,82 256,66 270,84 284,64 298,78 312,70 326,80 344,74" class="ex-sig ex-sig--alt draw d06"/>
+            <text x="200" y="104">13 sensor signals, 100 a second</text>
+            <text x="10" y="138" class="label-strong">Online, with a sensor pen: this page</text>
+            <text x="10" y="156">Ink on real paper; the pen feels how it moves.</text>
+            <text x="10" y="174">No camera, no tablet, and no x, y position.</text>
+          </g>
+        </svg>
+        <div class="ex-steps" role="radiogroup" aria-label="Scene">
+          <input type="radio" name="ex-on" id="ex-on-play" value="play" checked><label for="ex-on-play">Play</label>
+          <input type="radio" name="ex-on" id="ex-on-1" value="1"><label for="ex-on-1">Offline</label>
+          <input type="radio" name="ex-on" id="ex-on-2" value="2"><label for="ex-on-2">Tablet</label>
+          <input type="radio" name="ex-on" id="ex-on-3" value="3"><label for="ex-on-3">Sensor pen</label>
+        </div>
+        <figcaption class="hint">OnHW stands for online handwriting: every recording here
+          is the third kind. Online data keeps the order and speed of the strokes, which
+          the shape alone does not have, but the sensor pen has to work out the letter
+          without ever knowing where the tip is.</figcaption>
+      </figure>
+
+      <figure class="v-card explain" aria-labelledby="ex-people-h">
+        <h3 id="ex-people-h">Writer-independent and writer-dependent</h3>
+        <svg class="ex ex--2" viewBox="0 0 320 170" role="img"
+          aria-label="Four writers send their letters to training and test. Writer-dependent, or familiar people: every writer has letters on both sides. Writer-independent, or new people: one writer is kept out of training and only tested.">
+          <g class="ex-people">
+            <circle cx="40" cy="20" r="9" class="w1"/><circle cx="80" cy="20" r="9" class="w2"/>
+            <circle cx="120" cy="20" r="9" class="w3"/><circle cx="160" cy="20" r="9" class="w4"/>
+            <text x="190" y="24">4 writers</text>
+          </g>
+          <rect x="10" y="44" width="180" height="78" rx="8" class="ex-box"/>
+          <text x="18" y="60" class="label-strong">Training</text>
+          <rect x="204" y="44" width="106" height="78" rx="8" class="ex-box"/>
+          <text x="212" y="60" class="label-strong">Test</text>
+          <g class="ex-scene s1">
+            <g class="pop d02"><circle cx="30" cy="80" r="6" class="w1"/><circle cx="46" cy="80" r="6" class="w1"/><circle cx="62" cy="80" r="6" class="w1"/></g>
+            <g class="pop d05"><circle cx="30" cy="102" r="6" class="w2"/><circle cx="46" cy="102" r="6" class="w2"/><circle cx="62" cy="102" r="6" class="w2"/></g>
+            <g class="pop d08"><circle cx="100" cy="80" r="6" class="w3"/><circle cx="116" cy="80" r="6" class="w3"/><circle cx="132" cy="80" r="6" class="w3"/></g>
+            <g class="pop d11"><circle cx="100" cy="102" r="6" class="w4"/><circle cx="116" cy="102" r="6" class="w4"/><circle cx="132" cy="102" r="6" class="w4"/></g>
+            <g class="pop d15"><circle cx="224" cy="80" r="6" class="w1"/><circle cx="240" cy="80" r="6" class="w2"/><circle cx="256" cy="80" r="6" class="w3"/><circle cx="272" cy="80" r="6" class="w4"/></g>
+            <text x="10" y="142" class="label-strong">Writer-dependent ("familiar people")</text>
+            <text x="10" y="160">Everyone is on both sides. 80.07% right.</text>
+          </g>
+          <g class="ex-scene s2">
+            <g class="pop d02"><circle cx="30" cy="80" r="6" class="w1"/><circle cx="46" cy="80" r="6" class="w1"/><circle cx="62" cy="80" r="6" class="w1"/><circle cx="78" cy="80" r="6" class="w1"/></g>
+            <g class="pop d05"><circle cx="30" cy="102" r="6" class="w2"/><circle cx="46" cy="102" r="6" class="w2"/><circle cx="62" cy="102" r="6" class="w2"/><circle cx="78" cy="102" r="6" class="w2"/></g>
+            <g class="pop d08"><circle cx="110" cy="80" r="6" class="w3"/><circle cx="126" cy="80" r="6" class="w3"/><circle cx="142" cy="80" r="6" class="w3"/><circle cx="158" cy="80" r="6" class="w3"/></g>
+            <g class="pop d13"><circle cx="224" cy="80" r="6" class="w4"/><circle cx="240" cy="80" r="6" class="w4"/><circle cx="256" cy="80" r="6" class="w4"/><circle cx="272" cy="80" r="6" class="w4"/></g>
+            <text x="224" y="108" class="pop d16">never trained on</text>
+            <text x="10" y="142" class="label-strong">Writer-independent ("new people")</text>
+            <text x="10" y="160">The test writer is kept out, like a new pen owner. 72.46% right.</text>
+          </g>
+        </svg>
+        <div class="ex-steps" role="radiogroup" aria-label="Scene">
+          <input type="radio" name="ex-people" id="ex-people-play" value="play" checked><label for="ex-people-play">Play</label>
+          <input type="radio" name="ex-people" id="ex-people-1" value="1"><label for="ex-people-1">Familiar</label>
+          <input type="radio" name="ex-people" id="ex-people-2" value="2"><label for="ex-people-2">New</label>
+        </div>
+        <figcaption class="hint">Official OnHW-chars split, 52 classes, one model.
+          <a class="term" href="#term-new-people">New people</a> is the fair test, and
+          the one the scores on this page use.</figcaption>
+      </figure>
+
+      <figure class="v-card explain" aria-labelledby="ex-unsure-h">
+        <h3 id="ex-unsure-h">Uncertainty: when five runs disagree</h3>
+        <svg class="ex ex--3" viewBox="0 0 320 170" role="img"
+          aria-label="Five runs of the AI read the same letter. First all five say a, so the answer is sure. Then they give five different answers, which means the writing is unusual. Then each one hesitates between small o and capital O, which means the movement fits both.">
+          <g class="ex-runs">
+            <rect x="10" y="10" width="52" height="64" rx="8" class="ex-box"/><text x="20" y="26">run 1</text>
+            <rect x="72" y="10" width="52" height="64" rx="8" class="ex-box"/><text x="82" y="26">run 2</text>
+            <rect x="134" y="10" width="52" height="64" rx="8" class="ex-box"/><text x="144" y="26">run 3</text>
+            <rect x="196" y="10" width="52" height="64" rx="8" class="ex-box"/><text x="206" y="26">run 4</text>
+            <rect x="258" y="10" width="52" height="64" rx="8" class="ex-box"/><text x="268" y="26">run 5</text>
+          </g>
+          <g class="ex-scene s1">
+            <g class="ex-say"><text x="36" y="60" class="pop d02">a</text><text x="98" y="60" class="pop d04">a</text><text x="160" y="60" class="pop d06">a</text><text x="222" y="60" class="pop d08">a</text><text x="284" y="60" class="pop d10">a</text></g>
+            <rect x="10" y="88" width="300" height="12" rx="6" class="ex-track"/>
+            <rect x="10" y="88" width="285" height="12" rx="6" class="ex-bar grow d12"/>
+            <text x="10" y="120" class="label-strong">They agree: "a"</text>
+            <text x="10" y="140">Trust the answer.</text>
+          </g>
+          <g class="ex-scene s2">
+            <g class="ex-say"><text x="36" y="60" class="pop d02">a</text><text x="98" y="60" class="pop d04">d</text><text x="160" y="60" class="pop d06">q</text><text x="222" y="60" class="pop d08">a</text><text x="284" y="60" class="pop d10">o</text></g>
+            <rect x="10" y="88" width="300" height="12" rx="6" class="ex-track"/>
+            <rect x="10" y="88" width="105" height="12" rx="6" class="ex-bar ex-bar--warn grow d12"/>
+            <text x="10" y="120" class="label-strong">They disagree: the writing is unusual</text>
+            <text x="10" y="140">Unlike the letters they learned from. Ask the writer.</text>
+          </g>
+          <g class="ex-scene s3">
+            <g class="ex-say ex-say--small"><text x="22" y="60" class="pop d02">o|O</text><text x="84" y="60" class="pop d04">o|O</text><text x="146" y="60" class="pop d06">o|O</text><text x="208" y="60" class="pop d08">o|O</text><text x="270" y="60" class="pop d10">o|O</text></g>
+            <rect x="10" y="88" width="300" height="12" rx="6" class="ex-track"/>
+            <rect x="10" y="88" width="150" height="12" rx="6" class="ex-bar grow d12"/>
+            <rect x="160" y="88" width="140" height="12" rx="6" class="ex-bar ex-bar--alt grow d14"/>
+            <text x="10" y="120" class="label-strong">All hesitate between o and O</text>
+            <text x="10" y="140">The movement fits both. Asking again will not help.</text>
+          </g>
+          <text x="10" y="162" class="ex-foot">bar = how sure the five runs are together</text>
+        </svg>
+        <div class="ex-steps" role="radiogroup" aria-label="Scene">
+          <input type="radio" name="ex-unsure" id="ex-unsure-play" value="play" checked><label for="ex-unsure-play">Play</label>
+          <input type="radio" name="ex-unsure" id="ex-unsure-1" value="1"><label for="ex-unsure-1">Agree</label>
+          <input type="radio" name="ex-unsure" id="ex-unsure-2" value="2"><label for="ex-unsure-2">Disagree</label>
+          <input type="radio" name="ex-unsure" id="ex-unsure-3" value="3"><label for="ex-unsure-3">Both fit</label>
+        </div>
+        <figcaption class="hint">Five runs voting read 74.46% right, against 72.18% for one
+          run on average. See <a class="term" href="#term-uncertainty">uncertainty</a> and
+          <a class="term" href="#term-ensemble">ensemble</a>.</figcaption>
+      </figure>
+
+      <figure class="v-card explain" aria-labelledby="ex-left-h">
+        <h3 id="ex-left-h">Left-handed writers</h3>
+        <svg class="ex" viewBox="0 0 320 170" role="img"
+          aria-label="A right hand pulls the pen along the line; a left hand pushes it. The same letter makes a different signal. The AI, trained mostly on right-handed people, reads 74.92% right for them and 59.47% for left-handed people.">
+          <line x1="12" y1="58" x2="148" y2="58" class="ex-line"/>
+          <path d="M30 56 q12 -34 24 0 q12 -34 24 0 q12 -34 24 0" class="ex-ink draw"/>
+          <g class="ex-pen ex-pen--right"><rect x="-4" y="-46" width="8" height="46" rx="3"/><path d="M-4 0 L0 8 L4 0 Z"/></g>
+          <text x="12" y="80" class="label-strong">Right hand pulls →</text>
+          <line x1="172" y1="58" x2="308" y2="58" class="ex-line"/>
+          <path d="M190 56 q12 -34 24 0 q12 -34 24 0 q12 -34 24 0" class="ex-ink draw"/>
+          <g class="ex-pen ex-pen--left"><rect x="-4" y="-46" width="8" height="46" rx="3"/><path d="M-4 0 L0 8 L4 0 Z"/></g>
+          <text x="172" y="80" class="label-strong">Left hand pushes →</text>
+          <polyline points="12,104 30,98 48,110 66,96 84,108 102,99 120,106 148,102" class="ex-sig draw"/>
+          <polyline points="172,102 190,110 208,96 226,108 244,94 262,111 280,98 308,104" class="ex-sig ex-sig--alt draw"/>
+          <text x="12" y="124">same letter, different signal</text>
+          <rect x="12" y="134" width="210" height="10" rx="5" class="ex-bar grow d24"/>
+          <text x="230" y="143">74.92% right-handed</text>
+          <rect x="12" y="152" width="166" height="10" rx="5" class="ex-bar ex-bar--warn grow d28"/>
+          <text x="186" y="161">59.47% left-handed</text>
+        </svg>
+        <figcaption class="hint">Most training letters come from right-handed people.
+          The same five runs, trained with the 9 left-handed writers added, read
+          59.47% of left-handed letters right (417 letters, a split of those 9
+          writers made here, so not a published benchmark).</figcaption>
+      </figure>
+
+      <figure class="v-card explain" aria-labelledby="ex-case-h">
+        <h3 id="ex-case-h">Small or capital</h3>
+        <svg class="ex" viewBox="0 0 320 170" role="img"
+          aria-label="A small o grows into a capital O. The pen makes the same movement, only bigger, and the two signals almost overlap, so the AI often cannot tell them apart.">
+          <circle cx="70" cy="58" r="40" class="ex-ink ex-grow"/>
+          <text x="20" y="118" class="label-strong">o grows into O</text>
+          <polyline points="160,60 175,40 190,72 205,38 220,74 235,42 250,70 265,46 300,58" class="ex-sig draw"/>
+          <polyline points="160,62 175,43 190,70 205,41 220,71 235,45 250,68 265,48 300,60" class="ex-sig ex-sig--alt draw d06"/>
+          <text x="160" y="96">small and capital:</text>
+          <text x="160" y="112">the signals almost overlap</text>
+          <text x="20" y="142" class="label-strong">43% of mistakes: a letter read as its other case</text>
+          <text x="20" y="160">Ignore small and capital and the AI reads 84.3% right.</text>
+        </svg>
+        <figcaption class="hint">The pen feels movement, not size. A bigger O is also
+          written faster, so the acceleration the pen feels comes out about the same.</figcaption>
+      </figure>
+
+      <figure class="v-card explain" aria-labelledby="ex-why-h">
+        <h3 id="ex-why-h">Why it gets it wrong: missing what?</h3>
+        <svg class="ex ex--3" viewBox="0 0 360 180" role="img"
+          aria-label="Three kinds of mistake. A small c read as a capital C: the sensor is missing position, so it cannot feel size. A left-handed writer misread: the data is missing, only 9 left-handed writers. A word misread: the algorithm is missing, the word reader is small and short-trained.">
+          <g class="ex-scene s1">
+            <rect x="10" y="8" width="108" height="24" rx="12" class="ex-chip ex-chip--on"/><text x="64" y="24" class="ex-chip__t ex-chip__t--on">Sensor</text><rect x="126" y="8" width="108" height="24" rx="12" class="ex-chip"/><text x="180" y="24" class="ex-chip__t">Data</text><rect x="242" y="8" width="108" height="24" rx="12" class="ex-chip"/><text x="296" y="24" class="ex-chip__t">Algorithm</text>
+            <text x="10" y="54">written</text><text x="10" y="84" class="ex-big pop d02">c</text>
+            <text x="150" y="70" class="ex-arrow pop d06">→</text>
+            <text x="190" y="54">the AI read</text><text x="190" y="84" class="ex-big ex-big--wrong pop d10">C</text>
+            <text x="10" y="114" class="label-strong pop d14">Missing: position. The sensor cannot feel size.</text>
+            <text x="10" y="134" class="pop d16">The pen feels movement, not where the tip is, so c and C</text>
+            <text x="10" y="152" class="pop d20">look alike. More data or a bigger AI cannot add what the</text>
+            <text x="10" y="170" class="pop d24">pen never measured. 43.1% of letter mistakes are this.</text>
+          </g>
+          <g class="ex-scene s2">
+            <rect x="10" y="8" width="108" height="24" rx="12" class="ex-chip"/><text x="64" y="24" class="ex-chip__t">Sensor</text><rect x="126" y="8" width="108" height="24" rx="12" class="ex-chip ex-chip--on"/><text x="180" y="24" class="ex-chip__t ex-chip__t--on">Data</text><rect x="242" y="8" width="108" height="24" rx="12" class="ex-chip"/><text x="296" y="24" class="ex-chip__t">Algorithm</text>
+            <text x="10" y="54">written</text><text x="10" y="84" class="ex-big pop d02">a</text>
+            <text x="150" y="70" class="ex-arrow pop d06">→</text>
+            <text x="190" y="54">the AI read</text><text x="190" y="84" class="ex-big ex-big--wrong pop d10">d</text>
+            <text x="10" y="114" class="label-strong pop d14">Missing: examples. Too few writers like this one.</text>
+            <text x="10" y="134" class="pop d16">Only 9 left-handed people are in the data, so the AI has</text>
+            <text x="10" y="152" class="pop d20">seen few hands like theirs: 59.47% right, against 74.46%</text>
+            <text x="10" y="170" class="pop d24">for right-handed people. More writers would help here.</text>
+          </g>
+          <g class="ex-scene s3">
+            <rect x="10" y="8" width="108" height="24" rx="12" class="ex-chip"/><text x="64" y="24" class="ex-chip__t">Sensor</text><rect x="126" y="8" width="108" height="24" rx="12" class="ex-chip"/><text x="180" y="24" class="ex-chip__t">Data</text><rect x="242" y="8" width="108" height="24" rx="12" class="ex-chip ex-chip--on"/><text x="296" y="24" class="ex-chip__t ex-chip__t--on">Algorithm</text>
+            <text x="10" y="54">written</text><text x="10" y="84" class="ex-big pop d02">ging</text>
+            <text x="150" y="70" class="ex-arrow pop d06">→</text>
+            <text x="190" y="54">the AI read</text><text x="190" y="84" class="ex-big ex-big--wrong pop d10">sing</text>
+            <text x="10" y="114" class="label-strong pop d14">Missing: method. The algorithm can do better.</text>
+            <text x="10" y="134" class="pop d16">The word reader is small and trained for 15 rounds; it</text>
+            <text x="10" y="152" class="pop d20">gets 8.9% of words exactly before the word list. A published</text>
+            <text x="10" y="170" class="pop d24">reader on the same words reaches 7.37% letter errors.</text>
+          </g>
+        </svg>
+        <div class="ex-steps" role="radiogroup" aria-label="Scene">
+          <input type="radio" name="ex-why" id="ex-why-play" value="play" checked><label for="ex-why-play">Play</label>
+          <input type="radio" name="ex-why" id="ex-why-1" value="1"><label for="ex-why-1">Sensor</label>
+          <input type="radio" name="ex-why" id="ex-why-2" value="2"><label for="ex-why-2">Data</label>
+          <input type="radio" name="ex-why" id="ex-why-3" value="3"><label for="ex-why-3">Algorithm</label>
+        </div>
+        <figcaption class="hint">The fix depends on what is missing. A sensor limit needs a
+          different signal or the word around the letter; a data limit needs more writers;
+          a method limit needs a better model or training. The examples are typical
+          mistakes; the numbers are from <a href="#why-not-more">Why is it not 99%?</a>
+          (the published reader is Li et al., iWOAR 2025, OnHW-words500, new people).</figcaption>
+      </figure>
+
+      <figure class="v-card explain explain--wide" aria-labelledby="ex-better-h">
+        <h3 id="ex-better-h">What made it more accurate, and what did not</h3>
+        <svg class="ex ex--2" viewBox="0 0 360 264" role="img"
+          aria-label="Steps that helped on new people: plain CNN-BiLSTM 69.2%, plus augmentation 70.0%, plus attention 70.9%, plus label smoothing and a learning-rate schedule 72.5%, five runs voting 74.46%. Steps that did not: a bigger model 69.6%, and a bigger model with every trick 70.4%, while it learned 99.2% of its training letters. Masking the padding: 72.67% over 4 runs, no clear gain.">
+          <line x1="265" y1="30" x2="265" y2="242" class="ex-line ex-line--faint"/>
+          <text x="257" y="256">75%</text>
+          <text x="6" y="256">60%</text>
+          <g class="ex-scene s1">
+            <text x="10" y="18" class="label-strong">What helped: changes that stop it memorising</text>
+            <g class="pop d02"><text x="10" y="44">CNN-BiLSTM, plain</text></g><rect x="10" y="49" width="156" height="12" rx="4" class="ex-bar  grow d02"/><text x="172" y="59" class="label-strong pop d02">69.2%</text>
+            <g class="pop d08"><text x="10" y="78">+ stretched and shaken copies (augmentation)</text></g><rect x="10" y="83" width="170" height="12" rx="4" class="ex-bar  grow d08"/><text x="186" y="93" class="label-strong pop d08">70.0%</text>
+            <g class="pop d14"><text x="10" y="112">+ attention</text></g><rect x="10" y="117" width="185" height="12" rx="4" class="ex-bar  grow d14"/><text x="201" y="127" class="label-strong pop d14">70.9%</text>
+            <g class="pop d20"><text x="10" y="146">+ label smoothing, learning-rate schedule</text></g><rect x="10" y="151" width="212" height="12" rx="4" class="ex-bar  grow d20"/><text x="228" y="161" class="label-strong pop d20">72.5%</text>
+            <g class="pop d26"><text x="10" y="180">5 runs voting (ensemble)</text></g><rect x="10" y="185" width="246" height="12" rx="4" class="ex-bar ex-bar--alt grow d26"/><text x="262" y="195" class="label-strong pop d26">74.46%</text>
+          </g>
+          <g class="ex-scene s2">
+            <text x="10" y="18" class="label-strong">What did not: a bigger model, or masking</text>
+            <g class="pop d02"><text x="10" y="44">CNN-BiLSTM, plain</text><text x="350" y="44" class="ex-end">learned 90.1% of training</text></g><rect x="10" y="49" width="156" height="12" rx="4" class="ex-bar  grow d02"/><text x="172" y="59" class="label-strong pop d02">69.2%</text>
+            <g class="pop d08"><text x="10" y="78">Bigger: 2 BiLSTM layers of 100</text><text x="350" y="78" class="ex-end">learned 95.5%</text></g><rect x="10" y="83" width="163" height="12" rx="4" class="ex-bar ex-bar--warn grow d08"/><text x="179" y="93" class="label-strong pop d08">69.6%</text>
+            <g class="pop d14"><text x="10" y="112">Bigger + every trick above</text><text x="350" y="112" class="ex-end">learned 99.2%</text></g><rect x="10" y="117" width="177" height="12" rx="4" class="ex-bar ex-bar--warn grow d14"/><text x="193" y="127" class="label-strong pop d14">70.4%</text>
+            <g class="pop d26"><text x="10" y="146">Ignore the padding (masking), 4 runs</text><text x="350" y="146" class="ex-end">+0.22: no clear gain</text></g><rect x="10" y="151" width="215" height="12" rx="4" class="ex-bar ex-bar--warn grow d26"/><text x="231" y="161" class="label-strong pop d26">72.67%</text>
+            <text x="10" y="198" class="pop d28">The bigger model learned almost every training letter,</text>
+            <text x="10" y="214" class="pop d28">yet read new people only 1.2 points better than plain.</text>
+          </g>
+        </svg>
+        <div class="ex-steps" role="radiogroup" aria-label="Scene">
+          <input type="radio" name="ex-better" id="ex-better-play" value="play" checked><label for="ex-better-play">Play</label>
+          <input type="radio" name="ex-better" id="ex-better-1" value="1"><label for="ex-better-1">Helped</label>
+          <input type="radio" name="ex-better" id="ex-better-2" value="2"><label for="ex-better-2">Did not</label>
+        </div>
+        <figcaption class="hint">Writer-independent (new people), official OnHW-chars split,
+          52 classes, one run each, seed 0, fold 0; the voting row is five runs, and the masking
+          row is a mean of four runs against 72.45% for the same four without it. The bars
+          start at 60% so the steps are visible. The next gain is not a bigger model:
+          43% of the mistakes are small or capital, which the pen barely feels.</figcaption>
+      </figure>
+
+    </div>
+  </section>
+
+  <section id="nets" class="wrap section" aria-labelledby="nets-h">
+    <h2 id="nets-h">How CNN, LSTM and hybrid neural networks read handwriting</h2>
+    <p class="hint">The deep learning behind this page, one idea per loop: what a neural
+      network is, how a CNN and an LSTM read a pen signal, what attention adds, and how the
+      hybrid used here puts them together. The drawings are sketches; the sizes and scores
+      are this project's.</p>
+    <div class="explain-grid">
+
+      <figure class="v-card explain" aria-labelledby="nn-net-h">
+        <h3 id="nn-net-h">What is a neural network?</h3>
+        <svg class="ex ex--2" viewBox="0 0 360 200" role="img"
+          aria-label="Sensor values go in on the left, pass through a layer of neurons, and come out as a score for each letter. In training, a wrong answer sends a correction backwards that changes every weight.">
+          <text x="10" y="12" class="ex-foot">sensor values</text><text x="128" y="12" class="ex-foot">neurons</text><text x="232" y="12" class="ex-foot">letter scores</text>
+          <line x1="62" y1="30" x2="150" y2="24" class="ex-edge draw"/><line x1="62" y1="30" x2="150" y2="58" class="ex-edge draw"/><line x1="62" y1="30" x2="150" y2="92" class="ex-edge draw"/><line x1="62" y1="30" x2="150" y2="126" class="ex-edge draw"/><line x1="62" y1="62" x2="150" y2="24" class="ex-edge draw"/><line x1="62" y1="62" x2="150" y2="58" class="ex-edge draw"/><line x1="62" y1="62" x2="150" y2="92" class="ex-edge draw"/><line x1="62" y1="62" x2="150" y2="126" class="ex-edge draw"/><line x1="62" y1="94" x2="150" y2="24" class="ex-edge draw"/><line x1="62" y1="94" x2="150" y2="58" class="ex-edge draw"/><line x1="62" y1="94" x2="150" y2="92" class="ex-edge draw"/><line x1="62" y1="94" x2="150" y2="126" class="ex-edge draw"/><line x1="62" y1="126" x2="150" y2="24" class="ex-edge draw"/><line x1="62" y1="126" x2="150" y2="58" class="ex-edge draw"/><line x1="62" y1="126" x2="150" y2="92" class="ex-edge draw"/><line x1="62" y1="126" x2="150" y2="126" class="ex-edge draw"/><line x1="150" y1="24" x2="236" y2="40" class="ex-edge draw d06"/><line x1="150" y1="24" x2="236" y2="78" class="ex-edge draw d06"/><line x1="150" y1="24" x2="236" y2="116" class="ex-edge draw d06"/><line x1="150" y1="58" x2="236" y2="40" class="ex-edge draw d06"/><line x1="150" y1="58" x2="236" y2="78" class="ex-edge draw d06"/><line x1="150" y1="58" x2="236" y2="116" class="ex-edge draw d06"/><line x1="150" y1="92" x2="236" y2="40" class="ex-edge draw d06"/><line x1="150" y1="92" x2="236" y2="78" class="ex-edge draw d06"/><line x1="150" y1="92" x2="236" y2="116" class="ex-edge draw d06"/><line x1="150" y1="126" x2="236" y2="40" class="ex-edge draw d06"/><line x1="150" y1="126" x2="236" y2="78" class="ex-edge draw d06"/><line x1="150" y1="126" x2="236" y2="116" class="ex-edge draw d06"/>
+          <circle cx="62" cy="30" r="7" class="ex-node"/><text x="10" y="34">acc</text><circle cx="62" cy="62" r="7" class="ex-node"/><text x="10" y="66">gyro</text><circle cx="62" cy="94" r="7" class="ex-node"/><text x="10" y="98">mag</text><circle cx="62" cy="126" r="7" class="ex-node"/><text x="10" y="130">force</text><circle cx="150" cy="24" r="7" class="ex-node pop d04"/><circle cx="150" cy="58" r="7" class="ex-node pop d04"/><circle cx="150" cy="92" r="7" class="ex-node pop d04"/><circle cx="150" cy="126" r="7" class="ex-node pop d04"/><circle cx="236" cy="40" r="7" class="ex-node pop d08"/><text x="250" y="44" class="label-strong">a</text><circle cx="236" cy="78" r="7" class="ex-node pop d08"/><text x="250" y="82" class="label-strong">d</text><circle cx="236" cy="116" r="7" class="ex-node pop d08"/><text x="250" y="120" class="label-strong">o</text>
+          <g class="ex-scene s1">
+            <rect x="266" y="34" width="82" height="12" rx="4" class="ex-bar grow d10"/><rect x="266" y="72" width="38" height="12" rx="4" class="ex-bar grow d14"/><rect x="266" y="110" width="16" height="12" rx="4" class="ex-bar grow d16"/>
+            <text x="10" y="166" class="label-strong">Reading: numbers in, scores out</text>
+            <text x="10" y="184">Each neuron adds up its inputs, each times a learned weight.</text>
+          </g>
+          <g class="ex-scene s2">
+            <rect x="266" y="34" width="82" height="12" rx="4" class="ex-bar ex-bar--warn grow d10"/><rect x="266" y="72" width="38" height="12" rx="4" class="ex-bar grow d14"/><rect x="266" y="110" width="16" height="12" rx="4" class="ex-bar grow d16"/>
+            <path d="M330 78 C300 150 120 160 62 140" class="ex-back draw d10"/>
+            <text x="10" y="166" class="label-strong">Learning: the right answer was "d"</text>
+            <text x="10" y="184">The error flows back and nudges every weight toward "d".</text>
+          </g>
+        </svg>
+        <div class="ex-steps" role="radiogroup" aria-label="Scene">
+          <input type="radio" name="nn-net" id="nn-net-play" value="play" checked><label for="nn-net-play">Play</label>
+          <input type="radio" name="nn-net" id="nn-net-1" value="1"><label for="nn-net-1">Reading</label>
+          <input type="radio" name="nn-net" id="nn-net-2" value="2"><label for="nn-net-2">Learning</label>
+        </div>
+        <figcaption class="hint">The networks on this page learned from about 20,000
+          letters with their right answers, 30 passes over them. Nothing is programmed
+          letter by letter: the weights are all learned.</figcaption>
+      </figure>
+
+      <figure class="v-card explain" aria-labelledby="nn-cnn-h">
+        <h3 id="nn-cnn-h">What is a CNN (convolutional neural network)?</h3>
+        <svg class="ex" viewBox="0 0 360 200" role="img"
+          aria-label="A small filter shaped like a quick upstroke slides along the pen signal. Below, a row of cells lights up at each place where the signal matches the filter.">
+          <text x="10" y="14" class="label-strong">a filter: one small pattern</text>
+          <polyline points="196,18 206,22 216,6 226,3" class="ex-sig ex-sig--alt"/>
+          <polyline points="10,90 26,84 42,96 58,60 74,52 90,92 106,96 122,88 138,58 154,50 170,94 186,90 202,86 218,62 234,54 250,96 266,92 282,88 298,90 350,88" class="ex-sig"/>
+          <rect x="34" y="40" width="48" height="66" rx="6" class="ex-window"/>
+          <text x="10" y="116" class="ex-foot">where it matches</text>
+          <rect x="14" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="31" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="48" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="65" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="65" y="122" width="14" height="14" rx="2" class="ex-px ex-px--on pop d03"/><rect x="82" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="99" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="116" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="133" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="150" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="150" y="122" width="14" height="14" rx="2" class="ex-px ex-px--on pop d23"/><rect x="167" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="184" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="201" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="218" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="235" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="235" y="122" width="14" height="14" rx="2" class="ex-px ex-px--on pop d42"/><rect x="252" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="269" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="286" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="303" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="320" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="337" y="122" width="14" height="14" rx="2" class="ex-px"/>
+          <text x="10" y="166" class="label-strong">The same filter slides along the whole signal</text>
+          <text x="10" y="184">and lights up wherever its pattern appears, early or late.</text>
+        </svg>
+        <figcaption class="hint">The CNN here has 64 filters, then 128, each 3 time steps
+          wide, and halves the number of steps twice. It finds strokes; it does not know
+          which stroke came first. See <a class="term" href="#term-cnn">CNN</a>.</figcaption>
+      </figure>
+
+      <figure class="v-card explain" aria-labelledby="nn-lstm-h">
+        <h3 id="nn-lstm-h">What is an LSTM, and a BiLSTM?</h3>
+        <svg class="ex ex--2" viewBox="0 0 360 200" role="img"
+          aria-label="An LSTM reads the signal one moment at a time, t1 to t6, and carries a memory along. A BiLSTM adds a second LSTM reading backwards, so each moment knows what comes before and after.">
+          <text x="10" y="18" class="ex-foot">the signal, moment by moment</text>
+          <rect x="10" y="30" width="48" height="34" rx="6" class="ex-box"/><text x="22" y="52">t1</text><rect x="68" y="30" width="48" height="34" rx="6" class="ex-box"/><text x="80" y="52">t2</text><rect x="126" y="30" width="48" height="34" rx="6" class="ex-box"/><text x="138" y="52">t3</text><rect x="184" y="30" width="48" height="34" rx="6" class="ex-box"/><text x="196" y="52">t4</text><rect x="242" y="30" width="48" height="34" rx="6" class="ex-box"/><text x="254" y="52">t5</text><rect x="300" y="30" width="48" height="34" rx="6" class="ex-box"/><text x="312" y="52">t6</text>
+          <g class="ex-scene s1">
+            <path d="M58 47 L68 47" class="ex-arrowline pop d03"/><path d="M116 47 L126 47" class="ex-arrowline pop d06"/><path d="M174 47 L184 47" class="ex-arrowline pop d09"/><path d="M232 47 L242 47" class="ex-arrowline pop d12"/><path d="M290 47 L300 47" class="ex-arrowline pop d15"/>
+            <text x="10" y="80" class="ex-foot">memory carried forward</text>
+            <rect x="10" y="86" width="48" height="14" rx="4" class="ex-mem"/><rect x="68" y="86" width="48" height="14" rx="4" class="ex-mem"/><rect x="68" y="86" width="48" height="14" rx="4" class="ex-mem ex-mem--on pop d06"/><rect x="126" y="86" width="48" height="14" rx="4" class="ex-mem"/><rect x="126" y="86" width="48" height="14" rx="4" class="ex-mem ex-mem--on pop d09"/><rect x="184" y="86" width="48" height="14" rx="4" class="ex-mem"/><rect x="184" y="86" width="48" height="14" rx="4" class="ex-mem ex-mem--on pop d12"/><rect x="242" y="86" width="48" height="14" rx="4" class="ex-mem"/><rect x="242" y="86" width="48" height="14" rx="4" class="ex-mem ex-mem--on pop d15"/><rect x="300" y="86" width="48" height="14" rx="4" class="ex-mem"/>
+            <text x="64" y="118" class="pop d06">a loop is stored</text>
+            <text x="238" y="118" class="pop d18">still known at t5</text>
+            <text x="10" y="166" class="label-strong">LSTM: reads in order and remembers</text>
+            <text x="10" y="184">Gates decide what to keep, forget and add at each moment.</text>
+          </g>
+          <g class="ex-scene s2">
+            <path d="M14 80 L344 80" class="ex-arrowline draw"/><path d="M336 74 L346 80 L336 86" class="ex-arrowline pop d18"/><text x="300" y="76" class="ex-foot">forwards</text>
+            <path d="M344 108 L14 108" class="ex-arrowline ex-arrowline--alt draw d06"/><path d="M22 102 L12 108 L22 114" class="ex-arrowline ex-arrowline--alt pop d24"/><text x="14" y="124" class="ex-foot">backwards</text>
+            <text x="10" y="166" class="label-strong">BiLSTM: one reads forwards, one backwards</text>
+            <text x="10" y="184">Each moment sees what came before and what comes after.</text>
+          </g>
+        </svg>
+        <div class="ex-steps" role="radiogroup" aria-label="Scene">
+          <input type="radio" name="nn-lstm" id="nn-lstm-play" value="play" checked><label for="nn-lstm-play">Play</label>
+          <input type="radio" name="nn-lstm" id="nn-lstm-1" value="1"><label for="nn-lstm-1">LSTM</label>
+          <input type="radio" name="nn-lstm" id="nn-lstm-2" value="2"><label for="nn-lstm-2">BiLSTM</label>
+        </div>
+        <figcaption class="hint">LSTM means long short-term memory. The model here has one
+          BiLSTM layer with 64 memory units in each direction. See
+          <a class="term" href="#term-bilstm">BiLSTM</a>.</figcaption>
+      </figure>
+
+      <figure class="v-card explain" aria-labelledby="nn-att-h">
+        <h3 id="nn-att-h">What is attention?</h3>
+        <svg class="ex" viewBox="0 0 360 200" role="img"
+          aria-label="Bars over the 25 moments of a letter show how much attention each gets. Two moments, a crossbar and a loop, get most of it.">
+          <text x="10" y="18" class="label-strong">how much each moment counts</text>
+          <line x1="10" y1="110" x2="350" y2="110" class="ex-line"/>
+          <rect x="12.0" y="104" width="10" height="6" rx="2" class="ex-bar ex-att grow-up d02"/><rect x="25.4" y="102" width="10" height="8" rx="2" class="ex-bar ex-att grow-up d03"/><rect x="38.8" y="100" width="10" height="10" rx="2" class="ex-bar ex-att grow-up d04"/><rect x="52.2" y="98" width="10" height="12" rx="2" class="ex-bar ex-att grow-up d05"/><rect x="65.6" y="80" width="10" height="30" rx="2" class="ex-bar ex-att grow-up d06"/><rect x="79.0" y="58" width="10" height="52" rx="2" class="ex-bar ex-att grow-up d07"/><rect x="92.4" y="70" width="10" height="40" rx="2" class="ex-bar ex-att grow-up d08"/><rect x="105.8" y="96" width="10" height="14" rx="2" class="ex-bar ex-att grow-up d09"/><rect x="119.2" y="100" width="10" height="10" rx="2" class="ex-bar ex-att grow-up d10"/><rect x="132.6" y="102" width="10" height="8" rx="2" class="ex-bar ex-att grow-up d11"/><rect x="146.0" y="102" width="10" height="8" rx="2" class="ex-bar ex-att grow-up d12"/><rect x="159.4" y="100" width="10" height="10" rx="2" class="ex-bar ex-att grow-up d13"/><rect x="172.8" y="98" width="10" height="12" rx="2" class="ex-bar ex-att grow-up d14"/><rect x="186.2" y="96" width="10" height="14" rx="2" class="ex-bar ex-att grow-up d15"/><rect x="199.6" y="86" width="10" height="24" rx="2" class="ex-bar ex-att grow-up d16"/><rect x="213.0" y="64" width="10" height="46" rx="2" class="ex-bar ex-att grow-up d17"/><rect x="226.4" y="52" width="10" height="58" rx="2" class="ex-bar ex-att grow-up d18"/><rect x="239.8" y="74" width="10" height="36" rx="2" class="ex-bar ex-att grow-up d19"/><rect x="253.2" y="96" width="10" height="14" rx="2" class="ex-bar ex-att grow-up d20"/><rect x="266.6" y="100" width="10" height="10" rx="2" class="ex-bar ex-att grow-up d21"/><rect x="280.0" y="102" width="10" height="8" rx="2" class="ex-bar ex-att grow-up d22"/><rect x="293.4" y="104" width="10" height="6" rx="2" class="ex-bar ex-att grow-up d23"/><rect x="306.8" y="104" width="10" height="6" rx="2" class="ex-bar ex-att grow-up d24"/><rect x="320.2" y="104" width="10" height="6" rx="2" class="ex-bar ex-att grow-up d25"/><rect x="333.6" y="104" width="10" height="6" rx="2" class="ex-bar ex-att grow-up d26"/>
+          <text x="64" y="128" class="pop d10">crossbar</text>
+          <text x="208" y="128" class="pop d20">loop</text>
+          <text x="10" y="166" class="label-strong">Attention scores every moment, then averages</text>
+          <text x="10" y="184">by those scores, so the moments that matter count most.</text>
+        </svg>
+        <figcaption class="hint">The scores are learned, not set by hand. With augmentation,
+          adding attention took new people from 70.0% to 70.9% (official OnHW-chars split,
+          52 classes, seed 0). See <a class="term" href="#term-attention">attention</a>.</figcaption>
+      </figure>
+
+      <figure class="v-card explain explain--wide" aria-labelledby="nn-hyb-h">
+        <h3 id="nn-hyb-h">A hybrid: CNN, then BiLSTM, then attention</h3>
+        <svg class="ex" viewBox="0 0 360 200" role="img"
+          aria-label="The pen signal passes through a CNN that finds strokes, a BiLSTM that puts them in order, and attention that picks the moments that matter, then out comes the letter.">
+          <text x="10" y="18" class="label-strong">each part does what the others cannot</text>
+          <rect x="6" y="56" width="64" height="48" rx="8" class="ex-box ex-stage pop d02"/><text x="38" y="76" class="label-strong ex-mid pop d02">Signal</text><text x="38" y="94" class="ex-mid pop d02">13 × 100</text><rect x="76" y="56" width="64" height="48" rx="8" class="ex-box ex-stage pop d06"/><text x="108" y="76" class="label-strong ex-mid pop d06">CNN</text><text x="108" y="94" class="ex-mid pop d06">strokes</text><rect x="146" y="56" width="64" height="48" rx="8" class="ex-box ex-stage pop d10"/><text x="178" y="76" class="label-strong ex-mid pop d10">BiLSTM</text><text x="178" y="94" class="ex-mid pop d10">order</text><rect x="216" y="56" width="64" height="48" rx="8" class="ex-box ex-stage pop d14"/><text x="248" y="76" class="label-strong ex-mid pop d14">Attention</text><text x="248" y="94" class="ex-mid pop d14">what counts</text><rect x="286" y="56" width="64" height="48" rx="8" class="ex-box ex-stage pop d18"/><text x="318" y="76" class="label-strong ex-mid pop d18">Answer</text><text x="318" y="94" class="ex-mid pop d18">"A"</text>
+          <circle cx="38" cy="120" r="6" class="ex-token"/>
+          <text x="10" y="150">CNN: short shapes. BiLSTM: their order.</text>
+          <text x="10" y="166">Attention: which moments decide the letter.</text>
+          <text x="10" y="184" class="label-strong">Together: 72.46% of letters from new people</text>
+        </svg>
+        <figcaption class="hint">This is the design behind the answers on this page. The
+          plain CNN-BiLSTM, without attention or the training changes, read 69.2% on the same
+          test (official OnHW-chars split, 52 classes, seed 0); Ott et al. (ACM MM 2022) report
+          68.06% for theirs.</figcaption>
+      </figure>
+
+    </div>
+  </section>
 
   <section id="algos" class="wrap section" aria-labelledby="algos-h">
     <h2 id="algos-h">Compare the algorithms</h2>
