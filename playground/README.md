@@ -23,7 +23,7 @@ recordings. What each task draws on:
 | Characters | unseen, right- and left-handed | 5-seed ensemble | `results/ensemble/` |
 | Characters | seen | one model, seed 0 | `results/tasks/chars_dep.npz` |
 | Symbols, equations | unseen and seen | one model, seed 0 | `results/tasks/` |
-| Words | unseen | CTC, greedy and word-list decoding | `results/ctc/refit_seed0.json.predictions.npz` |
+| Words | unseen | CTC, greedy and word-list decoding (exact scoring) | `results/ctc/refit_seed0_exact.json.predictions.npz` |
 
 **Local (`data/local.js`, gitignored).** The right-handed character samples
 with their real recordings, raw and filtered. Download the data yourself.

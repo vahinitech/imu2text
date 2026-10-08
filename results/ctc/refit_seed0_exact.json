@@ -1,0 +1,37 @@
+{
+  "implementation": "exact-lexicon-redecode",
+  "refit": "refit_seed0.json",
+  "refit_sha256": "04aca6ca159a942ca1b33cd908e02db865676eb6dd21216663d0e583cfcf180d",
+  "weights_sha256": "c46b6a80d1a127b97574a552c652aafb4254966a2b496db98b7ad5f035e015f7",
+  "dataset": "Words500_indep_02",
+  "fold": 0,
+  "protocol": "official writer-independent",
+  "seed": 0,
+  "test": 5292,
+  "lexicon_size": 501,
+  "lexicon_source": "training words only",
+  "greedy_matches_saved": true,
+  "metrics": {
+    "greedy": {
+      "cer": 0.5395297295425425,
+      "wer": 0.9109977324263039,
+      "word_accuracy": 0.08900226757369614
+    },
+    "beam8_strict_saved": {
+      "cer": 0.568514734910136,
+      "wer": 0.672713529856387,
+      "word_accuracy": 0.327286470143613
+    },
+    "exact_lexicon": {
+      "cer": 0.4538560099733352,
+      "wer": 0.592214663643235,
+      "word_accuracy": 0.40778533635676495
+    }
+  },
+  "empty_outputs": {
+    "greedy": 124,
+    "beam8_strict_saved": 1348,
+    "exact_lexicon": 0
+  },
+  "decode_seconds": 130.3
+}

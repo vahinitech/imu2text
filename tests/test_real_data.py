@@ -321,7 +321,8 @@ def test_real_words500_lexicon_is_the_closed_500_word_vocabulary():
     from imu2text import words as W
 
     ds = W.load_onhw_words500(_require("Words500_indep_L", "Words500_dep_L"), fold=0)
-    assert len(ds.lexicon) == 500
+    assert ds.lexicon == sorted(set(ds.train_words))  # never the test half
+    assert len(set(ds.train_words + ds.val_words)) == 500
 
 
 def test_real_words500_is_writer_independent_across_splits():

@@ -164,8 +164,12 @@ class OnHWWordsDataset(NamedTuple):
 
     @property
     def lexicon(self) -> List[str]:
-        """Sorted list of unique words across train+val (the closed 500-word vocab)."""
-        return sorted(set(self.train_words + self.val_words))
+        """Sorted unique training words, the closed vocabulary a decoder may use.
+
+        Training words only: a lexicon built with the test half would hand the
+        decoder test labels.
+        """
+        return sorted(set(self.train_words))
 
     def summary(self) -> str:
         lens = [len(s) for s in self.X_train] + [len(s) for s in self.X_val]
@@ -343,6 +347,47 @@ def _accumulate(
     entry[slot] = np.logaddexp(entry[slot], value)
 
 
+def ctc_word_log_likelihoods(log_p: np.ndarray, words: Sequence[Sequence[int]]):
+    """log P(word | recording) under CTC for every word, all at once.
+
+    ``log_p`` is a (T, V) matrix of log posteriors with the blank at index
+    ``V - 1``; ``words`` holds token sequences. This is the CTC forward pass
+    (Graves et al., ICML 2006) run for every word in parallel over a padded
+    extended label ``blank, l1, blank, l2, ..., blank``. A word that cannot
+    be aligned to ``T`` frames gets ``-inf``.
+    """
+    T, V = log_p.shape
+    blank = V - 1
+    n = len(words)
+    lens = np.array([len(w) for w in words])
+    S = 2 * int(lens.max(initial=0)) + 1
+    ext = np.full((n, S), blank, dtype=np.int64)
+    for i, w in enumerate(words):
+        ext[i, 1 : 2 * len(w) : 2] = w
+    # s may also come from s - 2 when it is a label that differs from the
+    # label two places back (a repeated letter needs the blank between).
+    skip = np.zeros((n, S), dtype=bool)
+    skip[:, 2:] = (ext[:, 2:] != blank) & (ext[:, 2:] != ext[:, :-2])
+    valid = np.arange(S)[None, :] < (2 * lens + 1)[:, None]
+    emit = log_p[:, ext]  # (T, n, S)
+    alpha = np.full((n, S), -np.inf)
+    alpha[:, 0] = emit[0, :, 0]
+    alpha[:, 1] = np.where(lens > 0, emit[0, :, 1], -np.inf)
+    alpha[~valid] = -np.inf
+    for t in range(1, T):
+        prev = alpha
+        step = prev.copy()
+        step[:, 1:] = np.logaddexp(step[:, 1:], prev[:, :-1])
+        step[:, 2:] = np.where(
+            skip[:, 2:], np.logaddexp(step[:, 2:], prev[:, :-2]), step[:, 2:]
+        )
+        alpha = np.where(valid, step + emit[t], -np.inf)
+    rows = np.arange(n)
+    end = alpha[rows, 2 * lens]
+    before = np.where(lens > 0, alpha[rows, np.maximum(2 * lens - 1, 0)], -np.inf)
+    return np.logaddexp(end, before)
+
+
 class LexiconDecoder:
     """Lexicon-constrained beam-search CTC decoder for closed-vocabulary HWR.
 
@@ -377,6 +422,15 @@ class LexiconDecoder:
         When no beam spells a complete lexicon word, return "" (an explicit
         no-decode) rather than a partial prefix that is certainly wrong. Set
         False to return the best prefix instead, for partial CER credit.
+    exact : bool, default True
+        Score every lexicon word with the full CTC likelihood
+        (``ctc_word_log_likelihoods``) and return the most likely one. No
+        pruning, so the answer is always a lexicon word whenever one fits the
+        recording, and ``beam_width`` does not apply. Only used with
+        ``strict=True``; ``strict=False`` needs the beam search, since it may
+        return a prefix. With a few hundred
+        words this is exact and fast; the beam search is for vocabularies
+        too large to score word by word.
     """
 
     def __init__(
@@ -386,8 +440,16 @@ class LexiconDecoder:
         beam_width: int = 8,
         lexicon_bonus: float = 1.0,
         strict: bool = True,
+        exact: bool = True,
     ):
         self.charset = charset
+        self.exact = exact and strict
+        self._words = sorted(set(lexicon))
+        index = {ch: i for i, ch in enumerate(charset)}
+        unknown = sorted({ch for w in self._words for ch in w if ch not in index})
+        if unknown:
+            raise ValueError(f"lexicon uses symbols outside the charset: {unknown}")
+        self._tokens = [[index[ch] for ch in w] for w in self._words]
         self.beam_width = beam_width
         self.lexicon_bonus = lexicon_bonus
         self.strict = strict
@@ -440,6 +502,13 @@ class LexiconDecoder:
                 f"expected {blank + 1} (charset + CTC blank)"
             )
         log_p = np.log(np.asarray(posteriors, dtype=np.float64) + 1e-12)
+        if self.exact:
+            if not self._tokens:
+                return ""
+            scores = ctc_word_log_likelihoods(log_p, self._tokens)
+            if np.isfinite(scores).any():
+                return self._words[int(np.argmax(scores))]
+            return ""  # every word is longer than the recording allows
 
         NEG = -np.inf
         # prefix -> [log P(alignments ending in blank),

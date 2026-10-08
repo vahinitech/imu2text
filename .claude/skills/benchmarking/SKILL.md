@@ -163,11 +163,29 @@ zeros once, which reads as "one writer" and silently turns a
 writer-independent split into a leaky one. Use a sentinel and make consumers
 reject it.
 
+## Decoding and selection are part of the result
+
+A sequence number is the model plus its decoder. The Words500 refit read
+32.73% of test words exactly through a lexicon beam search that kept 8
+prefixes and returned 1,348 empty answers; scoring every training word with
+the full CTC likelihood read 40.78% on the same weights
+(`results/ctc/refit_seed0_exact.json`). Before blaming the model for a low
+lexicon score, count the empty or abstained outputs. `refit_ctc` exports the
+weights so decoding can be redone without training; keep them.
+
+Selection is part of the result too. The OnHW-chars validation slice comes
+sample by sample from the training writers and scores about 81% while unseen
+writers score 72%; it picked the worst of five seeds as best. A validation
+gain is evidence about familiar writers, not new ones.
+
 ## Leakage checklist
 
 - Normalization fitted on train indices only, unless the mode is documented as
   transductive (`--norm per_writer` is, and any number from it must say so)
-- Augmentation applied to train only, never to val or test
+- Augmentation applied to train only, never to val or test, and writing values
+  the sensor can produce (it runs on raw counts, before the scaler)
+- Lexicons and charsets from training labels only: `ds.lexicon` on the words
+  and equations loaders is the training words
 - Val carved from the training half, never from the published test half
 - If an archive ships a split, use it instead of re-deriving one. The symbols
   `dep` archive shares all 27 writers across train and val on purpose;

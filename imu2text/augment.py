@@ -187,13 +187,19 @@ def random_rotation(
 def channel_dropout(
     seq: np.ndarray, rng: np.random.Generator, p_drop: float = 0.05
 ) -> np.ndarray:
-    """Zero out a few channels for the whole sample (sensor dropout).
+    """Flatten a few channels for the whole sample (sensor dropout).
 
     Simulates a sensor channel going dead for a whole recording - a rare but
     real failure mode of pen-mounted sensors. We drop channels independently
     with probability ``p_drop``, capping at half the channels so the sample
     stays informative. Always keeps the Force channel (it's a single scalar
     that signals pen-on-paper contact).
+
+    A dropped channel is held at its own mean for the recording, so it
+    carries no motion but stays in range. Augmentation runs on raw counts,
+    before the scaler, and a raw 0 is far outside the data on some axes:
+    the gravity axis of the front accelerometer reads around 16,000 counts at
+    rest, so zeroing it made an outlier the test set never contains.
     """
     n_channels = seq.shape[1]
     drop = rng.random(n_channels) < p_drop
@@ -203,7 +209,7 @@ def channel_dropout(
         drop[:] = False
     if drop.any():
         seq = seq.copy()
-        seq[:, drop] = 0.0
+        seq[:, drop] = seq[:, drop].mean(axis=0, keepdims=True)
     return seq
 
 

@@ -30,6 +30,7 @@ one seed unless stated.
 | OnHW-equations, digits 0-9 | accuracy | **87.35%** | n/a |
 | OnHW-equations, whole numbers | every digit right | **76.10%** | n/a |
 | OnHW-Words500, 59 characters | greedy CER, refit on all training writers | **53.95%** | not compared |
+| OnHW-Words500, 59 characters | words read exactly, word list of training words | **40.78%** | not compared |
 
 On the characters, 43% of the remaining errors are a letter read as its
 other case; scored case-insensitively the same model reaches 84.3%. On the

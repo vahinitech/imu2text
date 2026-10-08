@@ -233,8 +233,8 @@ class OnHWEquationsDataset(NamedTuple):
 
     @property
     def lexicon(self) -> List[str]:
-        """Sorted unique equation strings across train+val."""
-        return sorted(set(self.train_words + self.val_words))
+        """Sorted unique training equation strings (never the test half)."""
+        return sorted(set(self.train_words))
 
     def summary(self) -> str:
         lens = [len(s) for s in self.X_train] + [len(s) for s in self.X_val]
