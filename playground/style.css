@@ -339,3 +339,119 @@ details.dev p { margin: 6px 0; }
 .fold[open] .fold__summary h2::after { content: " −"; }
 .fold__note { display: block; margin-top: 4px; font-size: var(--v-text-sm); color: var(--v-text-muted); }
 .fold[open] .fold__note { display: none; }
+
+/* ---- seven ideas, in motion: SVG loops, no script ---- */
+.explain-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 12px; }
+@media (max-width: 860px) { .explain-grid { grid-template-columns: minmax(0, 1fr); } }
+.explain { margin: 0; }
+.explain--wide { grid-column: 1 / -1; }
+.ex .ex-end { text-anchor: end; }
+.ex .ex-mono { font-family: var(--v-font-mono); font-size: 9.5px; }
+.ex-px { fill: var(--v-bg-alt); stroke: var(--v-border); }
+.ex-px--on { fill: var(--v-text); }
+.ex-dot { fill: var(--v-accent); }
+.ex-chip { fill: var(--v-bg-alt); stroke: var(--v-border); }
+.ex-chip--on { fill: var(--v-accent); stroke: var(--v-accent); }
+.ex .ex-chip__t { text-anchor: middle; font-weight: 600; }
+.ex .ex-chip__t--on { fill: var(--v-on-accent); }
+.ex .ex-big { font: 600 28px var(--v-font-sans); fill: var(--v-text); }
+.ex .ex-big--wrong { fill: var(--v-highlight-strong); }
+.ex .ex-arrow { font-size: 22px; }
+.ex-scan { fill: var(--v-accent); opacity: 0.35; animation: ex-scan var(--t) infinite; animation-delay: var(--at); }
+@keyframes ex-scan { 0% { transform: translateY(0); } 25% { transform: translateY(52px); } 26%, 100% { opacity: 0; transform: translateY(52px); } }
+.ex-pen--word { transform: translate(44px, 64px) rotate(28deg); animation: ex-pen-w var(--t) infinite; animation-delay: var(--at); }
+@keyframes ex-pen-w { 0% { transform: translate(44px, 64px) rotate(28deg); } 8% { transform: translate(44px, 82px) rotate(28deg); }
+  12% { transform: translate(76px, 64px) rotate(28deg); } 20% { transform: translate(76px, 88px) rotate(28deg); }
+  24%, 100% { transform: translate(106px, 64px) rotate(28deg); } }
+.ex-line--faint { stroke: var(--v-chart-grid); stroke-dasharray: 3 3; }
+.explain figcaption { margin-top: 8px; }
+.ex { display: block; width: 100%; max-width: 440px; height: auto; margin: 4px auto 0; }
+.ex text { font-size: 10.5px; }
+.ex .label-strong { font-size: 11.5px; }
+.ex-box { fill: var(--v-bg-alt); stroke: var(--v-border); }
+.ex-track { fill: var(--v-chart-grid); }
+.ex-bar { fill: var(--v-chart-1); }
+.ex-bar--alt { fill: var(--v-chart-2); }
+.ex-bar--warn { fill: var(--v-highlight-strong); }
+.ex-line { stroke: var(--v-border-strong); stroke-width: 1; }
+.ex-ink { fill: none; stroke: var(--v-text); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.ex-sig { fill: none; stroke: var(--v-chart-1); stroke-width: 2; stroke-linejoin: round; }
+.ex-sig--alt { stroke: var(--v-chart-2); }
+.ex-pen { fill: var(--v-accent); }
+.ex-say text { font: 600 26px var(--v-font-mono); fill: var(--v-text); text-anchor: middle; }
+.ex-say--small text { font: 600 16px var(--v-font-sans); text-anchor: start; }
+.ex .ex-foot { font-size: 9.5px; fill: var(--v-text-faint); }
+.w1 { fill: var(--v-chart-1); }
+.w2 { fill: var(--v-chart-2); }
+.w3 { fill: var(--v-chart-3); }
+.w4 { fill: var(--v-highlight-strong); }
+
+/* Scenes take turns. Each loop lasts --t; scene k of n starts at (k-1)/n of
+   it. Animations inside a scene use the same --t so they restart with it. */
+.ex { --t: 10s; --at: 0s; }
+.ex--3 { --t: 12s; }
+.ex-scene { opacity: 0; animation: ex-show2 var(--t) infinite; animation-delay: var(--at); }
+.ex--2 .s2 { --at: calc(var(--t) / -2); }
+.ex--3 .ex-scene { animation-name: ex-show3; }
+.ex--3 .s2 { --at: calc(var(--t) * -2 / 3); }
+.ex--3 .s3 { --at: calc(var(--t) / -3); }
+@keyframes ex-show2 { 0%, 46% { opacity: 1; } 50%, 96% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes ex-show3 { 0%, 30% { opacity: 1; } 33.4%, 97% { opacity: 0; } 100% { opacity: 1; } }
+
+.pop { transform-box: fill-box; transform-origin: center; animation: ex-pop var(--t) infinite backwards;
+  animation-delay: calc(var(--at) + var(--d, 0s)); }
+@keyframes ex-pop { 0% { opacity: 0; transform: scale(0.3); } 6%, 100% { opacity: 1; transform: none; } }
+.grow { transform-box: fill-box; transform-origin: left center; animation: ex-grow var(--t) infinite backwards;
+  animation-delay: calc(var(--at) + var(--d, 0s)); }
+@keyframes ex-grow { 0% { transform: scaleX(0); } 10%, 100% { transform: scaleX(1); } }
+.draw { stroke-dasharray: 400; animation: ex-draw var(--t) infinite backwards; animation-delay: calc(var(--at) + var(--d, 0s)); }
+@keyframes ex-draw { 0% { stroke-dashoffset: 400; } 22%, 100% { stroke-dashoffset: 0; } }
+.ex-grow { transform-box: fill-box; transform-origin: center; animation: ex-o2O var(--t) infinite; }
+@keyframes ex-o2O { 0%, 15% { transform: scale(0.4); } 45%, 75% { transform: scale(1); } 95%, 100% { transform: scale(0.4); } }
+/* the pen tip follows the three humps of the stroke */
+.ex-pen { animation: ex-pen-r var(--t) infinite; }
+.ex-pen--right { transform: translate(30px, 56px) rotate(28deg); animation-name: ex-pen-r; }
+.ex-pen--left { transform: translate(190px, 56px) rotate(-28deg); animation-name: ex-pen-l; }
+@keyframes ex-pen-r { 0% { transform: translate(30px, 56px) rotate(28deg); } 22%, 100% { transform: translate(102px, 56px) rotate(28deg); } }
+@keyframes ex-pen-l { 0% { transform: translate(190px, 56px) rotate(-28deg); } 22%, 100% { transform: translate(262px, 56px) rotate(-28deg); } }
+
+/* stagger: the served CSP drops inline styles, so delays are classes */
+.ex .d02 { --d: .2s; }
+.ex .d04 { --d: .4s; }
+.ex .d05 { --d: .5s; }
+.ex .d06 { --d: .6s; }
+.ex .d08 { --d: .8s; }
+.ex .d10 { --d: 1s; }
+.ex .d11 { --d: 1.1s; }
+.ex .d12 { --d: 1.2s; }
+.ex .d13 { --d: 1.3s; }
+.ex .d14 { --d: 1.4s; }
+.ex .d15 { --d: 1.5s; }
+.ex .d16 { --d: 1.6s; }
+.ex .d24 { --d: 2.4s; }
+.ex .d28 { --d: 2.8s; }
+.ex .d20 { --d: 2s; }
+.ex .d26 { --d: 2.6s; }
+
+/* Scene buttons: Play loops; a number stops on that scene, finished. With
+   reduced motion nothing loops and Play shows the first scene. */
+.ex-steps { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 6px; }
+.ex-steps input { position: absolute; opacity: 0; pointer-events: none; }
+.ex-steps label { font: 600 12px var(--v-font-sans); padding: 3px 10px; border-radius: var(--v-radius-pill);
+  border: 1px solid var(--v-border); color: var(--v-text-muted); cursor: pointer; }
+.ex-steps input:checked + label { background: var(--v-accent-soft); border-color: var(--v-accent); color: var(--v-accent-text); }
+.ex-steps input:focus-visible + label { outline: 2px solid var(--v-accent-strong); outline-offset: 2px; }
+.explain:has(.ex-steps input:not([value="play"]):checked) :is(.ex-scene, .pop, .grow, .draw) { animation: none; }
+.explain:has(.ex-steps input:not([value="play"]):checked) .ex-scene { opacity: 0; }
+.explain:has(.ex-steps input[value="1"]:checked) .ex-scene.s1,
+.explain:has(.ex-steps input[value="2"]:checked) .ex-scene.s2,
+.explain:has(.ex-steps input[value="3"]:checked) .ex-scene.s3 { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ex-scene, .pop, .grow, .draw, .ex-grow, .ex-pen, .ex-scan { animation: none; }
+  .ex-scan { display: none; }
+  .draw { stroke-dasharray: none; }
+  .ex-grow { transform: none; }
+  .explain:has(.ex-steps input[value="play"]:checked) .ex-scene.s1 { opacity: 1; }
+  .ex-steps label[for$="-play"] { display: none; }
+}
