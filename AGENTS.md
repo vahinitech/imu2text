@@ -9,6 +9,16 @@ imu2text trains handwriting recognisers on the Fraunhofer OnHW datasets (an
 IMU pen, 13 channels at 100 Hz) and reports writer-independent accuracy on the
 official splits.
 
+## Where to work
+
+Start every change in a worktree from `origin/main`
+(`git worktree add .claude/worktrees/<topic> -b <branch> origin/main`). A
+long-lived clone such as `~/imu2text` on the server lags `main` and may hold
+someone's uncommitted work or a running job's output; do not edit, pull,
+reset or rebase it, and leave its local changes for their owner. When a
+playground change merges here, vahini-web's pin-bump workflow opens the PR
+that puts it on playground.vahinitech.com; nothing in this repo deploys.
+
 ## Before you commit
 
 ```bash
