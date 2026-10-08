@@ -350,6 +350,23 @@ details.dev p { margin: 6px 0; }
 .ex-px { fill: var(--v-bg-alt); stroke: var(--v-border); }
 .ex-px--on { fill: var(--v-text); }
 .ex-dot { fill: var(--v-accent); }
+.ex-edge { stroke: var(--v-border-strong); stroke-width: 1; }
+.ex-node { fill: var(--v-surface); stroke: var(--v-accent); stroke-width: 2; }
+.ex-back { fill: none; stroke: var(--v-highlight-strong); stroke-width: 2.5; stroke-dasharray: 6 4; }
+.ex-window { fill: var(--v-accent-soft); stroke: var(--v-accent); stroke-width: 1.5;
+  animation: ex-slide var(--t) infinite linear; }
+@keyframes ex-slide { 0% { transform: translateX(0); } 60%, 100% { transform: translateX(260px); } }
+.ex-mem { fill: var(--v-bg-alt); stroke: var(--v-border); }
+.ex-mem--on { fill: var(--v-chart-2); stroke: var(--v-chart-2); }
+.ex-arrowline { fill: none; stroke: var(--v-chart-1); stroke-width: 2.5; marker-end: none; }
+.ex-arrowline--alt { stroke: var(--v-chart-2); }
+.ex .ex-mid { text-anchor: middle; }
+.ex-stage { fill: var(--v-accent-soft); stroke: var(--v-accent); }
+.ex-token { fill: var(--v-highlight-strong); animation: ex-token var(--t) infinite; }
+@keyframes ex-token { 0%, 8% { transform: translateX(0); } 70%, 100% { transform: translateX(280px); } }
+.grow-up { transform-box: fill-box; transform-origin: center bottom; animation: ex-grow-up var(--t) infinite backwards;
+  animation-delay: calc(var(--at) + var(--d, 0s)); }
+@keyframes ex-grow-up { 0% { transform: scaleY(0); } 8%, 100% { transform: scaleY(1); } }
 .ex-chip { fill: var(--v-bg-alt); stroke: var(--v-border); }
 .ex-chip--on { fill: var(--v-accent); stroke: var(--v-accent); }
 .ex .ex-chip__t { text-anchor: middle; font-weight: 600; }
@@ -433,6 +450,18 @@ details.dev p { margin: 6px 0; }
 .ex .d20 { --d: 2s; }
 .ex .d26 { --d: 2.6s; }
 
+.ex .d03 { --d: 0.3s; }
+.ex .d07 { --d: 0.7s; }
+.ex .d09 { --d: 0.9s; }
+.ex .d17 { --d: 1.7s; }
+.ex .d18 { --d: 1.8s; }
+.ex .d19 { --d: 1.9s; }
+.ex .d21 { --d: 2.1s; }
+.ex .d22 { --d: 2.2s; }
+.ex .d23 { --d: 2.3s; }
+.ex .d25 { --d: 2.5s; }
+.ex .d42 { --d: 4.2s; }
+
 /* Scene buttons: Play loops; a number stops on that scene, finished. With
    reduced motion nothing loops and Play shows the first scene. */
 .ex-steps { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 6px; }
@@ -441,14 +470,14 @@ details.dev p { margin: 6px 0; }
   border: 1px solid var(--v-border); color: var(--v-text-muted); cursor: pointer; }
 .ex-steps input:checked + label { background: var(--v-accent-soft); border-color: var(--v-accent); color: var(--v-accent-text); }
 .ex-steps input:focus-visible + label { outline: 2px solid var(--v-accent-strong); outline-offset: 2px; }
-.explain:has(.ex-steps input:not([value="play"]):checked) :is(.ex-scene, .pop, .grow, .draw) { animation: none; }
+.explain:has(.ex-steps input:not([value="play"]):checked) :is(.ex-scene, .pop, .grow, .grow-up, .draw) { animation: none; }
 .explain:has(.ex-steps input:not([value="play"]):checked) .ex-scene { opacity: 0; }
 .explain:has(.ex-steps input[value="1"]:checked) .ex-scene.s1,
 .explain:has(.ex-steps input[value="2"]:checked) .ex-scene.s2,
 .explain:has(.ex-steps input[value="3"]:checked) .ex-scene.s3 { opacity: 1; }
 
 @media (prefers-reduced-motion: reduce) {
-  .ex-scene, .pop, .grow, .draw, .ex-grow, .ex-pen, .ex-scan { animation: none; }
+  .ex-scene, .pop, .grow, .grow-up, .draw, .ex-grow, .ex-pen, .ex-scan, .ex-window, .ex-token { animation: none; }
   .ex-scan { display: none; }
   .draw { stroke-dasharray: none; }
   .ex-grow { transform: none; }

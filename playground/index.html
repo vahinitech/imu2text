@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Vahini Playground: see how AI reads handwriting from a sensor pen</title>
-  <meta name="description" content="Follow a handwritten letter, symbol or word from a sensor pen through filters and neural networks. Real results on unseen writers, open source.">
+  <meta name="description" content="Follow handwriting from a sensor pen through filters and neural networks (CNN, LSTM, attention), with animations and real results on unseen writers.">
   <link rel="canonical" href="https://playground.vahinitech.com/">
   <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#222831">
@@ -39,7 +39,10 @@
     "license": "https://www.apache.org/licenses/LICENSE-2.0",
     "codeRepository": "https://github.com/vahinitech/imu2text",
     "publisher": {"@type": "Organization", "name": "Vahini Technologies", "url": "https://vahinitech.com/"},
-    "about": ["Handwriting recognition", "Inertial measurement unit", "Machine learning"],
+    "about": ["Handwriting recognition", "Online handwriting recognition", "Inertial measurement unit", "Machine learning", "Deep learning", "Convolutional neural network", "Long short-term memory", "Attention (machine learning)"],
+    "teaches": ["What a neural network is", "How a CNN reads a signal", "How an LSTM and a BiLSTM read a sequence", "What attention adds", "Writer-independent versus writer-dependent testing", "Offline versus online handwriting recognition"],
+    "keywords": "handwriting recognition, sensor pen, IMU, CNN, LSTM, BiLSTM, attention, CNN-BiLSTM, deep learning, OnHW",
+    "audience": {"@type": "EducationalAudience", "educationalRole": "student"},
     "citation": {
       "@type": "ScholarlyArticle",
       "name": "The OnHW Dataset: Online Handwriting Recognition from IMU-Enhanced Ballpoint Pens with Machine Learning",
@@ -65,6 +68,7 @@
       <nav aria-label="Page">
         <a href="#workspace">Play</a>
         <a href="#how">How it works</a>
+        <a href="#nets">Neural networks</a>
         <a href="#designs">AI designs</a>
         <a href="#algos">Charts</a>
         <a href="#glossary">Glossary</a>
@@ -505,6 +509,130 @@
           52 classes, one run each, seed 0, fold 0; the voting row is five runs. The bars
           start at 60% so the steps are visible. The next gain is not a bigger model:
           43% of the mistakes are small or capital, which the pen barely feels.</figcaption>
+      </figure>
+
+    </div>
+  </section>
+
+  <section id="nets" class="wrap section" aria-labelledby="nets-h">
+    <h2 id="nets-h">How CNN, LSTM and hybrid neural networks read handwriting</h2>
+    <p class="hint">The deep learning behind this page, one idea per loop: what a neural
+      network is, how a CNN and an LSTM read a pen signal, what attention adds, and how the
+      hybrid used here puts them together. The drawings are sketches; the sizes and scores
+      are this project's.</p>
+    <div class="explain-grid">
+
+      <figure class="v-card explain" aria-labelledby="nn-net-h">
+        <h3 id="nn-net-h">What is a neural network?</h3>
+        <svg class="ex ex--2" viewBox="0 0 360 200" role="img"
+          aria-label="Sensor values go in on the left, pass through a layer of neurons, and come out as a score for each letter. In training, a wrong answer sends a correction backwards that changes every weight.">
+          <text x="10" y="12" class="ex-foot">sensor values</text><text x="128" y="12" class="ex-foot">neurons</text><text x="232" y="12" class="ex-foot">letter scores</text>
+          <line x1="62" y1="30" x2="150" y2="24" class="ex-edge draw"/><line x1="62" y1="30" x2="150" y2="58" class="ex-edge draw"/><line x1="62" y1="30" x2="150" y2="92" class="ex-edge draw"/><line x1="62" y1="30" x2="150" y2="126" class="ex-edge draw"/><line x1="62" y1="62" x2="150" y2="24" class="ex-edge draw"/><line x1="62" y1="62" x2="150" y2="58" class="ex-edge draw"/><line x1="62" y1="62" x2="150" y2="92" class="ex-edge draw"/><line x1="62" y1="62" x2="150" y2="126" class="ex-edge draw"/><line x1="62" y1="94" x2="150" y2="24" class="ex-edge draw"/><line x1="62" y1="94" x2="150" y2="58" class="ex-edge draw"/><line x1="62" y1="94" x2="150" y2="92" class="ex-edge draw"/><line x1="62" y1="94" x2="150" y2="126" class="ex-edge draw"/><line x1="62" y1="126" x2="150" y2="24" class="ex-edge draw"/><line x1="62" y1="126" x2="150" y2="58" class="ex-edge draw"/><line x1="62" y1="126" x2="150" y2="92" class="ex-edge draw"/><line x1="62" y1="126" x2="150" y2="126" class="ex-edge draw"/><line x1="150" y1="24" x2="236" y2="40" class="ex-edge draw d06"/><line x1="150" y1="24" x2="236" y2="78" class="ex-edge draw d06"/><line x1="150" y1="24" x2="236" y2="116" class="ex-edge draw d06"/><line x1="150" y1="58" x2="236" y2="40" class="ex-edge draw d06"/><line x1="150" y1="58" x2="236" y2="78" class="ex-edge draw d06"/><line x1="150" y1="58" x2="236" y2="116" class="ex-edge draw d06"/><line x1="150" y1="92" x2="236" y2="40" class="ex-edge draw d06"/><line x1="150" y1="92" x2="236" y2="78" class="ex-edge draw d06"/><line x1="150" y1="92" x2="236" y2="116" class="ex-edge draw d06"/><line x1="150" y1="126" x2="236" y2="40" class="ex-edge draw d06"/><line x1="150" y1="126" x2="236" y2="78" class="ex-edge draw d06"/><line x1="150" y1="126" x2="236" y2="116" class="ex-edge draw d06"/>
+          <circle cx="62" cy="30" r="7" class="ex-node"/><text x="10" y="34">acc</text><circle cx="62" cy="62" r="7" class="ex-node"/><text x="10" y="66">gyro</text><circle cx="62" cy="94" r="7" class="ex-node"/><text x="10" y="98">mag</text><circle cx="62" cy="126" r="7" class="ex-node"/><text x="10" y="130">force</text><circle cx="150" cy="24" r="7" class="ex-node pop d04"/><circle cx="150" cy="58" r="7" class="ex-node pop d04"/><circle cx="150" cy="92" r="7" class="ex-node pop d04"/><circle cx="150" cy="126" r="7" class="ex-node pop d04"/><circle cx="236" cy="40" r="7" class="ex-node pop d08"/><text x="250" y="44" class="label-strong">a</text><circle cx="236" cy="78" r="7" class="ex-node pop d08"/><text x="250" y="82" class="label-strong">d</text><circle cx="236" cy="116" r="7" class="ex-node pop d08"/><text x="250" y="120" class="label-strong">o</text>
+          <g class="ex-scene s1">
+            <rect x="266" y="34" width="82" height="12" rx="4" class="ex-bar grow d10"/><rect x="266" y="72" width="38" height="12" rx="4" class="ex-bar grow d14"/><rect x="266" y="110" width="16" height="12" rx="4" class="ex-bar grow d16"/>
+            <text x="10" y="166" class="label-strong">Reading: numbers in, scores out</text>
+            <text x="10" y="184">Each neuron adds up its inputs, each times a learned weight.</text>
+          </g>
+          <g class="ex-scene s2">
+            <rect x="266" y="34" width="82" height="12" rx="4" class="ex-bar ex-bar--warn grow d10"/><rect x="266" y="72" width="38" height="12" rx="4" class="ex-bar grow d14"/><rect x="266" y="110" width="16" height="12" rx="4" class="ex-bar grow d16"/>
+            <path d="M330 78 C300 150 120 160 62 140" class="ex-back draw d10"/>
+            <text x="10" y="166" class="label-strong">Learning: the right answer was "d"</text>
+            <text x="10" y="184">The error flows back and nudges every weight toward "d".</text>
+          </g>
+        </svg>
+        <div class="ex-steps" role="radiogroup" aria-label="Scene">
+          <input type="radio" name="nn-net" id="nn-net-play" value="play" checked><label for="nn-net-play">Play</label>
+          <input type="radio" name="nn-net" id="nn-net-1" value="1"><label for="nn-net-1">Reading</label>
+          <input type="radio" name="nn-net" id="nn-net-2" value="2"><label for="nn-net-2">Learning</label>
+        </div>
+        <figcaption class="hint">The networks on this page learned from about 20,000
+          letters with their right answers, 30 passes over them. Nothing is programmed
+          letter by letter: the weights are all learned.</figcaption>
+      </figure>
+
+      <figure class="v-card explain" aria-labelledby="nn-cnn-h">
+        <h3 id="nn-cnn-h">What is a CNN (convolutional neural network)?</h3>
+        <svg class="ex" viewBox="0 0 360 200" role="img"
+          aria-label="A small filter shaped like a quick upstroke slides along the pen signal. Below, a row of cells lights up at each place where the signal matches the filter.">
+          <text x="10" y="14" class="label-strong">a filter: one small pattern</text>
+          <polyline points="196,18 206,22 216,6 226,3" class="ex-sig ex-sig--alt"/>
+          <polyline points="10,90 26,84 42,96 58,60 74,52 90,92 106,96 122,88 138,58 154,50 170,94 186,90 202,86 218,62 234,54 250,96 266,92 282,88 298,90 350,88" class="ex-sig"/>
+          <rect x="34" y="40" width="48" height="66" rx="6" class="ex-window"/>
+          <text x="10" y="116" class="ex-foot">where it matches</text>
+          <rect x="14" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="31" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="48" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="65" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="65" y="122" width="14" height="14" rx="2" class="ex-px ex-px--on pop d03"/><rect x="82" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="99" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="116" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="133" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="150" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="150" y="122" width="14" height="14" rx="2" class="ex-px ex-px--on pop d23"/><rect x="167" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="184" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="201" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="218" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="235" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="235" y="122" width="14" height="14" rx="2" class="ex-px ex-px--on pop d42"/><rect x="252" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="269" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="286" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="303" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="320" y="122" width="14" height="14" rx="2" class="ex-px"/><rect x="337" y="122" width="14" height="14" rx="2" class="ex-px"/>
+          <text x="10" y="166" class="label-strong">The same filter slides along the whole signal</text>
+          <text x="10" y="184">and lights up wherever its pattern appears, early or late.</text>
+        </svg>
+        <figcaption class="hint">The CNN here has 64 filters, then 128, each 3 time steps
+          wide, and halves the number of steps twice. It finds strokes; it does not know
+          which stroke came first. See <a class="term" href="#term-cnn">CNN</a>.</figcaption>
+      </figure>
+
+      <figure class="v-card explain" aria-labelledby="nn-lstm-h">
+        <h3 id="nn-lstm-h">What is an LSTM, and a BiLSTM?</h3>
+        <svg class="ex ex--2" viewBox="0 0 360 200" role="img"
+          aria-label="An LSTM reads the signal one moment at a time, t1 to t6, and carries a memory along. A BiLSTM adds a second LSTM reading backwards, so each moment knows what comes before and after.">
+          <text x="10" y="18" class="ex-foot">the signal, moment by moment</text>
+          <rect x="10" y="30" width="48" height="34" rx="6" class="ex-box"/><text x="22" y="52">t1</text><rect x="68" y="30" width="48" height="34" rx="6" class="ex-box"/><text x="80" y="52">t2</text><rect x="126" y="30" width="48" height="34" rx="6" class="ex-box"/><text x="138" y="52">t3</text><rect x="184" y="30" width="48" height="34" rx="6" class="ex-box"/><text x="196" y="52">t4</text><rect x="242" y="30" width="48" height="34" rx="6" class="ex-box"/><text x="254" y="52">t5</text><rect x="300" y="30" width="48" height="34" rx="6" class="ex-box"/><text x="312" y="52">t6</text>
+          <g class="ex-scene s1">
+            <path d="M58 47 L68 47" class="ex-arrowline pop d03"/><path d="M116 47 L126 47" class="ex-arrowline pop d06"/><path d="M174 47 L184 47" class="ex-arrowline pop d09"/><path d="M232 47 L242 47" class="ex-arrowline pop d12"/><path d="M290 47 L300 47" class="ex-arrowline pop d15"/>
+            <text x="10" y="80" class="ex-foot">memory carried forward</text>
+            <rect x="10" y="86" width="48" height="14" rx="4" class="ex-mem"/><rect x="68" y="86" width="48" height="14" rx="4" class="ex-mem"/><rect x="68" y="86" width="48" height="14" rx="4" class="ex-mem ex-mem--on pop d06"/><rect x="126" y="86" width="48" height="14" rx="4" class="ex-mem"/><rect x="126" y="86" width="48" height="14" rx="4" class="ex-mem ex-mem--on pop d09"/><rect x="184" y="86" width="48" height="14" rx="4" class="ex-mem"/><rect x="184" y="86" width="48" height="14" rx="4" class="ex-mem ex-mem--on pop d12"/><rect x="242" y="86" width="48" height="14" rx="4" class="ex-mem"/><rect x="242" y="86" width="48" height="14" rx="4" class="ex-mem ex-mem--on pop d15"/><rect x="300" y="86" width="48" height="14" rx="4" class="ex-mem"/>
+            <text x="64" y="118" class="pop d06">a loop is stored</text>
+            <text x="238" y="118" class="pop d18">still known at t5</text>
+            <text x="10" y="166" class="label-strong">LSTM: reads in order and remembers</text>
+            <text x="10" y="184">Gates decide what to keep, forget and add at each moment.</text>
+          </g>
+          <g class="ex-scene s2">
+            <path d="M14 80 L344 80" class="ex-arrowline draw"/><path d="M336 74 L346 80 L336 86" class="ex-arrowline pop d18"/><text x="300" y="76" class="ex-foot">forwards</text>
+            <path d="M344 108 L14 108" class="ex-arrowline ex-arrowline--alt draw d06"/><path d="M22 102 L12 108 L22 114" class="ex-arrowline ex-arrowline--alt pop d24"/><text x="14" y="124" class="ex-foot">backwards</text>
+            <text x="10" y="166" class="label-strong">BiLSTM: one reads forwards, one backwards</text>
+            <text x="10" y="184">Each moment sees what came before and what comes after.</text>
+          </g>
+        </svg>
+        <div class="ex-steps" role="radiogroup" aria-label="Scene">
+          <input type="radio" name="nn-lstm" id="nn-lstm-play" value="play" checked><label for="nn-lstm-play">Play</label>
+          <input type="radio" name="nn-lstm" id="nn-lstm-1" value="1"><label for="nn-lstm-1">LSTM</label>
+          <input type="radio" name="nn-lstm" id="nn-lstm-2" value="2"><label for="nn-lstm-2">BiLSTM</label>
+        </div>
+        <figcaption class="hint">LSTM means long short-term memory. The model here has one
+          BiLSTM layer with 64 memory units in each direction. See
+          <a class="term" href="#term-bilstm">BiLSTM</a>.</figcaption>
+      </figure>
+
+      <figure class="v-card explain" aria-labelledby="nn-att-h">
+        <h3 id="nn-att-h">What is attention?</h3>
+        <svg class="ex" viewBox="0 0 360 200" role="img"
+          aria-label="Bars over the 25 moments of a letter show how much attention each gets. Two moments, a crossbar and a loop, get most of it.">
+          <text x="10" y="18" class="label-strong">how much each moment counts</text>
+          <line x1="10" y1="110" x2="350" y2="110" class="ex-line"/>
+          <rect x="12.0" y="104" width="10" height="6" rx="2" class="ex-bar ex-att grow-up d02"/><rect x="25.4" y="102" width="10" height="8" rx="2" class="ex-bar ex-att grow-up d03"/><rect x="38.8" y="100" width="10" height="10" rx="2" class="ex-bar ex-att grow-up d04"/><rect x="52.2" y="98" width="10" height="12" rx="2" class="ex-bar ex-att grow-up d05"/><rect x="65.6" y="80" width="10" height="30" rx="2" class="ex-bar ex-att grow-up d06"/><rect x="79.0" y="58" width="10" height="52" rx="2" class="ex-bar ex-att grow-up d07"/><rect x="92.4" y="70" width="10" height="40" rx="2" class="ex-bar ex-att grow-up d08"/><rect x="105.8" y="96" width="10" height="14" rx="2" class="ex-bar ex-att grow-up d09"/><rect x="119.2" y="100" width="10" height="10" rx="2" class="ex-bar ex-att grow-up d10"/><rect x="132.6" y="102" width="10" height="8" rx="2" class="ex-bar ex-att grow-up d11"/><rect x="146.0" y="102" width="10" height="8" rx="2" class="ex-bar ex-att grow-up d12"/><rect x="159.4" y="100" width="10" height="10" rx="2" class="ex-bar ex-att grow-up d13"/><rect x="172.8" y="98" width="10" height="12" rx="2" class="ex-bar ex-att grow-up d14"/><rect x="186.2" y="96" width="10" height="14" rx="2" class="ex-bar ex-att grow-up d15"/><rect x="199.6" y="86" width="10" height="24" rx="2" class="ex-bar ex-att grow-up d16"/><rect x="213.0" y="64" width="10" height="46" rx="2" class="ex-bar ex-att grow-up d17"/><rect x="226.4" y="52" width="10" height="58" rx="2" class="ex-bar ex-att grow-up d18"/><rect x="239.8" y="74" width="10" height="36" rx="2" class="ex-bar ex-att grow-up d19"/><rect x="253.2" y="96" width="10" height="14" rx="2" class="ex-bar ex-att grow-up d20"/><rect x="266.6" y="100" width="10" height="10" rx="2" class="ex-bar ex-att grow-up d21"/><rect x="280.0" y="102" width="10" height="8" rx="2" class="ex-bar ex-att grow-up d22"/><rect x="293.4" y="104" width="10" height="6" rx="2" class="ex-bar ex-att grow-up d23"/><rect x="306.8" y="104" width="10" height="6" rx="2" class="ex-bar ex-att grow-up d24"/><rect x="320.2" y="104" width="10" height="6" rx="2" class="ex-bar ex-att grow-up d25"/><rect x="333.6" y="104" width="10" height="6" rx="2" class="ex-bar ex-att grow-up d26"/>
+          <text x="64" y="128" class="pop d10">crossbar</text>
+          <text x="208" y="128" class="pop d20">loop</text>
+          <text x="10" y="166" class="label-strong">Attention scores every moment, then averages</text>
+          <text x="10" y="184">by those scores, so the moments that matter count most.</text>
+        </svg>
+        <figcaption class="hint">The scores are learned, not set by hand. With augmentation,
+          adding attention took new people from 70.0% to 70.9% (official OnHW-chars split,
+          52 classes, seed 0). See <a class="term" href="#term-attention">attention</a>.</figcaption>
+      </figure>
+
+      <figure class="v-card explain explain--wide" aria-labelledby="nn-hyb-h">
+        <h3 id="nn-hyb-h">A hybrid: CNN, then BiLSTM, then attention</h3>
+        <svg class="ex" viewBox="0 0 360 200" role="img"
+          aria-label="The pen signal passes through a CNN that finds strokes, a BiLSTM that puts them in order, and attention that picks the moments that matter, then out comes the letter.">
+          <text x="10" y="18" class="label-strong">each part does what the others cannot</text>
+          <rect x="6" y="56" width="64" height="48" rx="8" class="ex-box ex-stage pop d02"/><text x="38" y="76" class="label-strong ex-mid pop d02">Signal</text><text x="38" y="94" class="ex-mid pop d02">13 × 100</text><rect x="76" y="56" width="64" height="48" rx="8" class="ex-box ex-stage pop d06"/><text x="108" y="76" class="label-strong ex-mid pop d06">CNN</text><text x="108" y="94" class="ex-mid pop d06">strokes</text><rect x="146" y="56" width="64" height="48" rx="8" class="ex-box ex-stage pop d10"/><text x="178" y="76" class="label-strong ex-mid pop d10">BiLSTM</text><text x="178" y="94" class="ex-mid pop d10">order</text><rect x="216" y="56" width="64" height="48" rx="8" class="ex-box ex-stage pop d14"/><text x="248" y="76" class="label-strong ex-mid pop d14">Attention</text><text x="248" y="94" class="ex-mid pop d14">what counts</text><rect x="286" y="56" width="64" height="48" rx="8" class="ex-box ex-stage pop d18"/><text x="318" y="76" class="label-strong ex-mid pop d18">Answer</text><text x="318" y="94" class="ex-mid pop d18">"A"</text>
+          <circle cx="38" cy="120" r="6" class="ex-token"/>
+          <text x="10" y="150">CNN: short shapes. BiLSTM: their order.</text>
+          <text x="10" y="166">Attention: which moments decide the letter.</text>
+          <text x="10" y="184" class="label-strong">Together: 72.46% of letters from new people</text>
+        </svg>
+        <figcaption class="hint">This is the design behind the answers on this page. The
+          plain CNN-BiLSTM, without attention or the training changes, read 69.2% on the same
+          test (official OnHW-chars split, 52 classes, seed 0); Ott et al. (ACM MM 2022) report
+          68.06% for theirs.</figcaption>
       </figure>
 
     </div>
