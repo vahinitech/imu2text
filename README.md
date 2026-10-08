@@ -18,16 +18,25 @@ No download needed to check the sequence pipeline: `python -m imu2text.seq2seq -
 
 ## Results
 
-Official splits, writer-independent, fold 0; one seed unless stated.
+Official splits, writer-independent (fold 0 where the archive ships folds);
+one seed unless stated.
 
 | Task | Metric | imu2text | Published |
 |---|---|--:|--:|
 | OnHW-chars, 52 classes | accuracy | **72.5%** | 68.06% (Ott et al., ACM MM 2022, CNN+BiLSTM) |
 | OnHW-chars, 52 classes, 5 seeds averaged | accuracy | **74.46%** | n/a |
+| OnHW-chars, left-handed writers, 52 classes, 5 seeds averaged | accuracy, our own split of the 9 writers | **59.47%** | n/a |
+| OnHW-equations, 15 symbols, split per symbol | accuracy | **86.16%** | 83.88% (same paper, Table 2) |
+| OnHW-equations, digits 0-9 | accuracy | **87.35%** | n/a |
+| OnHW-equations, whole numbers | every digit right | **76.10%** | n/a |
 | OnHW-Words500, 59 characters | greedy CER, refit on all training writers | **53.95%** | not compared |
 
 On the characters, 43% of the remaining errors are a letter read as its
-other case; scored case-insensitively the same model reaches 84.3%.
+other case; scored case-insensitively the same model reaches 84.3%. On the
+equations, a number of four or more digits is read right 56.6% of the time,
+about what 87% per digit predicts. The equations are already cut into
+symbols by the dataset authors, so these scores do not include finding the
+boundaries.
 
 Details, every other split and the reproduction commands:
 [docs/benchmarks.md](docs/benchmarks.md).

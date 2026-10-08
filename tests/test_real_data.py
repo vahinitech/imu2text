@@ -140,6 +140,20 @@ def test_real_symbols_dep_labels_span_the_charset():
     assert set(np.unique(ds.y_train).tolist()) == set(range(15))
 
 
+def test_real_equation_groups_cover_every_slice():
+    """The _e index files put the 39,643 slices back into whole equations."""
+    from imu2text import symbols as S
+
+    base = _require("OnHW-symbols_equations_indep")
+    ds = S.load_onhw_equations(base)
+    train = S.load_equation_groups(base, "train")
+    val = S.load_equation_groups(base, "val")
+    assert (len(train), len(val)) == (ds.n_train, ds.n_val) == (30408, 9235)
+    assert (train.max() + 1, val.max() + 1) == (3088, 939)
+    # Every equation is one contiguous run of slices.
+    assert np.all(np.diff(val) >= 0)
+
+
 # --------------------------------------------------------------------------- #
 # OnHW-chars, right-handed .npy release (896 MB, 30 official splits)
 # --------------------------------------------------------------------------- #

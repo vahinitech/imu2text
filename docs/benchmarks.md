@@ -19,6 +19,7 @@ right-handed writers.
 | OnHW-chars, 52 classes, 5-seed ensemble | official WI, fold 0 | **74.46** | n/a | [Uncertainty](uncertainty.md#results) |
 | OnHW-symbols, 15 classes | official WI | 72.83 | 79.51 | [Symbols and equations](#onhw-symbols-and-onhw-equations) |
 | OnHW-equations (split), 15 classes | official WI | **87.04** | 83.88 | [Symbols and equations](#onhw-symbols-and-onhw-equations) |
+| OnHW-equations (split), digits / whole numbers | official WI, seed 0 | 87.35 / 76.10 | n/a | [Numbers](#numbers) |
 | OnHW-words500, 30 epochs, lexicon | official WI | CER 32.65 / WER 40.23 | not in these tables | [Words](#onhw-words500) |
 | OnHW-words500, 15 epochs, refit, greedy | `Words500_indep_02` fold 0 | CER 53.95% / WER 91.10% | n/a | [Words](#onhw-words500) |
 | OnHW-chars_L (left-handed), 52 classes | constructed WI, 9 writers | 26.86 | n/a | [Coverage](#coverage-by-dataset) |
@@ -254,8 +255,79 @@ The playground uses deterministic reruns of the tuned configuration (seed 0,
 30 epochs, `--deterministic`, predictions saved in `results/tasks/`):
 symbols WD 94.71% (473 test samples) and WI 71.03% (611). The table's 95.77
 and 72.83 are the same configuration without `--deterministic`, so the
-difference is run-to-run variation on a small test set, not a change.
-Equations and OnHW-chars WD have not been rerun this way yet.
+difference is run-to-run variation on a small test set, not a change. The
+equations WI rerun scores 86.16% (9,235 test slices) against 86.12% without
+`--deterministic`, and the equations WD rerun 96.17% (7,946) against 96.25%.
+OnHW-chars WD has not been rerun this way yet.
+
+### Numbers
+
+A number here is a run of digits inside one equation, such as `6036` in
+`50:71=6036`, and it is right only if every digit is. The `_e` slices are put
+back into their equations with the archive's `all_val_indices_e.txt`
+(`load_equation_groups` in `imu2text/symbols.py`). The slices are the dataset
+authors' cuts, so these scores assume the symbols are already separated; a
+recogniser that has to find the boundaries itself would score lower.
+
+Tuned CNN+BiLSTM+attn, seed 0, 30 epochs, `--deterministic`, 15 classes, the
+archive's own split. Counts are test samples.
+
+| Task | Split | All symbols | Digits | Operators | Numbers | Equations |
+|---|---|--:|--:|--:|--:|--:|
+| OnHW-equations (split) | official WI, 7 test writers | 86.16 (9,235) | 87.35 (7,354) | 81.50 (1,881) | 76.10 (2,812) | 36.00 (939) |
+| OnHW-equations (split) | official WD | 96.17 (7,946) | 96.35 (6,333) | 95.47 (1,613) | 93.21 (2,430) | 79.83 (833) |
+| OnHW-symbols | official WI | 71.03 (611) | 69.51 (410) | 74.13 (201) | n/a | n/a |
+| OnHW-symbols | official WD | 94.71 (473) | 95.32 (278) | 93.85 (195) | n/a | n/a |
+
+Numbers by length:
+
+| Digits in the number | 1 | 2 | 3 | 4 or more |
+|---|--:|--:|--:|--:|
+| WI: numbers | 1,081 | 638 | 399 | 694 |
+| WI: accuracy % | 89.45 | 76.33 | 73.43 | 56.63 |
+| WD: numbers | 942 | 526 | 356 | 606 |
+| WD: accuracy % | 97.35 | 92.02 | 90.73 | 89.27 |
+
+On WI, accuracy falls with length about as fast as independent errors at 87% per
+digit would make it fall (0.87² = 76%, 0.87³ = 66%), so the long numbers are
+not failing for a reason of their own. One equation in three is read
+entirely right on new writers, four in five on writers the model trained
+on. The ten-point gap per symbol becomes a 17-point gap per number and a
+44-point gap per equation, because every extra symbol is another chance to
+miss. The equations are random strings of the 15 symbols, not
+arithmetic, so a check that both sides of `=` agree cannot help.
+
+On WI the worst digit is 0 at 78.6%, and the largest digit confusions are 0 and 6
+read as each other (97 and 93 of the 9,235 test slices), then 7 and 4 read
+as `+` (63 and 55). The single largest error is `-` read as `·` (99). 286
+digits came out as an operator. In the symbols WI split the weakest digits
+are 4 and 9 at 57% each, on about 40 samples per class, too few to rank.
+
+The equations split has 4,027 equations with slices in the WI archive (3,088
+train, 939 test), fewer than the 10,713 the published summaries give for
+OnHW-equations; the index files cover only those.
+
+```bash
+python -m imu2text.models --models cnn_bilstm_attn \
+    --onhw-symbols data/OnHW-symbols_equations_indep --symbols-kind equations \
+    --augment 2 --aug-policy extended --label-smoothing 0.1 --lr-schedule \
+    --epochs 30 --seed 0 --deterministic \
+    --save-predictions results/tasks/equations_indep.npz
+# the same with OnHW-symbols_equations_dep and equations_dep.npz for WD
+
+python -m scripts.score_numbers \
+    --task equations_indep=results/tasks/equations_indep.npz:data/OnHW-symbols_equations_indep \
+    --task equations_dep=results/tasks/equations_dep.npz:data/OnHW-symbols_equations_dep \
+    --task symbols_indep=results/tasks/symbols_indep.npz \
+    --task symbols_dep=results/tasks/symbols_dep.npz \
+    --out results/tasks/numbers
+```
+
+Single seed on each shipped split. WI: train 98.24%, validation (a
+stratified slice of the training writers) 96.16%, test 86.16%. WD: train
+98.36%, validation 96.53%, test 96.17%. On WD, validation and test agree;
+on WI, test is 10 points lower, which is what moving to seven unseen writers
+costs.
 
 ## OnHW-words500
 
@@ -277,8 +349,8 @@ model: greedy errors are mostly one or two edits from a real word (`ging` read
 as `sing`, `wir` as `nir`). This is the first test of `LexiconDecoder` on a
 trained model. On the synthetic open-vocabulary demo it made CER worse, 69.81
 against 0.00, because the target is outside the vocabulary. No published
-words500 figure is available: the IJDAR 2022 paper is not among the PDFs in
-`/home/vishnu/datasets/papers`.
+words500 figure is available here: the IJDAR 2022 paper is not among the
+papers this repo has read.
 
 ### Alignment and writer-validation study (15 epochs)
 

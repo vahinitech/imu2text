@@ -390,9 +390,9 @@ def load_onhw_equations(base_dir: str) -> OnHWEquationsDataset:
 
     Note that the ``_e`` pickles hold per-symbol slices of the equations,
     one label per sample, not whole equation strings. Reassembling equations
-    needs the ``all_indices_e.txt`` mapping that ships alongside them, which
-    this loader does not read - so treat the result as symbol
-    classification, not sequence-to-sequence, until that mapping is wired up.
+    needs the ``all_{train,val}_indices_e.txt`` mapping that ships alongside
+    them, which this loader does not read, so treat the result as symbol
+    classification. ``load_equation_groups`` reads that mapping.
     """
     if not os.path.isdir(base_dir):
         raise FileNotFoundError(f"directory not found: {base_dir}")
@@ -415,6 +415,43 @@ def load_onhw_equations(base_dir: str) -> OnHWEquationsDataset:
         val_ids=iva,
         split=split,
     )
+
+
+def load_equation_groups(base_dir: str, part: str = "val") -> np.ndarray:
+    """Which equation each ``_e`` slice came from, in pickle order.
+
+    ``all_{part}_indices_e.txt`` alternates a recording line (a path on the
+    authors' cluster) with a line of per-slice equation indices for that
+    recording. An equation is one (recording, index) pair; the indices skip
+    numbers where an equation was dropped. Returns one integer group id per
+    slice, numbered from 0 in order of first appearance, so slices with the
+    same id are one equation in writing order. The paths are not returned.
+    """
+    if part not in ("train", "val"):
+        raise ValueError(f"part must be 'train' or 'val', got {part!r}")
+    path = os.path.join(base_dir, f"all_{part}_indices_e.txt")
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"{path} not found; the indep/dep archives ship it")
+    with open(path, encoding="utf-8") as f:
+        lines = [line for line in f.read().split("\n") if line.strip()]
+    if len(lines) % 2:
+        raise ValueError(f"{path}: expected recording/index line pairs")
+    group_of = {}
+    groups = []
+    for rec in range(len(lines) // 2):
+        for idx in lines[2 * rec + 1].split():
+            key = (rec, int(idx))
+            if key not in group_of:
+                group_of[key] = len(group_of)
+            elif groups[-1] != group_of[key]:
+                raise ValueError(f"{path}: equation {key} is not contiguous")
+            groups.append(group_of[key])
+    n_slices = len(_load_pkl(os.path.join(base_dir, f"all_{part}_gt_e.pkl")))
+    if len(groups) != n_slices:
+        raise ValueError(
+            f"{path} maps {len(groups)} slices, all_{part}_gt_e.pkl has {n_slices}"
+        )
+    return np.asarray(groups, dtype=np.int64)
 
 
 # --------------------------------------------------------------------------- #
