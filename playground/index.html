@@ -478,11 +478,11 @@
 
       <figure class="v-card explain explain--wide" aria-labelledby="ex-better-h">
         <h3 id="ex-better-h">What made it more accurate, and what did not</h3>
-        <svg class="ex ex--2" viewBox="0 0 360 230" role="img"
-          aria-label="Steps that helped on new people: plain CNN-BiLSTM 69.2%, plus augmentation 70.0%, plus attention 70.9%, plus label smoothing and a learning-rate schedule 72.5%, five runs voting 74.46%. Steps that did not: a bigger model 69.6%, and a bigger model with every trick 70.4%, while it learned 99.2% of its training letters.">
-          <line x1="265" y1="30" x2="265" y2="208" class="ex-line ex-line--faint"/>
-          <text x="257" y="222">75%</text>
-          <text x="6" y="222">60%</text>
+        <svg class="ex ex--2" viewBox="0 0 360 264" role="img"
+          aria-label="Steps that helped on new people: plain CNN-BiLSTM 69.2%, plus augmentation 70.0%, plus attention 70.9%, plus label smoothing and a learning-rate schedule 72.5%, five runs voting 74.46%. Steps that did not: a bigger model 69.6%, and a bigger model with every trick 70.4%, while it learned 99.2% of its training letters. Masking the padding: 72.67% over 4 runs, no clear gain.">
+          <line x1="265" y1="30" x2="265" y2="242" class="ex-line ex-line--faint"/>
+          <text x="257" y="256">75%</text>
+          <text x="6" y="256">60%</text>
           <g class="ex-scene s1">
             <text x="10" y="18" class="label-strong">What helped: changes that stop it memorising</text>
             <g class="pop d02"><text x="10" y="44">CNN-BiLSTM, plain</text></g><rect x="10" y="49" width="156" height="12" rx="4" class="ex-bar  grow d02"/><text x="172" y="59" class="label-strong pop d02">69.2%</text>
@@ -492,12 +492,13 @@
             <g class="pop d26"><text x="10" y="180">5 runs voting (ensemble)</text></g><rect x="10" y="185" width="246" height="12" rx="4" class="ex-bar ex-bar--alt grow d26"/><text x="262" y="195" class="label-strong pop d26">74.46%</text>
           </g>
           <g class="ex-scene s2">
-            <text x="10" y="18" class="label-strong">What did not: a bigger model</text>
+            <text x="10" y="18" class="label-strong">What did not: a bigger model, or masking</text>
             <g class="pop d02"><text x="10" y="44">CNN-BiLSTM, plain</text><text x="350" y="44" class="ex-end">learned 90.1% of training</text></g><rect x="10" y="49" width="156" height="12" rx="4" class="ex-bar  grow d02"/><text x="172" y="59" class="label-strong pop d02">69.2%</text>
             <g class="pop d08"><text x="10" y="78">Bigger: 2 BiLSTM layers of 100</text><text x="350" y="78" class="ex-end">learned 95.5%</text></g><rect x="10" y="83" width="163" height="12" rx="4" class="ex-bar ex-bar--warn grow d08"/><text x="179" y="93" class="label-strong pop d08">69.6%</text>
             <g class="pop d14"><text x="10" y="112">Bigger + every trick above</text><text x="350" y="112" class="ex-end">learned 99.2%</text></g><rect x="10" y="117" width="177" height="12" rx="4" class="ex-bar ex-bar--warn grow d14"/><text x="193" y="127" class="label-strong pop d14">70.4%</text>
-            <text x="10" y="164" class="pop d26">It learned almost every training letter, yet read</text>
-            <text x="10" y="180" class="pop d26">new people only 1.2 points better than plain.</text>
+            <g class="pop d26"><text x="10" y="146">Ignore the padding (masking), 4 runs</text><text x="350" y="146" class="ex-end">+0.22: no clear gain</text></g><rect x="10" y="151" width="215" height="12" rx="4" class="ex-bar ex-bar--warn grow d26"/><text x="231" y="161" class="label-strong pop d26">72.67%</text>
+            <text x="10" y="198" class="pop d28">The bigger model learned almost every training letter,</text>
+            <text x="10" y="214" class="pop d28">yet read new people only 1.2 points better than plain.</text>
           </g>
         </svg>
         <div class="ex-steps" role="radiogroup" aria-label="Scene">
@@ -506,7 +507,8 @@
           <input type="radio" name="ex-better" id="ex-better-2" value="2"><label for="ex-better-2">Did not</label>
         </div>
         <figcaption class="hint">Writer-independent (new people), official OnHW-chars split,
-          52 classes, one run each, seed 0, fold 0; the voting row is five runs. The bars
+          52 classes, one run each, seed 0, fold 0; the voting row is five runs, and the masking
+          row is a mean of four runs against 72.45% for the same four without it. The bars
           start at 60% so the steps are visible. The next gain is not a bigger model:
           43% of the mistakes are small or capital, which the pen barely feels.</figcaption>
       </figure>
