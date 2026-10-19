@@ -110,6 +110,13 @@ Docs, comments, commit messages and PR bodies follow
   the playground's drawing reader (`playground/reader-weights.js`, 88 KB),
   trained on UJI Pen Characters under CC BY 4.0, with the attribution in the
   file. EMNIST is not used, as its licence terms are unclear.
+- Never write a malware-scanner signature in one piece: the server's nightly
+  maldet scan reads home folders and `/tmp`, compiled `.pyc` files included.
+  Build a test payload at run time with `b"".join(...)`, never `+` of two
+  literals (Python folds those into one constant), keep the joined form out of
+  comments and docs, and never name a file like a web shell (`shell.php`).
+  `tests/test_scanner_strings.py` checks every tracked file and its compiled
+  constants. Full rule: [scanner-strings](https://github.com/vahinitech/Umbrella/blob/main/skills/scanner-strings/SKILL.md).
 
 ## Where things are
 
