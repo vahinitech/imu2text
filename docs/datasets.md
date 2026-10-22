@@ -1,9 +1,12 @@
 # Datasets
 
-The OnHW archives, how to download them and what each loader expects.
+The OnHW archives, how to download them and what each loader expects, and a
+record of every dataset this repository uses and its licence
+([Record of datasets](#record-of-datasets)).
 
-The default run of `imu2text/models.py` reads preprocessed pickles from
-`data/`: `data/all_x_dat_imu.pkl` and `data/all_gt.pkl`.
+No dataset is in this repository. Every loader reads archives you download
+yourself into `data/`, and `imu2text/models.py` takes the archive's path on
+the command line.
 
 ## Downloading
 
@@ -227,3 +230,26 @@ Ott, Felix; Wehbi, Mohamad; Hamann, Tim; Barth, Jens; Eskofier, Björn; Mutschle
 The multi-task training in `legacy/cnn_gnn.py` follows "Joint Classification
 and Trajectory Regression of Online Handwriting using a Multi-Task Learning
 Approach", Ott et al., WACV 2022.
+
+## Record of datasets
+
+Every dataset this repository has used, checked against each publisher's
+own page on 22 October 2026. "Unverified" means that page did not settle
+the fact. Add a dataset here, and to [NOTICE](../NOTICE) if anything
+trained on it is committed, before you use it.
+
+| Dataset | Publisher and URL | Licence | Use here | In this repository |
+|---|---|---|---|---|
+| OnHW-chars, OnHW-chars_L, OnHW-symbols, OnHW-equations, OnHW-words500 | Fraunhofer IIS with FAU Erlangen-Nürnberg; [dataset page](https://www.iis.fraunhofer.de/de/ff/lv/dataanalytics/anwproj/schreibtrainer/onhw-dataset.html), archives under `https://www2.iis.fraunhofer.de/LV-OnHW/` | Non-commercial use, as this repository has stated since 2024. Unverified at the source: the dataset page and the OnHW-chars `readme.txt` ask for a citation and state no licence, and the archive server was down on 21 October 2026 and refused requests on 22 October | Training and evaluation of every model; the playground shows the models' saved outputs | No data and no weights trained on it. `results/` and `playground/data/public.js` hold predictions, labels and test-word strings only |
+| OnHW-wordsTraj, ICROW | Fraunhofer IIS, same pages | As OnHW | Listed in `imu2text/download.py`; no loader uses them | No |
+| UJI Pen Characters (Version 2) | F. Prat, M. J. Castro, D. Llorens, A. Marzal and J. M. Vilar; [UCI Machine Learning Repository](https://archive.ics.uci.edu/dataset/177/uji+pen+characters+version+2), doi:10.24432/C5FG8S | CC BY 4.0, stated on the UCI page | Trains and tests the playground's drawing reader (`scripts/drawing_reader.py`, `scripts/drawing_pad_eval.py`) | The trained weights, `playground/reader-weights.js`, with the attribution in the file and in [NOTICE](../NOTICE). Not the data |
+| EMNIST | NIST | Terms unclear for shipping weights | Not used ([drawing_pad.md](drawing_pad.md)) | No |
+
+OnHW versions held for this work: `onhw-chars_2021-06-30`, `OnHW-chars_L`,
+`OnHW-symbols_equations_dep` and `_indep`, and OnHW-words500, downloaded on
+29 and 30 August 2026. UJI: the single file
+`ujipenchars2.txt` (SHA-256 `cc56f72f8477e763dd06a44746ba05a679e9232468aac93b3a7aad46a0300d61`).
+
+Because OnHW is for non-commercial use, no weights trained on it go into
+this repository, a release or a product. Use outside research needs written
+terms from Fraunhofer IIS first.
