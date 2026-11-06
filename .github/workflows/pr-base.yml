@@ -1,0 +1,20 @@
+name: pr-base
+
+# Runs on every pull request, docs-only ones included, so the default
+# branch's ruleset can require one check. A required check is what makes
+# GitHub's "branch must be up to date" rule take effect: with none, a PR
+# behind the default branch could still merge (owner, 2026-11-06).
+# Keep it trivial; real CI lives in the other workflows.
+
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  pr-base:
+    name: pr-base
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: echo "Pull request checked against an up-to-date base."
