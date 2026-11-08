@@ -35,7 +35,7 @@ patches/
 .venv/
 venv/
 
-# Ignore datasets fetched by imu2text/download.py (the bundled all_*.pkl stay tracked)
+# Ignore datasets fetched by imu2text/download.py. No dataset file is tracked.
 *.zip
 data/OnHW-*/
 data/onhw-*/
