@@ -16,3 +16,14 @@ distributed with this repository.
 
 Every dataset this repository uses, with its licence, is listed in
 docs/datasets.md.
+
+The SIP research schema and aggregate reports under results/sip/ derive from:
+Linda Greta Dui, Simone Toffoli, Stefania Fontolan, Chiara Piazzalunga,
+Cristiano Termine and Simona Ferrante, dataset for "Quantitative analysis of
+handwriting kinematics in primary and lower secondary school children through
+a sensorized ink pen: a cross-sectional population-based study", v1,
+https://doi.org/10.5281/zenodo.19485897, CC BY 4.0
+(https://creativecommons.org/licenses/by/4.0/).
+Changes: aggregate audits and independent logistic/dummy baseline reports;
+original participant tables are downloaded locally and are not distributed.
+Neither the dataset creators nor the paper endorse this implementation.

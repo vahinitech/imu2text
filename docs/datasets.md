@@ -8,6 +8,13 @@ No dataset is in this repository. Every loader reads archives you download
 yourself into `data/`, and `imu2text/models.py` takes the archive's path on
 the command line.
 
+## Assessment research
+
+For sensor-pen measurement studies, derived indicator datasets, access terms
+and proposed validation work, see [handwriting validation](handwriting_validation.md).
+The SIP feature-table prototype uses the 2026 deposit for aggregate audits and
+explicitly scoped experiments, separately from the OnHW recognizer.
+
 ## Downloading
 
 The Fraunhofer IIS OnHW archives (OnHW-chars, OnHW-symbols, OnHW-equations,
@@ -243,6 +250,7 @@ trained on it is committed, before you use it.
 | OnHW-chars, OnHW-chars_L, OnHW-symbols, OnHW-equations, OnHW-words500 | Fraunhofer IIS with FAU Erlangen-Nürnberg; [dataset page](https://www.iis.fraunhofer.de/de/ff/lv/dataanalytics/anwproj/schreibtrainer/onhw-dataset.html), archives under `https://www2.iis.fraunhofer.de/LV-OnHW/` | Non-commercial use, as this repository has stated since 2024. Unverified at the source: the dataset page and the OnHW-chars `readme.txt` ask for a citation and state no licence, and the archive server was down on 21 October 2026 and refused requests on 22 October | Training and evaluation of every model; the playground shows the models' saved outputs | No data and no weights trained on it. `results/` and `playground/data/public.js` hold predictions, labels and test-word strings only |
 | OnHW-wordsTraj, ICROW | Fraunhofer IIS, same pages | As OnHW | Listed in `imu2text/download.py`; no loader uses them | No |
 | UJI Pen Characters (Version 2) | F. Prat, M. J. Castro, D. Llorens, A. Marzal and J. M. Vilar; [UCI Machine Learning Repository](https://archive.ics.uci.edu/dataset/177/uji+pen+characters+version+2), doi:10.24432/C5FG8S | CC BY 4.0, stated on the UCI page | Trains and tests the playground's drawing reader (`scripts/drawing_reader.py`, `scripts/drawing_pad_eval.py`) | The trained weights, `playground/reader-weights.js`, with the attribution in the file and in [NOTICE](../NOTICE). Not the data |
+| SIP school handwriting indicators, Zenodo 19485897 v1 | Dui et al.; [dataset](https://zenodo.org/records/19485897), [API metadata](https://zenodo.org/api/records/19485897) | CC BY 4.0, API checked 18 November 2026 | `imu2text.sip`: derived-feature audit and research baseline; not raw-signal extraction or clinical validation | No source data or fitted models; aggregate smoke report under `results/sip/` |
 | EMNIST | NIST | Terms unclear for shipping weights | Not used ([drawing_pad.md](drawing_pad.md)) | No |
 
 OnHW versions held for this work: `onhw-chars_2021-06-30`, `OnHW-chars_L`,

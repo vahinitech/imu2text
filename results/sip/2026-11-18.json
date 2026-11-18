@@ -1,0 +1,260 @@
+{
+  "scope": "Research smoke run; row-based results are not writer-independent or clinical validation.",
+  "command": "baseline: seed 0, exploratory=True; inspect all four task tables",
+  "tasks": {
+    "UNO_B": {
+      "input": {
+        "file": "UNO_B.xlsx",
+        "bytes": 1503433,
+        "publisher_md5": "c64ceff325457e8f9344cacb25a63b40",
+        "sha256": "1e1575d0bcc4da128471d184a81467253ebf20a102f298900ac0c95970e574ba"
+      },
+      "rows": 701,
+      "missing_target_rows": 0,
+      "duplicate_feature_rows": 2,
+      "duplicate_feature_groups": 1,
+      "baseline": {
+        "task": "UNO_B",
+        "seed": 0,
+        "label_threshold": -1.5,
+        "classes": 2,
+        "positive_class": "Z <= -1.5",
+        "feature_count": 178,
+        "excluded_predictors": [
+          "year",
+          "sex",
+          "Z",
+          "naz",
+          "mt",
+          "itadom",
+          "age",
+          "handness",
+          "laterality_coherence",
+          "favourite_allograph",
+          "ExecutionTime"
+        ],
+        "excluded_first_grade_cursive_rows": 0,
+        "excluded_missing_target_rows": 0,
+        "total_excluded_rows": 0,
+        "split": "exploratory stratified row 80/20",
+        "split_sha256": "c949c5a5a0bd7d29b4f17fad31a09fd69f5ea0dd2ab23f03b35cb253edb5dc34",
+        "train_rows": 560,
+        "test_rows": 141,
+        "train_positive": 46,
+        "test_positive": 11,
+        "logistic_hyperparameters": {
+          "C": 1.0,
+          "class_weight": "balanced",
+          "dual": false,
+          "fit_intercept": true,
+          "intercept_scaling": 1,
+          "l1_ratio": null,
+          "max_iter": 2000,
+          "multi_class": "deprecated",
+          "n_jobs": null,
+          "penalty": "l2",
+          "random_state": 0,
+          "solver": "lbfgs",
+          "tol": 0.0001,
+          "verbose": 0,
+          "warm_start": false
+        },
+        "logistic_iterations": [
+          93
+        ],
+        "logistic_regression": {
+          "accuracy": 0.8014184397163121,
+          "precision": 0.20689655172413793,
+          "recall": 0.5454545454545454,
+          "f1": 0.3,
+          "average_precision": 0.24737484737484738,
+          "confusion_matrix_labels_0_1": [
+            [
+              107,
+              23
+            ],
+            [
+              5,
+              6
+            ]
+          ]
+        },
+        "most_frequent_dummy": {
+          "accuracy": 0.9219858156028369,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "average_precision": 0.07801418439716312,
+          "confusion_matrix_labels_0_1": [
+            [
+              130,
+              0
+            ],
+            [
+              11,
+              0
+            ]
+          ]
+        },
+        "protocol": "No tuning; global training-set median and scale, not paper within-grade scaling.",
+        "versions": {
+          "python": "3.12.14",
+          "numpy": "1.26.4",
+          "pandas": "2.2.3",
+          "scikit_learn": "1.5.2"
+        },
+        "warnings": [
+          "Exploratory feature-table baseline, not exact paper reproduction.",
+          "Z-based task labels are not diagnoses or proof of screening validity.",
+          "No raw signals, trace reconstruction or Vahini hardware validation.",
+          "Single held-out split; no external cohort or uncertainty estimate.",
+          "Row split only: unknown subject overlap; not writer-independent."
+        ]
+      },
+      "status": "exploratory_complete"
+    },
+    "UNO_C": {
+      "input": {
+        "file": "UNO_C.xlsx",
+        "bytes": 1460919,
+        "publisher_md5": "a37e1f22c724b24b3985315c39ee7581",
+        "sha256": "b53d86e2bd81943959d23a6776b2af3f4ab862333c75e1612a550cf534f3475b"
+      },
+      "rows": 680,
+      "missing_target_rows": 1,
+      "duplicate_feature_rows": 4,
+      "duplicate_feature_groups": 2,
+      "status": "blocked",
+      "reason": "Identical feature rows cross the split; investigate duplicate records"
+    },
+    "NUM_B": {
+      "input": {
+        "file": "NUM_B.xlsx",
+        "bytes": 1510764,
+        "publisher_md5": "9b57d71b75043ac08458a2b775af6efd",
+        "sha256": "1adc91377185753c265e1f5c2123737bce6f0160f54e50a91e8d6d124260d675"
+      },
+      "rows": 700,
+      "missing_target_rows": 0,
+      "duplicate_feature_rows": 2,
+      "duplicate_feature_groups": 1,
+      "status": "blocked",
+      "reason": "Identical feature rows cross the split; investigate duplicate records"
+    },
+    "NUM_C": {
+      "input": {
+        "file": "NUM_C.xlsx",
+        "bytes": 1453946,
+        "publisher_md5": "33ebf96a5534d1a611b2a25b5e63f5cd",
+        "sha256": "0c8468c49e3be0daac9a3e8857794b42247675743a00b9d5151fd85ae11af0ec"
+      },
+      "rows": 674,
+      "missing_target_rows": 2,
+      "duplicate_feature_rows": 2,
+      "duplicate_feature_groups": 1,
+      "baseline": {
+        "task": "NUM_C",
+        "seed": 0,
+        "label_threshold": -1.5,
+        "classes": 2,
+        "positive_class": "Z <= -1.5",
+        "feature_count": 178,
+        "excluded_predictors": [
+          "year",
+          "sex",
+          "Z",
+          "naz",
+          "mt",
+          "itadom",
+          "age",
+          "handness",
+          "laterality_coherence",
+          "favourite_allograph",
+          "ExecutionTime"
+        ],
+        "excluded_first_grade_cursive_rows": 105,
+        "excluded_missing_target_rows": 2,
+        "total_excluded_rows": 107,
+        "split": "exploratory stratified row 80/20",
+        "split_sha256": "266b8a332239d96a4e43070a7594752f4f394ffe114c0c9bd388d7fb9165c2ed",
+        "train_rows": 453,
+        "test_rows": 114,
+        "train_positive": 228,
+        "test_positive": 58,
+        "logistic_hyperparameters": {
+          "C": 1.0,
+          "class_weight": "balanced",
+          "dual": false,
+          "fit_intercept": true,
+          "intercept_scaling": 1,
+          "l1_ratio": null,
+          "max_iter": 2000,
+          "multi_class": "deprecated",
+          "n_jobs": null,
+          "penalty": "l2",
+          "random_state": 0,
+          "solver": "lbfgs",
+          "tol": 0.0001,
+          "verbose": 0,
+          "warm_start": false
+        },
+        "logistic_iterations": [
+          81
+        ],
+        "logistic_regression": {
+          "accuracy": 0.6403508771929824,
+          "precision": 0.660377358490566,
+          "recall": 0.603448275862069,
+          "f1": 0.6306306306306306,
+          "average_precision": 0.7407979329544685,
+          "confusion_matrix_labels_0_1": [
+            [
+              38,
+              18
+            ],
+            [
+              23,
+              35
+            ]
+          ]
+        },
+        "most_frequent_dummy": {
+          "accuracy": 0.5087719298245614,
+          "precision": 0.5087719298245614,
+          "recall": 1.0,
+          "f1": 0.6744186046511628,
+          "average_precision": 0.5087719298245614,
+          "confusion_matrix_labels_0_1": [
+            [
+              0,
+              56
+            ],
+            [
+              0,
+              58
+            ]
+          ]
+        },
+        "protocol": "No tuning; global training-set median and scale, not paper within-grade scaling.",
+        "versions": {
+          "python": "3.12.14",
+          "numpy": "1.26.4",
+          "pandas": "2.2.3",
+          "scikit_learn": "1.5.2"
+        },
+        "warnings": [
+          "Exploratory feature-table baseline, not exact paper reproduction.",
+          "Z-based task labels are not diagnoses or proof of screening validity.",
+          "No raw signals, trace reconstruction or Vahini hardware validation.",
+          "Single held-out split; no external cohort or uncertainty estimate.",
+          "Row split only: unknown subject overlap; not writer-independent."
+        ]
+      },
+      "status": "exploratory_complete"
+    }
+  },
+  "source": "https://zenodo.org/records/19485897",
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "attribution": "Dui, Toffoli, Fontolan, Piazzalunga, Termine and Ferrante; Zenodo 19485897 v1.",
+  "changes": "Aggregate audits and independent logistic/dummy experiments derived from unchanged source tables."
+}
