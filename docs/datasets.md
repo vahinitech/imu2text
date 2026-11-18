@@ -8,6 +8,12 @@ No dataset is in this repository. Every loader reads archives you download
 yourself into `data/`, and `imu2text/models.py` takes the archive's path on
 the command line.
 
+## Assessment research
+
+For sensor-pen measurement studies, derived indicator datasets, access terms
+and proposed validation work, see [handwriting validation](handwriting_validation.md).
+These sources are research candidates, not added training datasets.
+
 ## Downloading
 
 The Fraunhofer IIS OnHW archives (OnHW-chars, OnHW-symbols, OnHW-equations,
