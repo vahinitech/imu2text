@@ -125,7 +125,7 @@ papers, participant rows, raw recordings or model weights.
 
 | Resource | Verified access or permission | Decision |
 |---|---|---|
-| Zenodo 19485897 | Open; `metadata.license.id` is `cc-by-4.0` in the [record API](https://zenodo.org/api/records/19485897), checked 18 November 2026 | Attribute creators, DOI, license and changes if reused; no data imported here |
+| Zenodo 19485897 | Open; `metadata.license.id` is `cc-by-4.0` in the [record API](https://zenodo.org/api/records/19485897), checked 18 November 2026 | Used by the prototype below; source files stay outside git and derived reports carry attribution |
 | Zenodo 7684965 | Open; `metadata.license.id` is `cc-by-4.0` in the [record API](https://zenodo.org/api/records/7684965), checked 18 November 2026 | Candidate for device-comparison analysis, not currently loaded |
 | OnHW | [Author-hosted dataset card](https://huggingface.co/datasets/FelixOtt/OnHW_datasets) states CC BY-NC 4.0 for OnHW; [Fraunhofer source page](https://www.iis.fraunhofer.de/de/ff/lv/dataanalytics/anwproj/schreibtrainer/onhw-dataset.html) hosts dataset documentation | No product weights or commercial training without applicable written terms |
 | WACV paired material | Download referenced by Fraunhofer; no separate commercial grant verified | Research reference only until archive-specific terms are checked |
@@ -137,7 +137,8 @@ use the API metadata rather than interpreting that display as no license.
 The author-hosted card lists separate ICROW conditions, including a prohibition
 on training or heuristically improving recognizers with its benchmark data.
 Do not assume one OnHW archive license covers every third-party dataset.
-No source code was copied and no dataset was added to a downloader.
+No third-party implementation code was copied. The local SIP downloader below
+fetches only the pinned feature-table deposit, not raw pen recordings.
 
 ## Proposed Vahini validation work
 
@@ -170,3 +171,102 @@ These are proposed experiments, not completed work or approved clinical claims.
 Before an experiment begins, record its target, eligibility, consent process,
 reference measure, primary metric, exclusion rules, split, acceptance threshold
 and stop condition. Publish only aggregates permitted by the study consent.
+
+## Running the feature-table prototype
+
+`imu2text.sip` implements acquisition, schema checks, aggregate inspection and
+an independent logistic-regression baseline against a majority-class dummy.
+It does not reproduce the paper's model search, within-grade scaling, TabPFN,
+feature-selection procedure or reported performance. It does not reconstruct
+handwriting or compute the published indicators from raw signals.
+
+Use a separate Python 3.10-3.12 environment. The smaller dependency file avoids
+installing neural-network frameworks for a table analysis:
+
+```bash
+python -m venv .venv-sip
+# Activate the environment using your platform's activation command.
+python -m pip install -r requirements-sip.txt
+python -m imu2text.sip download --directory data/sip-19485897
+python -m imu2text.sip inspect data/sip-19485897/UNO_B.xlsx \
+  --output results/sip-local/UNO_B-audit.json
+```
+
+The downloader accepts only the five v1 files with pinned publisher MD5 and
+byte size. It records SHA-256, creators, DOI, CC BY 4.0 and modification status
+in local `provenance.json`. Existing mismatched files fail rather than being
+replaced. MD5 is the publisher's integrity check, not proof of authenticity;
+the fixed HTTPS source and recorded SHA-256 support an auditable acquisition.
+Original files remain outside git under `data/sip-*`.
+
+All four workbooks were downloaded and parsed, not just mocked. Observed rows:
+UNO_B 701, UNO_C 680, NUM_B 700, NUM_C 674; each has 189 columns. The first ten
+columns contain context or target values. `ExecutionTime` is excluded from the
+model, leaving 178 predictors. There are no missing values among those
+predictors in these files. UNO_C has one missing Z and NUM_C has two. Inspection
+counts these; fitting excludes them and never imputes a target. First-grade
+cursive rows are also excluded, with separate counts in the report.
+
+### Identity and leakage controls
+
+The published files provide no explicit subject ID. Do not join task tables
+by row number or claim an unseen-writer test from a random row split.
+The default baseline refuses to run without an identity decision:
+
+```bash
+python -m imu2text.sip baseline data/sip-19485897/UNO_B.xlsx \
+  --groups subject-codes.csv --seed 0 \
+  --output results/sip-local/UNO_B-grouped.json
+```
+
+`subject-codes.csv` must contain `row_index,subject_id` and exactly one mapping
+for each original zero-based table row. Use verified pseudonymous codes, not
+names or invented unique identifiers. Group splitting keeps each supplied
+code on one side; the code cannot verify whether those codes reflect people.
+Do not commit the mapping.
+
+For a diagnostic smoke experiment only, explicitly opt into a row split:
+
+```bash
+python -m imu2text.sip baseline data/sip-19485897/UNO_B.xlsx \
+  --exploratory-row-split --seed 0 \
+  --output results/sip-local/UNO_B-row-experiment.json
+```
+
+The target is `Z <= -1.5`, a task-specific low-speed label, not a diagnosis.
+Demographic fields and Z never enter the predictors. Median imputation and
+scaling are fitted on training rows only. The fixed model uses balanced
+logistic regression; no search selects a seed or hyperparameters against the
+test results. Reports include versions, model settings, split fingerprint,
+class counts, confusion matrices and positive-class metrics. Average precision
+is reported by that name, not relabelled as the paper's PR-curve area.
+Nonconvergence fails instead of producing a normal-looking report.
+
+Exact feature duplicates crossing the split also fail. Do not delete this
+check to obtain a score. Audits found two matching-feature rows each in UNO_B,
+NUM_B and NUM_C, and four in UNO_C. They may be repeated records or reflect a
+source-data issue; the files do not settle their identity. A verified grouping
+or an approved exclusion protocol is needed before treating these as validation.
+
+The [recorded smoke run](../results/sip/2026-11-18.json) uses seed 0 and the
+explicit exploratory row protocol. UNO_B and NUM_C complete; UNO_C and NUM_B
+stop at the cross-split duplicate check. Even the completed experiments have
+unknown subject overlap and same-side duplicates. Their scores are software
+smoke results, not evidence for screening, Vahini hardware or generalization.
+Only aggregate reports are committed; no participant records, mappings,
+individual predictions or fitted model files are exported.
+
+### Verification
+
+```bash
+python -m pip install pytest
+python -m pytest tests/test_sip.py tests/test_docs_style.py -q
+# Optional real-file integration check after the pinned download:
+SIP_DATA_DIR=data/sip-19485897 python -m pytest tests/test_sip.py -q
+```
+
+The environment-variable prefix is POSIX syntax; on PowerShell set
+`$env:SIP_DATA_DIR = "data/sip-19485897"` before running pytest.
+Synthetic tests cover schema drift, target exclusion, training-only transforms,
+identity requirements, grouping, duplicate leakage, checksum failures,
+missing targets, convergence failure and input-overwrite protection.

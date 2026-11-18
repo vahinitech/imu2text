@@ -47,3 +47,10 @@ playground/data/local.js
 
 # Vahini design system fetched for local work (playground/README.md)
 playground/site/
+
+# Published SIP participant tables and local research reports.
+data/sip-*/
+results/sip-local/
+
+.venv-sip/
+subject-codes.csv
